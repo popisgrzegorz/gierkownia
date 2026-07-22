@@ -81,6 +81,11 @@ final class RoomKeys
         return sprintf('room:%s:game:ctx', $code);
     }
 
+    public static function gameDeadline(string $code): string
+    {
+        return sprintf('room:%s:game:deadline', $code);
+    }
+
     /** Wszystko co nalezy do pokoju - do resetu i sprzatania. */
     public static function allPattern(string $code): string
     {
