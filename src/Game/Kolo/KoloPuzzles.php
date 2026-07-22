@@ -5,60 +5,60 @@ declare(strict_types=1);
 namespace App\Game\Kolo;
 
 use App\Entity\PuzzleWord;
-use App\Repository\DeckRepository;
+use App\Repository\CategoryRepository;
 use App\Repository\PuzzleWordRepository;
 
 /**
- * Dostep do talii hasel dla kola. Losowanie po stronie serwera i pamiec o tym,
+ * Dostep do hasel dla kola. Losowanie po stronie serwera i pamiec o tym,
  * co juz bylo - tak samo jak przy melodii.
  */
 final readonly class KoloPuzzles
 {
     public function __construct(
-        private DeckRepository $decks,
+        private CategoryRepository $categories,
         private PuzzleWordRepository $puzzles,
     ) {
     }
 
     /** @return list<array{slug: string, name: string, items: int}> */
-    public function availableDecks(): array
+    public function availableCategories(): array
     {
         return array_map(
-            static fn ($deck): array => [
-                'slug' => $deck->getSlug(),
-                'name' => $deck->getName(),
-                'items' => $deck->getPuzzles()->count(),
+            static fn ($category): array => [
+                'slug' => $category->getSlug(),
+                'name' => $category->getName(),
+                'items' => $category->getPuzzles()->count(),
             ],
-            $this->decks->findForGame(KoloFortunyGame::type()),
+            $this->categories->findForGame(KoloFortunyGame::type()),
         );
     }
 
-    public function deckExists(string $slug): bool
+    public function categoryExists(string $slug): bool
     {
-        return null !== $this->decks->findOneBySlug($slug);
+        return null !== $this->categories->findOneBySlug($slug);
     }
 
-    public function deckName(string $slug): ?string
+    public function categoryName(string $slug): ?string
     {
-        return $this->decks->findOneBySlug($slug)?->getName();
+        return $this->categories->findOneBySlug($slug)?->getName();
     }
 
     public function countPuzzles(string $slug): int
     {
-        return $this->decks->findOneBySlug($slug)?->getPuzzles()->count() ?? 0;
+        return $this->categories->findOneBySlug($slug)?->getPuzzles()->count() ?? 0;
     }
 
     /** @param list<int> $playedIds */
-    public function drawNext(string $deckSlug, array $playedIds): ?PuzzleWord
+    public function drawNext(string $categorySlug, array $playedIds): ?PuzzleWord
     {
-        $deck = $this->decks->findOneBySlug($deckSlug);
+        $category = $this->categories->findOneBySlug($categorySlug);
 
-        if (null === $deck) {
+        if (null === $category) {
             return null;
         }
 
         $remaining = [];
-        foreach ($deck->getPuzzles() as $puzzle) {
+        foreach ($category->getPuzzles() as $puzzle) {
             if (!\in_array($puzzle->getId(), $playedIds, true)) {
                 $remaining[] = $puzzle;
             }

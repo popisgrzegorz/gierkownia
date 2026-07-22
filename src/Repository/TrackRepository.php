@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\Deck;
 use App\Entity\Track;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -17,8 +16,14 @@ class TrackRepository extends ServiceEntityRepository
         parent::__construct($registry, Track::class);
     }
 
-    public function findOneInDeckByPath(Deck $deck, string $path): ?Track
+    /** Ile razy dany plik jest uzywany - kasujac utwor nie wolno usunac pliku wspoldzielonego. */
+    public function countByPath(string $path): int
     {
-        return $this->findOneBy(['deck' => $deck, 'path' => $path]);
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->andWhere('t.path = :path')
+            ->setParameter('path', $path)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 }

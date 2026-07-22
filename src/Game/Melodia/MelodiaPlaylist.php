@@ -5,54 +5,54 @@ declare(strict_types=1);
 namespace App\Game\Melodia;
 
 use App\Entity\Track;
-use App\Repository\DeckRepository;
+use App\Repository\CategoryRepository;
 use App\Repository\TrackRepository;
 
 /**
- * Wybor utworow z talii dla jednego pokoju.
+ * Wybor utworow z kategorii dla jednego pokoju.
  *
  * Losowanie jest po stronie serwera i pamieta, co juz bylo - inaczej ten sam
- * kawalek wracalby po dwoch rundach, co przy dwunastu utworach zdarza sie
+ * kawalek wracalby po dwoch rundach, co przy kilkunastu utworach zdarza sie
  * czesciej, niz podpowiada intuicja.
  */
 final readonly class MelodiaPlaylist
 {
     public function __construct(
-        private DeckRepository $decks,
+        private CategoryRepository $categories,
         private TrackRepository $tracks,
     ) {
     }
 
     /**
-     * Talie dostepne dla melodii - do listy wyboru na ekranie hosta.
+     * Kategorie dostepne dla melodii - do listy wyboru na ekranie hosta.
      *
-     * @return list<array{slug: string, name: string, tracks: int}>
+     * @return list<array{slug: string, name: string, items: int}>
      */
-    public function availableDecks(): array
+    public function availableCategories(): array
     {
         return array_map(
-            static fn ($deck): array => [
-                'slug' => $deck->getSlug(),
-                'name' => $deck->getName(),
-                'tracks' => $deck->getTracks()->count(),
+            static fn ($category): array => [
+                'slug' => $category->getSlug(),
+                'name' => $category->getName(),
+                'items' => $category->getTracks()->count(),
             ],
-            $this->decks->findForGame(MelodiaGame::type()),
+            $this->categories->findForGame(MelodiaGame::type()),
         );
     }
 
-    public function deckExists(string $slug): bool
+    public function categoryExists(string $slug): bool
     {
-        return null !== $this->decks->findOneBySlug($slug);
+        return null !== $this->categories->findOneBySlug($slug);
     }
 
-    public function deckName(string $slug): ?string
+    public function categoryName(string $slug): ?string
     {
-        return $this->decks->findOneBySlug($slug)?->getName();
+        return $this->categories->findOneBySlug($slug)?->getName();
     }
 
-    public function countTracks(string $deckSlug): int
+    public function countTracks(string $slug): int
     {
-        return $this->decks->findOneBySlug($deckSlug)?->getTracks()->count() ?? 0;
+        return $this->categories->findOneBySlug($slug)?->getTracks()->count() ?? 0;
     }
 
     /**
@@ -60,16 +60,16 @@ final readonly class MelodiaPlaylist
      *
      * @param list<int> $playedIds
      */
-    public function drawNext(string $deckSlug, array $playedIds): ?Track
+    public function drawNext(string $categorySlug, array $playedIds): ?Track
     {
-        $deck = $this->decks->findOneBySlug($deckSlug);
+        $category = $this->categories->findOneBySlug($categorySlug);
 
-        if (null === $deck) {
+        if (null === $category) {
             return null;
         }
 
         $remaining = [];
-        foreach ($deck->getTracks() as $track) {
+        foreach ($category->getTracks() as $track) {
             if (!\in_array($track->getId(), $playedIds, true)) {
                 $remaining[] = $track;
             }

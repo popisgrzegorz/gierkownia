@@ -76,7 +76,7 @@ final class MelodiaGame extends AbstractGame
     public function handleAction(Room $room, string $action, array $payload, Actor $actor): array
     {
         return match ($action) {
-            'pick_deck' => $this->pickDeck($room, $payload, $actor),
+            'pick_category' => $this->pickCategory($room, $payload, $actor),
             'next_track' => $this->nextTrack($room, $actor),
             'arm' => $this->arm($room, $actor),
             'buzz' => $this->buzz($room, $payload, $actor),
@@ -102,9 +102,9 @@ final class MelodiaGame extends AbstractGame
             'round' => $ctx['round'] ?? 0,
             'buzz' => $ctx['buzz'] ?? null,
             'lastResult' => $ctx['lastResult'] ?? null,
-            'deck' => $ctx['deck'] ?? null,
-            'deckName' => $ctx['deckName'] ?? null,
-            'decks' => $this->playlist->availableDecks(),
+            'category' => $ctx['category'] ?? null,
+            'categoryName' => $ctx['categoryName'] ?? null,
+            'categories' => $this->playlist->availableCategories(),
             'trackNumber' => $ctx['trackNumber'] ?? 0,
             'trackTotal' => $ctx['trackTotal'] ?? 0,
             'track' => null === $track ? null : [
@@ -133,25 +133,25 @@ final class MelodiaGame extends AbstractGame
     }
 
     /**
-     * Wybor talii. Zeruje liste zagranych utworow, bo nowa talia to nowa gra.
+     * Wybor kategorii. Zeruje liste zagranych utworow - nowa kategoria to nowa gra.
      *
      * @param array<string, mixed> $payload
      *
      * @return list<Message>
      */
-    private function pickDeck(Room $room, array $payload, Actor $actor): array
+    private function pickCategory(Room $room, array $payload, Actor $actor): array
     {
         $actor->requireHost();
 
-        $slug = $payload['deck'] ?? null;
+        $slug = $payload['category'] ?? null;
 
-        if (!\is_string($slug) || !$this->playlist->deckExists($slug)) {
-            throw new IllegalActionException('Nie ma takiej talii.');
+        if (!\is_string($slug) || !$this->playlist->categoryExists($slug)) {
+            throw new IllegalActionException('Nie ma takiej kategorii.');
         }
 
         $this->patchCtx($room, [
-            'deck' => $slug,
-            'deckName' => $this->playlist->deckName($slug),
+            'category' => $slug,
+            'categoryName' => $this->playlist->categoryName($slug),
             'trackTotal' => $this->playlist->countTracks($slug),
             'trackNumber' => 0,
             '_trackId' => null,
@@ -159,8 +159,8 @@ final class MelodiaGame extends AbstractGame
             'revealed' => null,
         ]);
 
-        return [Message::broadcast(new Event('deck_picked', [
-            'deckName' => $this->playlist->deckName($slug),
+        return [Message::broadcast(new Event('category_picked', [
+            'categoryName' => $this->playlist->categoryName($slug),
             'tracks' => $this->playlist->countTracks($slug),
         ]))];
     }
@@ -176,17 +176,17 @@ final class MelodiaGame extends AbstractGame
         $actor->requireHost();
 
         $ctx = $this->ctx($room);
-        $deck = $ctx['deck'] ?? null;
+        $category = $ctx['category'] ?? null;
 
-        if (!\is_string($deck)) {
-            throw new IllegalActionException('Najpierw wybierz talie.');
+        if (!\is_string($category)) {
+            throw new IllegalActionException('Najpierw wybierz kategorie.');
         }
 
         $played = \is_array($ctx['_played'] ?? null) ? array_values(array_filter($ctx['_played'], \is_int(...))) : [];
-        $track = $this->playlist->drawNext($deck, $played);
+        $track = $this->playlist->drawNext($category, $played);
 
         if (null === $track) {
-            throw new IllegalActionException('Talia sie skonczyla - wybierz inna albo zrestartuj gre.');
+            throw new IllegalActionException('Kategoria sie skonczyla - wybierz inna albo zrestartuj gre.');
         }
 
         $played[] = $track->getId();

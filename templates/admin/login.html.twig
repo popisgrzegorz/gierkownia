@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Panel — logowanie{% endblock %}
+{% block body_class %}screen-center{% endblock %}
+
+{% block body %}
+    <main class="panel">
+        <h1 class="logo">Panel treści</h1>
+        <p class="lead">Zarządzanie nagraniami, hasłami i kartami.</p>
+
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <p class="note note-{{ label }}">{{ message }}</p>
+            {% endfor %}
+        {% endfor %}
+
+        <form method="post" class="join-form">
+            <label for="password">Hasło</label>
+            <input type="password" id="password" name="password" autofocus required autocomplete="current-password">
+            <button type="submit" class="btn btn-primary btn-lg">Wejdź</button>
+        </form>
+    </main>
+{% endblock %}

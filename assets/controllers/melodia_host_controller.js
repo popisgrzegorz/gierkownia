@@ -8,7 +8,7 @@ import { Controller } from '@hotwired/stimulus';
  * utworu - a tego nie wolno rozesłać broadcastem do telefonów.
  */
 export default class extends Controller {
-    static targets = ['audio', 'deckPicker', 'deckSelect', 'progress', 'answer', 'banner', 'controls', 'hint'];
+    static targets = ['audio', 'categoryPicker', 'categorySelect', 'progress', 'answer', 'banner', 'controls', 'hint'];
     static values = { actionUrl: String, viewUrl: String, mediaUrl: String };
 
     connect() {
@@ -30,8 +30,8 @@ export default class extends Controller {
         }
     }
 
-    async pickDeck() {
-        await this.#send('pick_deck', { deck: this.deckSelectTarget.value });
+    async pickCategory() {
+        await this.#send('pick_category', { category: this.categorySelectTarget.value });
     }
 
     async act(event) {
@@ -46,7 +46,7 @@ export default class extends Controller {
             this.audioTarget.pause();
         }
 
-        if (['phase', 'buzz', 'judged', 'track_ready', 'deck_picked', 'reset'].includes(event.type)) {
+        if (['phase', 'buzz', 'judged', 'track_ready', 'category_picked', 'reset'].includes(event.type)) {
             this.refresh();
         }
     }
@@ -54,15 +54,15 @@ export default class extends Controller {
     #render(view) {
         this.view = view;
 
-        const hasDeck = Boolean(view.deck);
-        this.deckPickerTarget.hidden = hasDeck;
+        const hasCategory = Boolean(view.category);
+        this.categoryPickerTarget.hidden = hasCategory;
 
-        if (!hasDeck) {
-            this.#fillDecks(view.decks ?? []);
+        if (!hasCategory) {
+            this.#fillCategories(view.categories ?? []);
         }
 
-        this.progressTarget.textContent = hasDeck
-            ? `${view.deckName} — utwór ${view.trackNumber} z ${view.trackTotal}`
+        this.progressTarget.textContent = hasCategory
+            ? `${view.categoryName} — utwór ${view.trackNumber} z ${view.trackTotal}`
             : '';
 
         // Tytuł widzi wyłącznie host i wyłącznie wtedy, gdy jest komu oceniać:
@@ -109,22 +109,22 @@ export default class extends Controller {
         }));
 
         this.hintTarget.textContent = {
-            idle: view.deck ? 'Wylosuj utwór i puść go gościom.' : 'Wybierz talię, żeby zacząć.',
+            idle: view.category ? 'Wylosuj utwór i puść go gościom.' : 'Wybierz kategorię, żeby zacząć.',
             armed: 'Buzzery aktywne — pierwszy telefon zatrzyma muzykę.',
             buzzed: 'Wysłuchaj odpowiedzi i oceń ją.',
             judging: 'wrong' === view.lastResult ? 'Możesz puścić utwór dalej dla pozostałych.' : '',
         }[view.state] ?? '';
     }
 
-    #fillDecks(decks) {
-        if (this.deckSelectTarget.options.length === decks.length) {
+    #fillCategories(categories) {
+        if (this.categorySelectTarget.options.length === categories.length) {
             return;
         }
 
-        this.deckSelectTarget.replaceChildren(...decks.map((deck) => {
+        this.categorySelectTarget.replaceChildren(...categories.map((category) => {
             const option = document.createElement('option');
-            option.value = deck.slug;
-            option.textContent = `${deck.name} (${deck.tracks})`;
+            option.value = category.slug;
+            option.textContent = `${category.name} (${category.items})`;
 
             return option;
         }));

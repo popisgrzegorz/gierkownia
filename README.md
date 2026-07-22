@@ -20,7 +20,7 @@ w sieci ją widziały. Adres i porty siedzą w `.env` — nadpisuj w `.env.local
 | Aplikacja         | `8210`  | ekran hosta i sterowniki telefonów                |
 | Mercure (SSE)     | `3010`  | push serwer → klient                              |
 | Redis             | `56379` | stan „live" pokoju                                |
-| PostgreSQL        | `55432` | treści (talie) — używane od kamienia 3            |
+| PostgreSQL        | `55432` | treści: kategorie, nagrania, hasła, karty         |
 
 Porty są nietypowe celowo: na tej maszynie stoją już inne projekty zajmujące
 `6379`, `5432`, `3000` i `8080`. Własne kontenery zamiast współdzielenia tamtych,
@@ -41,36 +41,35 @@ vendor/bin/phpstan analyse          # analiza statyczna, poziom max
 - Cały stan wygasa sam po `ROOM_TTL` (domyślnie 6 h).
 - Silnik gry: moduły wpinają się przez tag `app.game`, FSM z markingiem w Redisie,
   rozgłaszanie zmian faz, prywatne kanały do hosta i pojedynczej drużyny.
-- **„Jaka to melodia"**: talie z Postgresa, losowanie utworu po stronie serwera,
+- **„Jaka to melodia"**: kategorie z Postgresa, losowanie utworu po stronie serwera,
   buzzer z lockoutem (`SET NX`), automatyczna pauza muzyki po naciśnięciu,
   ocena hosta, dogrywka po złej odpowiedzi, odsłonięcie tytułu po rundzie.
+- **Panel treści** (`/admin`): kategorie, wgrywanie nagrań, hasła i karty kalambur.
 - **„Koło fortuny"**: gra turowa (`TurnManager`), koło losowane po stronie serwera,
   plansza hasła z polskim alfabetem, bank punktów per hasło, bankrut i stop,
   klawiatura liter na telefonie drużyny, która ma turę.
 
-## Talie treści
+## Panel treści
 
-Pliki wrzuć do katalogu z `MEDIA_DIR` (domyślnie `var/media/`), opisz w YAML-u
-w `config/decks/` i uruchom:
+Wszystkie treści dodaje się w panelu pod **`/admin`**: kategorie, wgrywanie
+nagrań do melodii, hasła do koła i karty kalambur. Nie ma już importu z plików —
+baza jest jedynym źródłem prawdy, więc nic nie kasuje po cichu tego, co ktoś dodał.
 
 ```bash
-php bin/console app:demo:audio           # dźwięki do talii demo (katalog mediów jest poza repo)
-php bin/console app:deck:sync            # import; można puszczać ile razy
-php bin/console app:deck:sync --dry-run  # sama kontrola plików, bez zapisu
+# .env.local — bez hasła panel nie wpuszcza nikogo
+ADMIN_PASSWORD=twoje-haslo
+
+php bin/console app:demo:seed   # przykładowe kategorie do wszystkich trzech gier
 ```
 
-Wzorem jest [`config/decks/demo.yaml`](config/decks/demo.yaml) — talia
-z wygenerowanymi dźwiękami, żeby dało się zagrać bez wgrywania czyjejkolwiek
-muzyki. Hasła do koła opisuje się tak samo, listą `puzzles` zamiast `tracks`
-(patrz [`config/decks/kolo-demo.yaml`](config/decks/kolo-demo.yaml)) — nowy typ
-pozycji to nowa klasa z `DeckItemSyncer`, bez zmian w rdzeniu importu.
+**Kategoria to jeden poziom**: zestaw, który host wybiera na starcie gry
+(„Piosenki na lato”), a w kole fortuny jednocześnie podpowiedź dla graczy
+(„Przyroda”). Slug kategorii siedzi w ścieżkach wgranych plików i w stanie
+trwającej rozgrywki, więc zmiana nazwy go **nie** rusza.
 
-Plik YAML jest źródłem prawdy: pozycja z niego usunięta znika z bazy
-przy kolejnym imporcie. Brakujący plik nie przerywa importu, ale komenda kończy
-się błędem i wypisuje listę — lepiej dowiedzieć się teraz niż przy gościach.
-
-Pole `startAt` (sekunda startu) jest w praktyce najważniejsze: refren rozpoznaje
-się w dwie sekundy, wstęp bywa nie do zgadnięcia.
+Pole `start` przy nagraniu to sekunda, od której leci utwór — w praktyce
+najważniejsze pole w całej treści: refren rozpoznaje się w dwie sekundy,
+wstęp bywa nie do zgadnięcia.
 
 ## Jak dodać grę
 
@@ -181,17 +180,18 @@ src/Core/Buzzer/     arbiter buzzera (SET NX)
 src/Core/Score/      tablo
 src/Core/Redis/      typowany odczyt z Redisa
 src/Core/Http/       wymuszenie formatu JSON na trasach API
-src/Content/         talie: import z YAML, katalog mediów
-src/Entity/          Deck / Category / Track (spec §5.2)
+src/Admin/           panel: dostęp, wgrywanie nagrań, zarządzanie treścią
+src/Content/         katalog mediów
+src/Entity/          Category / Track / PuzzleWord / CharadeCard
 src/Core/Turn/       kolejność drużyn w grach turowych
 src/Game/Melodia/    moduł „Jaka to melodia" + losowanie utworów
-src/Game/Kolo/       moduł „Koło fortuny": koło, plansza hasła, talie
-src/Command/         app:deck:sync
-src/Controller/      Room / Host / Player / Game / Media
-templates/game/      widoki modułów: game/{typ}/host, game/{typ}/player
+src/Game/Kolo/       moduł „Koło fortuny": koło, plansza hasła, losowanie
+src/Command/         app:demo:seed
+src/Controller/      Room / Host / Player / Game / Media / Admin
+templates/game/      widoki modułów: game/{typ}/host, player, card
+templates/admin/     panel treści
 assets/controllers/  Stimulus: tablo hosta, panel melodii, buzzer telefonu
 assets/live/         nakładka na EventSource
-config/decks/        talie treści do importu
 ```
 
 Katalog `src/Core/Timer/` dochodzi przy kalamburach (spec §11).

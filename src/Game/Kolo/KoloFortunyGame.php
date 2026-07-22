@@ -83,7 +83,7 @@ final class KoloFortunyGame extends AbstractGame
     public function handleAction(Room $room, string $action, array $payload, Actor $actor): array
     {
         return match ($action) {
-            'pick_deck' => $this->pickDeck($room, $payload, $actor),
+            'pick_category' => $this->pickCategory($room, $payload, $actor),
             'next_puzzle' => $this->nextPuzzle($room, $actor),
             'spin' => $this->spin($room, $actor),
             'land' => $this->land($room, $actor),
@@ -102,7 +102,7 @@ final class KoloFortunyGame extends AbstractGame
         // zanim serwer ja oceni. Ten widok nie trafia na telefony (spec 7).
         return $this->publicView($room) + [
             'phrase' => $ctx['_phrase'] ?? null,
-            'decks' => $this->puzzles->availableDecks(),
+            'categories' => $this->puzzles->availableCategories(),
         ];
     }
 
@@ -119,27 +119,27 @@ final class KoloFortunyGame extends AbstractGame
      *
      * @return list<Message>
      */
-    private function pickDeck(Room $room, array $payload, Actor $actor): array
+    private function pickCategory(Room $room, array $payload, Actor $actor): array
     {
         $actor->requireHost();
 
-        $slug = $payload['deck'] ?? null;
+        $slug = $payload['category'] ?? null;
 
-        if (!\is_string($slug) || !$this->puzzles->deckExists($slug)) {
-            throw new IllegalActionException('Nie ma takiej talii.');
+        if (!\is_string($slug) || !$this->puzzles->categoryExists($slug)) {
+            throw new IllegalActionException('Nie ma takiej kategorii.');
         }
 
         $this->patchCtx($room, [
-            'deck' => $slug,
-            'deckName' => $this->puzzles->deckName($slug),
+            'category' => $slug,
+            'categoryName' => $this->puzzles->categoryName($slug),
             'puzzleTotal' => $this->puzzles->countPuzzles($slug),
             'puzzleNumber' => 0,
             '_played' => [],
             '_phrase' => null,
         ]);
 
-        return [Message::broadcast(new Event('deck_picked', [
-            'deckName' => $this->puzzles->deckName($slug),
+        return [Message::broadcast(new Event('category_picked', [
+            'categoryName' => $this->puzzles->categoryName($slug),
             'items' => $this->puzzles->countPuzzles($slug),
         ]))];
     }
@@ -158,17 +158,17 @@ final class KoloFortunyGame extends AbstractGame
         $actor->requireHost();
 
         $ctx = $this->ctx($room);
-        $deck = $ctx['deck'] ?? null;
+        $category = $ctx['category'] ?? null;
 
-        if (!\is_string($deck)) {
-            throw new IllegalActionException('Najpierw wybierz talie.');
+        if (!\is_string($category)) {
+            throw new IllegalActionException('Najpierw wybierz kategorie.');
         }
 
         $played = $this->intList($ctx['_played'] ?? null);
-        $puzzle = $this->puzzles->drawNext($deck, $played);
+        $puzzle = $this->puzzles->drawNext($category, $played);
 
         if (null === $puzzle) {
-            throw new IllegalActionException('Talia sie skonczyla - wybierz inna albo zrestartuj gre.');
+            throw new IllegalActionException('Kategoria sie skonczyla - wybierz inna albo zrestartuj gre.');
         }
 
         $this->transition($room, 'new_puzzle');
@@ -191,7 +191,9 @@ final class KoloFortunyGame extends AbstractGame
             '_played' => $played,
             'puzzleNumber' => \count($played),
             'hint' => $puzzle->getHint(),
-            'category' => $puzzle->getCategory()?->getName(),
+            // Uwaga: "category" trzyma slug wybranej kategorii i nie wolno go tu
+            // nadpisac nazwa - to po nim losujemy kolejne hasla. Nazwa do pokazania
+            // siedzi w "categoryName" i ustawia ja pickCategory().
             'mask' => PuzzleBoard::mask($puzzle->getPhrase(), []),
             'guessed' => [],
             'wheel' => null,
@@ -205,7 +207,7 @@ final class KoloFortunyGame extends AbstractGame
             'total' => $ctx['puzzleTotal'] ?? 0,
             'mask' => PuzzleBoard::mask($puzzle->getPhrase(), []),
             'hint' => $puzzle->getHint(),
-            'category' => $puzzle->getCategory()?->getName(),
+            'categoryName' => $puzzle->getCategory()->getName(),
             'turn' => $starter,
         ]))];
     }
@@ -457,13 +459,12 @@ final class KoloFortunyGame extends AbstractGame
 
         return [
             'state' => $this->state($room),
-            'deck' => $ctx['deck'] ?? null,
-            'deckName' => $ctx['deckName'] ?? null,
+            'category' => $ctx['category'] ?? null,
+            'categoryName' => $ctx['categoryName'] ?? null,
             'puzzleNumber' => $ctx['puzzleNumber'] ?? 0,
             'puzzleTotal' => $ctx['puzzleTotal'] ?? 0,
             'mask' => $ctx['mask'] ?? null,
             'hint' => $ctx['hint'] ?? null,
-            'category' => $ctx['category'] ?? null,
             'guessed' => $ctx['guessed'] ?? [],
             'wheel' => $ctx['wheel'] ?? null,
             'bank' => $ctx['bank'] ?? [],

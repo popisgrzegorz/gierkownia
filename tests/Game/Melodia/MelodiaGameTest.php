@@ -19,11 +19,11 @@ use App\Core\Room\RoomCodeGenerator;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
-use App\Entity\Deck;
+use App\Entity\Category;
 use App\Entity\Track;
 use App\Game\Melodia\MelodiaGame;
 use App\Game\Melodia\MelodiaPlaylist;
-use App\Repository\DeckRepository;
+use App\Repository\CategoryRepository;
 use App\Repository\TrackRepository;
 use App\Tests\DoctrineTestCase;
 use App\Tests\RedisConnection;
@@ -78,15 +78,15 @@ final class MelodiaGameTest extends DoctrineTestCase
             },
         ));
 
-        $this->seedDeck();
+        $this->seedCategory();
 
         $this->buzzer = new BuzzerArbiter($this->redis, $reader, $publisher, self::TTL);
         $this->scoreboard = new Scoreboard($this->redis, $reader, $this->rooms, $publisher, self::TTL);
 
-        $decks = self::getContainer()->get(DeckRepository::class);
+        $categories = self::getContainer()->get(CategoryRepository::class);
         $tracks = self::getContainer()->get(TrackRepository::class);
 
-        $melodia = new MelodiaGame($fsm, $this->gameState, $this->buzzer, $this->scoreboard, new MelodiaPlaylist($decks, $tracks));
+        $melodia = new MelodiaGame($fsm, $this->gameState, $this->buzzer, $this->scoreboard, new MelodiaPlaylist($categories, $tracks));
 
         $this->engine = new GameEngine(
             new GameRegistry([$melodia]),
@@ -104,18 +104,18 @@ final class MelodiaGameTest extends DoctrineTestCase
 
         // Kazda runda zaczyna sie od talii i wylosowanego utworu - bez nich
         // host nie ma czego puscic, wiec 'arm' slusznie odmawia.
-        $this->host('pick_deck', ['deck' => 'testowa']);
+        $this->host('pick_category', ['category' => 'testowa']);
         $this->host('next_track');
     }
 
-    /** Talia w bazie testowej; transakcja z DoctrineTestCase wycofa ja po tescie. */
-    private function seedDeck(): void
+    /** Kategoria w bazie testowej; transakcja z DoctrineTestCase wycofa ja po tescie. */
+    private function seedCategory(): void
     {
-        $deck = new Deck('testowa', 'Talia testowa', 'melodia');
-        $this->entityManager->persist($deck);
+        $category = new Category('testowa', 'Kategoria testowa', 'melodia');
+        $this->entityManager->persist($category);
 
         foreach ([['demo/wlazl-kotek.wav', 'Wlazl kotek', 'Tradycyjne'], ['demo/sto-lat.wav', 'Sto lat', 'Tradycyjne']] as $i => [$path, $title, $artist]) {
-            $track = new Track($deck, $path, $title, $artist);
+            $track = new Track($category, $path, $title, $artist);
             $track->setPosition($i);
             $this->entityManager->persist($track);
         }

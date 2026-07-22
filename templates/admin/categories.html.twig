@@ -1,0 +1,43 @@
+{% extends 'admin/_layout.html.twig' %}
+
+{% block title %}Panel — kategorie{% endblock %}
+
+{% block admin %}
+    <section class="admin-block">
+        <h1>Nowa kategoria</h1>
+        <p class="muted">
+            Kategoria to zestaw, który host wybiera na starcie gry — np. „Piosenki na lato”.
+            W kole fortuny jej nazwa jest też podpowiedzią dla graczy.
+        </p>
+
+        <form method="post" action="{{ path('admin_category_create') }}" class="admin-row">
+            <input name="name" placeholder="np. Piosenki na lato" required aria-label="Nazwa kategorii">
+            <select name="gameType" class="select" aria-label="Gra">
+                {% for type, label in games %}
+                    <option value="{{ type }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Utwórz</button>
+        </form>
+    </section>
+
+    {% for type, categories in byGame %}
+        <section class="admin-block">
+            <h2>{{ games[type] }} <span class="muted">({{ categories|length }})</span></h2>
+
+            {% if categories is empty %}
+                <p class="muted">Brak kategorii — utwórz pierwszą powyżej.</p>
+            {% else %}
+                <ul class="admin-list">
+                    {% for category in categories %}
+                        <li>
+                            <a href="{{ path('admin_category', {id: category.id}) }}">{{ category.name }}</a>
+                            <span class="muted">{{ category.countItems }} poz.</span>
+                            <code class="slug">{{ category.slug }}</code>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+    {% endfor %}
+{% endblock %}

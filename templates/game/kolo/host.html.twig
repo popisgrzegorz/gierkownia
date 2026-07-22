@@ -5,10 +5,10 @@
          data-kolo-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
          data-kolo-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
 
-    <div class="panel-row" data-kolo-host-target="deckPicker" hidden>
-        <label for="kolo-deck">Talia</label>
-        <select id="kolo-deck" data-kolo-host-target="deckSelect" class="select"></select>
-        <button type="button" class="btn btn-primary" data-action="kolo-host#pickDeck">Wybierz</button>
+    <div class="panel-row" data-kolo-host-target="categoryPicker" hidden>
+        <label for="kolo-category">Kategoria</label>
+        <select id="kolo-category" data-kolo-host-target="categorySelect" class="select"></select>
+        <button type="button" class="btn btn-primary" data-action="kolo-host#pickCategory">Wybierz</button>
     </div>
 
     <p class="muted" data-kolo-host-target="progress"></p>

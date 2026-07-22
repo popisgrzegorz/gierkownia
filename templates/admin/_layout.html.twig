@@ -1,0 +1,26 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}admin{% endblock %}
+
+{% block body %}
+    <div class="admin-shell">
+        <header class="admin-bar">
+            <a class="admin-brand" href="{{ path('admin_categories') }}">NASZE<span class="brand-star">★</span>GIERKI</a>
+            <span class="muted">panel treści</span>
+
+            <form method="post" action="{{ path('admin_logout') }}" class="admin-out">
+                <button type="submit" class="btn btn-ghost">Wyloguj</button>
+            </form>
+        </header>
+
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <p class="note note-{{ label }}">{{ message }}</p>
+            {% endfor %}
+        {% endfor %}
+
+        <main class="admin-main">
+            {% block admin %}{% endblock %}
+        </main>
+    </div>
+{% endblock %}

@@ -244,6 +244,157 @@ input:focus-visible,
     font-size: 1.4rem;
 }
 
+/* ---------- panel treści ----------
+
+   Ekran roboczy oglądany z 50 cm na laptopie, nie z kanapy - stąd stałe
+   rozmiary w rem zamiast skalowania na vmin jak w reszcie aplikacji. */
+
+.admin-shell {
+    width: min(56rem, 100%);
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+    display: grid;
+    gap: 1rem;
+}
+
+.admin-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #232741;
+}
+
+.admin-brand {
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+    text-decoration: none;
+}
+
+.admin-out {
+    margin-left: auto;
+}
+
+.admin-block {
+    padding: 1.2rem;
+    border-radius: var(--radius);
+    background: rgba(21, 24, 41, 0.7);
+    border: 1px solid #232741;
+}
+
+.admin-block h1,
+.admin-block h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1.15rem;
+}
+
+.admin-block.danger {
+    border-color: #4a2430;
+}
+
+.btn-danger {
+    background: var(--err);
+    border-color: transparent;
+    color: #fff;
+}
+
+.admin-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.6rem;
+}
+
+.admin-row input {
+    width: auto;
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.admin-row .narrow {
+    flex: 0 0 5.5rem;
+}
+
+.admin-form {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.admin-form label {
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.admin-list,
+.admin-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.admin-list li,
+.admin-items li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 10px;
+    background: #10121f;
+    border: 1px solid #1e2237;
+}
+
+.admin-items li .admin-row {
+    flex: 1;
+    margin: 0;
+}
+
+.admin-list a {
+    color: var(--fg);
+    font-weight: 600;
+}
+
+/* Slug siedzi w ścieżkach plików i w stanie trwającej gry, więc pokazujemy go
+   wprost - ale przygaszony, bo na co dzień nikogo nie interesuje. */
+.slug {
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: #0b0d17;
+    padding: 0.15em 0.5em;
+    border-radius: 6px;
+    margin-left: auto;
+}
+
+.note {
+    margin: 0;
+    padding: 0.7rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    background: rgba(229, 72, 77, 0.18);
+    border: 1px solid var(--err);
+}
+
+.note-success {
+    background: rgba(48, 164, 108, 0.18);
+    border-color: var(--ok);
+}
+
+.snippet {
+    margin: 0;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    background: #0b0d17;
+    border: 1px solid #232741;
+    overflow-x: auto;
+    text-align: left;
+}
+
 /* ---------- ekran hosta (TV) ----------
 
    Telewizor ogląda się z 3-4 metrów, więc wszystko skaluje się na vmin,

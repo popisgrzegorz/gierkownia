@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Panel wyłączony{% endblock %}
+{% block body_class %}screen-center{% endblock %}
+
+{% block body %}
+    <main class="panel">
+        <h1 class="logo">Panel jest wyłączony</h1>
+        <p class="lead">
+            Ustaw hasło w <code>.env.local</code> i wyczyść cache — dopóki hasła nie ma,
+            panel nie wpuszcza nikogo.
+        </p>
+        <pre class="snippet">ADMIN_PASSWORD=twoje-haslo</pre>
+        <p class="muted">potem: <code>php bin/console cache:clear</code></p>
+    </main>
+{% endblock %}

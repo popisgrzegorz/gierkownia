@@ -8,18 +8,15 @@ use App\Repository\TrackRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Utwor do "Jaka to melodia" (spec 5.2).
+ * Utwor do "Jaka to melodia".
  *
  * path jest sciezka wzgledna wewnatrz katalogu mediow - nigdy bezwzgledna.
- * Dzieki temu przeniesienie kolekcji na inny dysk czy na Proxmoxa nie wymaga
- * ruszania bazy, a plik spoza katalogu mediow nie da sie podstawic.
- *
- * Para (talia, sciezka) jest kluczem naturalnym importu: ponowny sync tej samej
- * talii aktualizuje utwor, zamiast tworzyc duplikat (spec 5.2).
+ * Dzieki temu przeniesienie kolekcji na inny dysk nie wymaga ruszania bazy,
+ * a plik spoza katalogu mediow nie da sie podstawic.
  */
 #[ORM\Entity(repositoryClass: TrackRepository::class)]
 #[ORM\Table(name: 'track')]
-#[ORM\UniqueConstraint(name: 'uniq_track_deck_path', columns: ['deck_id', 'path'])]
+#[ORM\UniqueConstraint(name: 'uniq_track_category_path', columns: ['category_id', 'path'])]
 class Track
 {
     #[ORM\Id]
@@ -27,9 +24,9 @@ class Track
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Deck::class, inversedBy: 'tracks')]
+    #[ORM\ManyToOne(targetEntity: Category::class, inversedBy: 'tracks')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Deck $deck;
+    private Category $category;
 
     #[ORM\Column(length: 255)]
     private string $path;
@@ -40,32 +37,27 @@ class Track
     #[ORM\Column(length: 255)]
     private string $artist;
 
-    #[ORM\ManyToOne(targetEntity: Category::class)]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    private ?Category $category = null;
-
     /**
      * Moment w sekundach, od ktorego zaczac odtwarzanie.
      *
-     * Refren rozpoznaje sie duzo szybciej niz wstep, a przy melodii chodzi
-     * o to, zeby zagadka byla zagadka przez kilka sekund, a nie przez pol minuty
-     * ciszy przed pierwsza nuta.
+     * Refren rozpoznaje sie duzo szybciej niz wstep, a przy melodii chodzi o to,
+     * zeby zagadka byla zagadka przez kilka sekund, a nie przez pol minuty ciszy.
      */
     #[ORM\Column(options: ['default' => 0])]
     private int $startAt = 0;
 
-    /** Kolejnosc w talii - utrzymuje playliste w kolejnosci z pliku YAML. */
+    /** Kolejnosc w kategorii - utrzymuje liste w kolejnosci ustawionej w panelu. */
     #[ORM\Column(options: ['default' => 0])]
     private int $position = 0;
 
-    public function __construct(Deck $deck, string $path, string $title, string $artist)
+    public function __construct(Category $category, string $path, string $title, string $artist)
     {
-        $this->deck = $deck;
+        $this->category = $category;
         $this->path = $path;
         $this->title = $title;
         $this->artist = $artist;
 
-        $deck->addTrack($this);
+        $category->addTrack($this);
     }
 
     public function getId(): ?int
@@ -73,14 +65,19 @@ class Track
         return $this->id;
     }
 
-    public function getDeck(): Deck
+    public function getCategory(): Category
     {
-        return $this->deck;
+        return $this->category;
     }
 
     public function getPath(): string
     {
         return $this->path;
+    }
+
+    public function setPath(string $path): void
+    {
+        $this->path = $path;
     }
 
     public function getTitle(): string
@@ -101,16 +98,6 @@ class Track
     public function setArtist(string $artist): void
     {
         $this->artist = $artist;
-    }
-
-    public function getCategory(): ?Category
-    {
-        return $this->category;
-    }
-
-    public function setCategory(?Category $category): void
-    {
-        $this->category = $category;
     }
 
     public function getStartAt(): int

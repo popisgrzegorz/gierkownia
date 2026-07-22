@@ -19,12 +19,12 @@ use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
 use App\Core\Turn\TurnManager;
-use App\Entity\Deck;
+use App\Entity\Category;
 use App\Entity\PuzzleWord;
 use App\Game\Kolo\KoloFortunyGame;
 use App\Game\Kolo\KoloPuzzles;
 use App\Game\Kolo\Wheel;
-use App\Repository\DeckRepository;
+use App\Repository\CategoryRepository;
 use App\Repository\PuzzleWordRepository;
 use App\Tests\DoctrineTestCase;
 use App\Tests\RedisConnection;
@@ -83,7 +83,7 @@ final class KoloFortunyGameTest extends DoctrineTestCase
         $this->turns = new TurnManager($this->redis, $reader, $publisher, self::TTL);
         $this->scoreboard = new Scoreboard($this->redis, $reader, $this->rooms, $publisher, self::TTL);
 
-        $this->seedDeck();
+        $this->seedCategory();
 
         $kolo = new KoloFortunyGame(
             $fsm,
@@ -92,7 +92,7 @@ final class KoloFortunyGameTest extends DoctrineTestCase
             $this->scoreboard,
             $this->rooms,
             new KoloPuzzles(
-                self::getContainer()->get(DeckRepository::class),
+                self::getContainer()->get(CategoryRepository::class),
                 self::getContainer()->get(PuzzleWordRepository::class),
             ),
         );
@@ -104,16 +104,16 @@ final class KoloFortunyGameTest extends DoctrineTestCase
         $this->dywanowi = $this->rooms->join($this->room->code, 'Dywanowi');
 
         $this->engine->start($this->room, 'kolo');
-        $this->host('pick_deck', ['deck' => 'testowa']);
+        $this->host('pick_category', ['category' => 'testowa']);
         $this->host('next_puzzle');
     }
 
-    private function seedDeck(): void
+    private function seedCategory(): void
     {
-        $deck = new Deck('testowa', 'Talia testowa', 'kolo');
-        $this->entityManager->persist($deck);
+        $category = new Category('testowa', 'Kategoria testowa', 'kolo');
+        $this->entityManager->persist($category);
 
-        $puzzle = new PuzzleWord($deck, self::PHRASE);
+        $puzzle = new PuzzleWord($category, self::PHRASE);
         $puzzle->setHint('zwiazek frazeologiczny');
         $this->entityManager->persist($puzzle);
         $this->entityManager->flush();
@@ -303,10 +303,10 @@ final class KoloFortunyGameTest extends DoctrineTestCase
 
     private function seedSecondPuzzle(): void
     {
-        $deck = self::getContainer()->get(DeckRepository::class)->findOneBySlug('testowa');
-        self::assertNotNull($deck);
+        $category = self::getContainer()->get(CategoryRepository::class)->findOneBySlug('testowa');
+        self::assertNotNull($category);
 
-        $this->entityManager->persist(new PuzzleWord($deck, 'DRUGIE HASLO'));
+        $this->entityManager->persist(new PuzzleWord($category, 'DRUGIE HASLO'));
         $this->entityManager->flush();
     }
 

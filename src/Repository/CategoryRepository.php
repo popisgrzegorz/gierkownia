@@ -20,4 +20,37 @@ class CategoryRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['slug' => $slug]);
     }
+
+    /**
+     * Kategorie danej gry - do listy wyboru u hosta i w panelu.
+     *
+     * @return list<Category>
+     */
+    public function findForGame(string $gameType): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.gameType = :type')
+            ->setParameter('type', $gameType)
+            ->orderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** @return list<Category> */
+    public function findAllOrdered(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->orderBy('c.gameType', 'ASC')
+            ->addOrderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Czy slug jest wolny (pomijajac wskazana kategorie przy edycji). */
+    public function isSlugFree(string $slug, ?int $exceptId = null): bool
+    {
+        $existing = $this->findOneBySlug($slug);
+
+        return null === $existing || $existing->getId() === $exceptId;
+    }
 }

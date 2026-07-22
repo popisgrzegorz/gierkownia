@@ -11,7 +11,7 @@ const SPIN_MS = 3200;
  * przez podmianę czegokolwiek w karcie telewizora.
  */
 export default class extends Controller {
-    static targets = ['deckPicker', 'deckSelect', 'progress', 'board', 'hintText',
+    static targets = ['categoryPicker', 'categorySelect', 'progress', 'board', 'hintText',
         'wheel', 'turn', 'answer', 'event', 'controls', 'hint'];
     static values = { actionUrl: String, viewUrl: String };
 
@@ -48,8 +48,8 @@ export default class extends Controller {
         }
     }
 
-    async pickDeck() {
-        await this.#send('pick_deck', { deck: this.deckSelectTarget.value });
+    async pickCategory() {
+        await this.#send('pick_category', { category: this.categorySelectTarget.value });
     }
 
     async act(event) {
@@ -89,21 +89,21 @@ export default class extends Controller {
         }
 
         if (['phase', 'letter_revealed', 'penalty', 'puzzle_solved', 'puzzle_ready',
-            'deck_picked', 'turn', 'solve_failed', 'reset'].includes(event.type)) {
+            'category_picked', 'turn', 'solve_failed', 'reset'].includes(event.type)) {
             this.refresh();
         }
     }
 
     #render(view) {
         this.sectors = view.sectors ?? [];
-        this.deckPickerTarget.hidden = Boolean(view.deck);
+        this.categoryPickerTarget.hidden = Boolean(view.category);
 
-        if (!view.deck) {
-            this.#fillDecks(view.decks ?? []);
+        if (!view.category) {
+            this.#fillCategories(view.categories ?? []);
         }
 
-        this.progressTarget.textContent = view.deck
-            ? `${view.deckName} — hasło ${view.puzzleNumber} z ${view.puzzleTotal}`
+        this.progressTarget.textContent = view.category
+            ? `${view.categoryName} — hasło ${view.puzzleNumber} z ${view.puzzleTotal}`
             : '';
 
         this.#renderBoard(view.mask);
@@ -140,7 +140,7 @@ export default class extends Controller {
 
     #renderControls(view) {
         const buttons = {
-            idle: view.deck ? [['next_puzzle', 'Losuj hasło', 'primary']] : [],
+            idle: view.category ? [['next_puzzle', 'Losuj hasło', 'primary']] : [],
             next_team: [['spin', 'Zakręć kołem', 'primary'], ['skip_turn', 'Oddaj turę', '']],
             spinning: [],
             landed: [],
@@ -161,7 +161,7 @@ export default class extends Controller {
         }));
 
         this.hintTarget.textContent = {
-            idle: view.deck ? 'Wylosuj hasło, żeby zacząć.' : 'Wybierz talię.',
+            idle: view.category ? 'Wylosuj hasło, żeby zacząć.' : 'Wybierz kategorię.',
             next_team: 'Drużyna kręci kołem — z telefonu albo stąd.',
             spinning: 'Koło się kręci…',
             pick_letter: 'Drużyna podaje literę na telefonie.',
@@ -173,15 +173,15 @@ export default class extends Controller {
         return this.teams.get(teamId) ?? 'drużyna';
     }
 
-    #fillDecks(decks) {
-        if (this.deckSelectTarget.options.length === decks.length) {
+    #fillCategories(categories) {
+        if (this.categorySelectTarget.options.length === categories.length) {
             return;
         }
 
-        this.deckSelectTarget.replaceChildren(...decks.map((deck) => {
+        this.categorySelectTarget.replaceChildren(...categories.map((category) => {
             const option = document.createElement('option');
-            option.value = deck.slug;
-            option.textContent = `${deck.name} (${deck.items})`;
+            option.value = category.slug;
+            option.textContent = `${category.name} (${category.items})`;
 
             return option;
         }));

@@ -13,7 +13,6 @@ parameters:
     # Katalog z plikami muzycznymi i katalog z opisami talii. Rozdzielone,
     # bo talie sa wersjonowane razem z kodem, a muzyka nigdy nie powinna byc.
     app.media_dir: '%env(resolve:MEDIA_DIR)%'
-    app.decks_dir: '%kernel.project_dir%/config/decks'
     app.lan_host: '%env(LAN_HOST)%'
     app.app_port: '%env(int:APP_PORT)%'
 
@@ -26,16 +25,13 @@ services:
             int $roomTtl: '%app.room_ttl%'
             int $mercurePort: '%env(int:MERCURE_PORT)%'
             string $mediaDir: '%app.media_dir%'
-            string $decksDir: '%app.decks_dir%'
+            string $adminPassword: '%env(ADMIN_PASSWORD)%'
 
     # Moduly gier wpinaja sie same: kazda usluga implementujaca GameInterface
     # dostaje tag i trafia do GameRegistry. Dodanie gry nie wymaga zmian tutaj.
     _instanceof:
         App\Core\Game\GameInterface:
             tags: ['app.game']
-        # Tak samo importery tresci: nowy typ pozycji wpina sie sam.
-        App\Content\DeckItemSyncer:
-            tags: ['app.deck_item_syncer']
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -45,10 +41,6 @@ services:
     App\Core\Game\GameRegistry:
         arguments:
             $games: !tagged_iterator app.game
-
-    App\Content\DeckSynchronizer:
-        arguments:
-            $syncers: !tagged_iterator app.deck_item_syncer
 
     # Predis zamiast phpredis - czysty PHP, zero rozszerzen do zbudowania przy
     # przenosinach na Proxmox. Atomowosc SET NX i INCRBY siedzi w Redisie,

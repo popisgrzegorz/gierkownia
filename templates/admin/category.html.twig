@@ -1,0 +1,117 @@
+{% extends 'admin/_layout.html.twig' %}
+
+{% block title %}Panel — {{ category.name }}{% endblock %}
+
+{% block admin %}
+    <p><a href="{{ path('admin_categories') }}" class="muted">← wszystkie kategorie</a></p>
+
+    <section class="admin-block">
+        <h1>{{ category.name }}</h1>
+        <p class="muted">{{ gameName }} · <code class="slug">{{ category.slug }}</code></p>
+
+        <form method="post" action="{{ path('admin_category_rename', {id: category.id}) }}" class="admin-row">
+            <input name="name" value="{{ category.name }}" aria-label="Nazwa kategorii" required>
+            <button type="submit" class="btn">Zmień nazwę</button>
+        </form>
+    </section>
+
+    <section class="admin-block">
+        <h2>Dodaj {{ singular }}</h2>
+
+        {% if category.gameType == 'melodia' %}
+            {# enctype jest tu obowiązkowe - bez niego plik nie dojdzie,
+               a formularz wygląda, jakby zadziałał. #}
+            <form method="post" action="{{ path('admin_item_create', {id: category.id}) }}"
+                  enctype="multipart/form-data" class="admin-form">
+                <label>Plik<input type="file" name="file" accept="audio/*" required></label>
+                <label>Tytuł<input name="title" placeholder="np. Lato, lato czeka"></label>
+                <label>Wykonawca<input name="artist" placeholder="np. Anna Jantar"></label>
+                <label>Start (s)<input name="startAt" type="number" min="0" value="0" inputmode="numeric"></label>
+                <button type="submit" class="btn btn-primary">Wgraj</button>
+            </form>
+            <p class="muted small">
+                Formaty: {{ extensions|join(', ') }}. Limit pliku: {{ uploadLimit }}.
+                Pole „start” to sekunda, od której leci nagranie — refren rozpoznaje się szybciej niż wstęp.
+            </p>
+
+        {% elseif category.gameType == 'kolo' %}
+            <form method="post" action="{{ path('admin_item_create', {id: category.id}) }}" class="admin-form">
+                <label>Hasło<input name="phrase" placeholder="np. Kasa kwiatowa" required></label>
+                <label>Podpowiedź<input name="hint" placeholder="np. związek frazeologiczny"></label>
+                <button type="submit" class="btn btn-primary">Dodaj</button>
+            </form>
+            <p class="muted small">
+                Hasło zapisujemy wielkimi literami. Polskie znaki są osobnymi literami:
+                „Ł” nie odsłania „L”.
+            </p>
+
+        {% else %}
+            <form method="post" action="{{ path('admin_item_create', {id: category.id}) }}" class="admin-form">
+                <label>Hasło<input name="word" placeholder="np. parasol" required></label>
+                <label>Trudność
+                    <select name="difficulty" class="select">
+                        <option value="latwy">łatwy</option>
+                        <option value="sredni" selected>średni</option>
+                        <option value="trudny">trudny</option>
+                    </select>
+                </label>
+                <button type="submit" class="btn btn-primary">Dodaj</button>
+            </form>
+            <p class="muted small">Moduł kalambur jeszcze nie powstał — karty czekają w bazie.</p>
+        {% endif %}
+    </section>
+
+    <section class="admin-block">
+        <h2>{{ plural }} <span class="muted">({{ items|length }})</span></h2>
+
+        {% if items is empty %}
+            <p class="muted">Jeszcze pusto.</p>
+        {% else %}
+            <ul class="admin-items">
+                {% for item in items %}
+                    <li>
+                        <form method="post" action="{{ path('admin_item_update', {type: category.gameType, id: item.id}) }}"
+                              class="admin-row">
+                            {% if category.gameType == 'melodia' %}
+                                <input name="title" value="{{ item.title }}" aria-label="Tytuł">
+                                <input name="artist" value="{{ item.artist }}" aria-label="Wykonawca">
+                                <input name="startAt" type="number" min="0" value="{{ item.startAt }}"
+                                       class="narrow" aria-label="Start w sekundach">
+                                <code class="slug" title="{{ item.path }}">{{ item.path|split('/')|last }}</code>
+                            {% elseif category.gameType == 'kolo' %}
+                                <input name="phrase" value="{{ item.phrase }}" aria-label="Hasło">
+                                <input name="hint" value="{{ item.hint }}" placeholder="podpowiedź" aria-label="Podpowiedź">
+                            {% else %}
+                                <input name="word" value="{{ item.word }}" aria-label="Hasło">
+                                <select name="difficulty" class="select">
+                                    {% for level in ['latwy', 'sredni', 'trudny'] %}
+                                        <option value="{{ level }}" {{ item.difficulty == level ? 'selected' : '' }}>{{ level }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% endif %}
+
+                            <button type="submit" class="btn">Zapisz</button>
+                        </form>
+
+                        <form method="post" action="{{ path('admin_item_delete', {type: category.gameType, id: item.id}) }}"
+                              onsubmit="return confirm('Usunąć na pewno?')">
+                            <button type="submit" class="btn btn-ghost" aria-label="Usuń">✕</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    <section class="admin-block danger">
+        <h2>Usuń kategorię</h2>
+        <p class="muted">
+            Zniknie razem ze wszystkimi pozycjami{% if category.gameType == 'melodia' %} i wgranymi plikami{% endif %}.
+            Tego nie da się cofnąć.
+        </p>
+        <form method="post" action="{{ path('admin_category_delete', {id: category.id}) }}"
+              onsubmit="return confirm('Usunąć kategorię „{{ category.name|e('js') }}” i całą jej zawartość?')">
+            <button type="submit" class="btn btn-danger">Usuń kategorię</button>
+        </form>
+    </section>
+{% endblock %}
