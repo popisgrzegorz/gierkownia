@@ -2,42 +2,68 @@
 
 {% block title %}Panel — kategorie{% endblock %}
 
-{% block admin %}
-    <section class="admin-block">
-        <h1>Nowa kategoria</h1>
-        <p class="muted">
-            Kategoria to zestaw, który host wybiera na starcie gry — np. „Piosenki na lato”.
-            W kole fortuny jej nazwa jest też podpowiedzią dla graczy.
-        </p>
+{% block page_header %}
+    <div class="page-header d-print-none">
+        <div class="container-xl">
+            <h2 class="page-title">Kategorie</h2>
+            <div class="text-secondary mt-1">
+                Kategoria to zestaw, który host wybiera na starcie gry — np. „Piosenki na lato”.
+                W kole fortuny jej nazwa jest też podpowiedzią dla graczy.
+            </div>
+        </div>
+    </div>
+{% endblock %}
 
-        <form method="post" action="{{ path('admin_category_create') }}" class="admin-row">
-            <input name="name" placeholder="np. Piosenki na lato" required aria-label="Nazwa kategorii">
-            <select name="gameType" class="select" aria-label="Gra">
-                {% for type, label in games %}
-                    <option value="{{ type }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary">Utwórz</button>
-        </form>
-    </section>
+{% block admin %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Nowa kategoria</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ path('admin_category_create') }}" class="row g-2 align-items-end">
+                <div class="col-12 col-md">
+                    <label class="form-label" for="cat-name">Nazwa</label>
+                    <input id="cat-name" name="name" class="form-control"
+                           placeholder="np. Piosenki na lato" required>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <label class="form-label" for="cat-game">Gra</label>
+                    <select id="cat-game" name="gameType" class="form-select">
+                        {% for type, label in games %}
+                            <option value="{{ type }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <button type="submit" class="btn btn-primary w-100">Utwórz</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     {% for type, categories in byGame %}
-        <section class="admin-block">
-            <h2>{{ games[type] }} <span class="muted">({{ categories|length }})</span></h2>
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">{{ games[type] }}</h3>
+                <span class="badge bg-secondary-lt ms-2">{{ categories|length }}</span>
+            </div>
 
             {% if categories is empty %}
-                <p class="muted">Brak kategorii — utwórz pierwszą powyżej.</p>
+                <div class="card-body text-secondary">Brak kategorii — utwórz pierwszą powyżej.</div>
             {% else %}
-                <ul class="admin-list">
+                {# Lista, nie tabela: wierszem jest cała klikalna pozycja, a kolumn
+                   jest tylko trzy - tabela dodawałaby ramek więcej niż treści. #}
+                <div class="list-group list-group-flush">
                     {% for category in categories %}
-                        <li>
-                            <a href="{{ path('admin_category', {id: category.id}) }}">{{ category.name }}</a>
-                            <span class="muted">{{ category.countItems }} poz.</span>
-                            <code class="slug">{{ category.slug }}</code>
-                        </li>
+                        <a class="list-group-item list-group-item-action d-flex align-items-center"
+                           href="{{ path('admin_category', {id: category.id}) }}">
+                            <span class="flex-fill">{{ category.name }}</span>
+                            <code class="text-secondary me-3">{{ category.slug }}</code>
+                            <span class="badge bg-blue-lt">{{ category.countItems }} poz.</span>
+                        </a>
                     {% endfor %}
-                </ul>
+                </div>
             {% endif %}
-        </section>
+        </div>
     {% endfor %}
 {% endblock %}

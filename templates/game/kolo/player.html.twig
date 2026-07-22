@@ -1,4 +1,8 @@
-{# Sterownik koła: plansza do podglądu i - gdy to twoja tura - klawiatura liter. #}
+{# Sterownik koła wg _other/kolo_fortuny.png: pasek z nazwą gry, okrągłe
+   „KRĘĆ KOŁEM", pod nim zgłaszanie litery. Plansza i bank zostają, bo bez nich
+   gracz nie wie, co się dzieje, gdy tura należy do kogoś innego. #}
+<p class="game-tab c-bg-kolo">KOŁO FORTUNY</p>
+
 <div class="kolo-player"
      data-controller="kolo-player"
      data-kolo-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
@@ -7,25 +11,32 @@
      data-kolo-player-my-turn-value="{{ game.myTurn ? 'true' : 'false' }}">
 
     <p class="puzzle-mini" data-kolo-player-target="board">{{ game.mask }}</p>
-    <p class="muted small" data-kolo-player-target="hint">{{ [game.category, game.hint]|filter(v => v)|join(' • ') }}</p>
-
-    <p class="bank-line">
-        Twój bank: <strong data-kolo-player-target="bank">{{ game.myBank }}</strong>
+    <p class="text-secondary small mb-2" data-kolo-player-target="hint">
+        {{ [game.category, game.hint]|filter(v => v)|join(' • ') }}
     </p>
+
+    <div class="player-facts">
+        <div class="fact-card">
+            <span class="fact-label">Twój bank:</span>
+            <span class="fact-value" data-kolo-player-target="bank">{{ game.myBank }}</span>
+        </div>
+    </div>
 
     <p class="turn-note" data-kolo-player-target="note"></p>
 
     <div class="kolo-actions" data-kolo-player-target="actions" hidden>
-        <button type="button" class="btn btn-primary btn-lg" data-kolo-player-target="spin"
-                data-action="kolo-player#spin">Zakręć kołem</button>
+        <button type="button" class="round-action c-bg-kolo" data-kolo-player-target="spin"
+                data-action="kolo-player#spin">KRĘĆ<br>KOŁEM</button>
 
-        {# Klawiatura liter: polski alfabet, bo "Ł" nie odsłania "L". #}
+        {# Klawiatura liter: polski alfabet, bo „Ł” nie odsłania „L”. #}
         <div class="letters" data-kolo-player-target="letters" hidden></div>
 
         <form class="solve-form" data-action="submit->kolo-player#solve">
-            <input type="text" placeholder="Zgaduję hasło…" autocomplete="off"
-                   data-kolo-player-target="answer" enterkeyhint="send">
-            <button type="submit" class="btn">Zgaduję</button>
+            <div class="input-group input-group-flat">
+                <input type="text" class="form-control form-control-lg" placeholder="Zgaduję hasło…"
+                       autocomplete="off" data-kolo-player-target="answer" enterkeyhint="send">
+                <button type="submit" class="btn btn-lg">Zgaduję</button>
+            </div>
         </form>
     </div>
 </div>

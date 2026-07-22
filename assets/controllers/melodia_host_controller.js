@@ -65,10 +65,14 @@ export default class extends Controller {
             ? `${view.categoryName} — utwór ${view.trackNumber} z ${view.trackTotal}`
             : '';
 
-        // Tytuł widzi wyłącznie host i wyłącznie wtedy, gdy jest komu oceniać:
-        // przy 'armed' ekran telewizora ogląda cały pokój.
-        const showAnswer = view.track && ['buzzed', 'judging'].includes(view.state);
-        this.answerTarget.textContent = showAnswer ? `${view.track.artist} — ${view.track.title}` : '';
+        // Tytuł wyłącznie po odsłonięciu (finish/cancel), nigdy przy ocenie.
+        // Przy 'buzzed' i 'judging' pokazywaliśmy go „dla hosta" - ale hostem
+        // jest telewizor, na który patrzy cały pokój. Po złej odpowiedzi utwór
+        // wraca do gry przejściem 'rearm', więc zdradzony tytuł psuł zagadkę
+        // wszystkim pozostałym drużynom.
+        this.answerTarget.textContent = view.revealed
+            ? `${view.revealed.artist} — ${view.revealed.title}`
+            : '';
 
         this.#renderBanner(view);
         this.#renderControls(view);

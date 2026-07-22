@@ -74,7 +74,11 @@ body {
 
 /* ---------- przyciski i pola ---------- */
 
-.btn {
+/* Przyciski i pola gry są celowo grube - obsługuje się je palcem, w półmroku,
+   często nie patrząc. Dlatego NIE dotyczą panelu treści: tam pracuje się myszą
+   przy biurku i standardowe komponenty Tablera są czytelniejsze niż nasze
+   przerośnięte guziki. Stąd body:not(.admin) - panel zostaje czystym Tablerem. */
+body:not(.admin) .btn {
     padding: 0.8rem 1.4rem;
     border: 1px solid #2b3050;
     border-radius: var(--radius);
@@ -87,28 +91,28 @@ body {
     min-height: 44px;
 }
 
-.btn:active {
+body:not(.admin) .btn:active {
     transform: translateY(1px);
 }
 
-.btn-primary {
+body:not(.admin) .btn-primary {
     background: var(--accent);
     border-color: transparent;
     color: #22160a;
 }
 
-.btn-lg {
+body:not(.admin) .btn-lg {
     width: 100%;
     padding: 1.1rem 1.6rem;
     font-size: 1.25rem;
 }
 
-.btn-ghost {
+body:not(.admin) .btn-ghost {
     background: transparent;
     color: var(--muted);
 }
 
-input {
+body:not(.admin) input {
     padding: 0.9rem 1rem;
     border: 1px solid #2b3050;
     border-radius: var(--radius);
@@ -120,8 +124,8 @@ input {
     width: 100%;
 }
 
-input:focus-visible,
-.btn:focus-visible {
+body:not(.admin) input:focus-visible,
+body:not(.admin) .btn:focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 2px;
 }
@@ -401,23 +405,286 @@ input:focus-visible,
    a nie na px: ten sam układ ma działać na monitorze 24" i na TV 55". */
 
 .tv {
-    min-height: 100dvh;
+    height: 100dvh;
     display: grid;
-    grid-template-rows: auto 1fr auto auto;
-    gap: clamp(0.8rem, 2.2vmin, 2rem);
-    padding: clamp(0.8rem, 2.4vmin, 2.4rem);
+    /* Pasek dostaje tyle, ile potrzebuje; CAŁA reszta ekranu należy do gry.
+       Wcześniej nagłówek z logo i QR zabierał górną wstęgę przez cały czas,
+       a tablo dolną - plansza dostawała środkowy pasek i z kanapy nie było
+       jej widać. */
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: clamp(0.6rem, 1.6vmin, 1.4rem);
+    padding: clamp(0.6rem, 1.8vmin, 1.8rem);
+    overflow: hidden;
     background:
         radial-gradient(circle at 15% -10%, #232a52 0%, transparent 55%),
         radial-gradient(circle at 85% 0%, #1d2547 0%, transparent 50%);
 }
 
-.tv-header {
+/* ---------- pasek górny ---------- */
+
+.tv-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 2rem;
+    gap: clamp(0.6rem, 2vmin, 1.6rem);
+}
+
+/* ---------- nagłówek poczekalni (wg _other/layout2.png) ---------- */
+
+.tv-bar-lobby {
+    align-items: flex-start;
     flex-wrap: wrap;
-    position: relative;
+}
+
+.brand-block {
+    transform: rotate(-1.5deg);
+}
+
+/* Logotyp jest bohaterem poczekalni - to pierwsze, co widać z drugiego końca
+   pokoju, więc skaluje się agresywnie z szerokością ekranu. */
+.brand-word {
+    margin: 0;
+    font-size: clamp(2.2rem, 7.5vmin, 6rem);
+    font-weight: 900;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    text-shadow: 0 0.06em 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Gwiazdka w miejscu "O" - z makiety. Wpisana w żółte koło, żeby czytało się
+   jako litera, a nie jako ozdobnik doklejony obok. */
+.brand-o {
+    display: inline-grid;
+    place-items: center;
+    width: 0.86em;
+    height: 0.86em;
+    margin: 0 0.02em;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #22160a;
+    font-size: 0.78em;
+    vertical-align: baseline;
+    transform: translateY(0.04em);
+}
+
+.brand-tag {
+    margin: 0.1em 0 0 0.4em;
+    color: var(--accent);
+    font-size: clamp(0.9rem, 2.2vmin, 1.8rem);
+    font-weight: 700;
+}
+
+.join-inline {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.7rem, 2vmin, 1.6rem);
+}
+
+.join-inline-text {
+    text-align: right;
+}
+
+.join-inline-lead,
+.join-inline-url {
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(0.75rem, 1.6vmin, 1.15rem);
+}
+
+/* Kod wpisuje się z telefonu, patrząc na ekran - duży i rozstrzelony,
+   żeby nie trzeba było mrużyć oczu przy przepisywaniu. */
+.join-inline-code {
+    margin: 0.1em 0;
+    font-size: clamp(1.8rem, 5vmin, 4rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+}
+
+.join-inline-qr {
+    width: clamp(90px, 13vmin, 190px);
+    height: auto;
+    border-radius: 10px;
+    /* Białe tło: czytniki telefonów gubią kod odwrócony kolorystycznie. */
+    background: #fff;
+    padding: 0.4rem;
+}
+
+.tv-brand {
+    margin: 0;
+    font-size: clamp(1rem, 2.4vmin, 1.9rem);
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.tv-bar-right {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 1.4vmin, 1.1rem);
+}
+
+.btn-join {
+    background: var(--accent);
+    color: #22160a;
+    font-weight: 800;
+    font-size: clamp(0.85rem, 1.8vmin, 1.35rem);
+    padding: 0.5em 1em;
+}
+
+.bar-code {
+    margin-left: 0.5em;
+    letter-spacing: 0.18em;
+    font-weight: 900;
+}
+
+.btn-reset {
+    font-size: clamp(0.75rem, 1.5vmin, 1.05rem);
+    padding: 0.5em 0.9em;
+}
+
+/* ---------- korpus: scena + drużyny ---------- */
+
+/* Panel punktacji po LEWEJ, scena po prawej - kolejność z prośby użytkownika.
+   Kolumna jest stała, scena bierze resztę; minmax(0,...) na scenie nie pozwala
+   wielkiej planszy rozepchnąć siatki i wypchnąć tablo poza ekran. */
+.tv-body {
+    display: grid;
+    /* Wąska kolumna punktacji po LEWEJ, scena bierze resztę. minmax(0,...)
+       na scenie jest konieczne: bez tego wielka plansza rozpycha grid zamiast
+       się w nim zmieścić i kolumna z drużynami ucieka poza ekran. */
+    grid-template-columns: clamp(11rem, 15vw, 17rem) minmax(0, 1fr);
+    gap: clamp(0.6rem, 1.8vmin, 1.6rem);
+    min-height: 0;
+}
+
+/* Jedna kolumna na pełną szerokość, wyśrodkowana w pionie.
+   NIE "place-content: center": to zwęża ścieżki gridu do szerokości treści,
+   przez co siatka kafelków gier dostaje kilkanaście centymetrów i układa się
+   w pionową listę zamiast rozłożyć się w rząd. */
+.tv-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: clamp(0.5rem, 1.6vmin, 1.4rem);
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Karta Tablera, ale rozciągnięta na wysokość kolumny i z listą, która
+   przewija się w środku zamiast rozpychać kartę poza ekran. */
+.tv-teams {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.teams-head {
+    margin: 0;
+    /* Tabler daje nagłówkom kart rozmiar do czytania z 50 cm - na telewizorze
+       oglądanym z trzech metrów to za mało. */
+    font-size: clamp(0.95rem, 2vmin, 1.6rem);
+}
+
+/* Drużyny jedna pod drugą i możliwie duże - to jest tablo oglądane z kanapy,
+   a nie lista w formularzu. Przewijamy dopiero, gdy rodzin jest naprawdę wiele. */
+.tv-teams .teams {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: clamp(0.35rem, 1vmin, 0.8rem);
+    margin: 0;
+    padding: clamp(0.5rem, 1.4vmin, 1rem);
+    list-style: none;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.tv-teams .team {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        'name score'
+        'buttons score';
+    align-items: center;
+    gap: 0.2em 0.6em;
+    padding: clamp(0.4rem, 1.2vmin, 0.9rem) clamp(0.5rem, 1.4vmin, 1rem);
+    border-radius: 12px;
+    border-left: 6px solid var(--team-color, var(--accent));
+    background: rgba(242, 239, 230, 0.07);
+}
+
+.tv-teams .team-name {
+    grid-area: name;
+    font-size: clamp(0.85rem, 1.6vmin, 1.25rem);
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.tv-teams .team-score {
+    grid-area: score;
+    /* Punkty to najważniejsza liczba na tablo - mają być czytelne z drugiego
+       końca pokoju. Stała szerokość, żeby przyciski nie skakały przy 9 → 10. */
+    font-size: clamp(1.2rem, 2.6vmin, 2.2rem);
+    font-weight: 900;
+    line-height: 1;
+    min-width: 2.5ch;
+    text-align: right;
+    color: var(--team-color, var(--fg));
+}
+
+.tv-teams .team-buttons {
+    grid-area: buttons;
+    display: flex;
+    gap: 0.35rem;
+}
+
+/* ---------- wąski ekran: telefon, tablet, okno na pół monitora ----------
+
+   Ekran hosta jest projektowany pod telewizor, ale otwiera się go też na
+   laptopie i na telefonie (choćby żeby sprawdzić pokój). Sztywna wysokość
+   100dvh z overflow: hidden obcinałaby wtedy treść bez możliwości przewinięcia,
+   a kolumna drużyn zabierałaby połowę i tak wąskiego ekranu. */
+@media (max-width: 60rem) {
+    .tv {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .tv-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tv-teams {
+        grid-template-rows: auto auto auto;
+    }
+
+    .tv-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .tv-stage {
+        overflow: visible;
+    }
+
+    .game-panel {
+        height: auto;
+    }
+
+    /* Koło pod planszą, a nie obok niej - w pionie jest miejsce, w poziomie nie. */
+    .kolo-stage {
+        flex-direction: column;
+    }
+
+    .wheel {
+        height: auto;
+        width: min(86vw, 60vmin);
+    }
 }
 
 .brand-name {
@@ -446,50 +713,152 @@ input:focus-visible,
     transform: rotate(-1.5deg);
 }
 
-.join-box {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.8rem, 2vmin, 1.6rem);
+/* ---------- wysuwany panel dołączania ---------- */
+
+/* Nakładka, a nie miejsce w układzie: gdy jest schowana, plansza dostaje
+   pełny ekran. Position fixed zamiast wiersza w gridzie, żeby otwarcie panelu
+   w trakcie gry niczego nie przesuwało - koło nie może podskoczyć w chwili,
+   gdy ktoś dosiada się do zabawy. */
+.join-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 2vmin;
+    background: rgba(9, 11, 22, 0.82);
+    backdrop-filter: blur(4px);
 }
 
-.join-text {
-    text-align: right;
+.join-card {
+    display: grid;
+    justify-items: center;
+    gap: clamp(0.5rem, 1.6vmin, 1.2rem);
+    padding: clamp(1rem, 3vmin, 2.4rem);
+    border-radius: 22px;
+    background: #151829;
+    border: 1px solid #2b3050;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.join-lead {
+    margin: 0;
+    font-size: clamp(1rem, 2.4vmin, 1.9rem);
+    color: var(--muted);
+}
+
+.join-url {
+    margin: 0;
+    font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
+    color: var(--muted);
 }
 
 .qr {
-    width: clamp(80px, 11vmin, 150px);
+    /* Duży: kod jest skanowany z drugiego końca pokoju, pod kątem i przez
+       odbicie światła od ekranu. */
+    width: clamp(180px, 34vmin, 420px);
     height: auto;
-    border-radius: 10px;
+    border-radius: 12px;
     /* Białe tło pod QR: czytniki telefonów gubią kod odwrócony kolorystycznie. */
     background: #fff;
-    padding: 0.35rem;
+    padding: 0.5rem;
 }
 
-/* Tablo w kafelku dolnego pasa: jedna drużyna na wiersz i mniejsza skala niż
-   samodzielna lista - obok stoi "Jak to działa?" i oba mają się zmieścić. */
-.tile .teams {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-    gap: clamp(0.35rem, 0.9vmin, 0.7rem);
+/* ---------- dolny pas poczekalni (wg _other/layout2.png) ---------- */
+
+.lobby-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: clamp(0.5rem, 1.4vmin, 1.2rem);
+    width: 100%;
 }
 
-.tile .team {
-    font-size: clamp(0.9rem, 1.9vmin, 1.5rem);
-    padding: clamp(0.45rem, 1.1vmin, 0.9rem) clamp(0.6rem, 1.4vmin, 1.1rem);
+.strip-tile {
+    padding: clamp(0.7rem, 1.8vmin, 1.4rem);
+    border-radius: 16px;
+    background: rgba(21, 24, 41, 0.66);
+    border: 1px solid #232741;
+    text-align: left;
 }
 
-.tile .team-score {
-    /* Stała szerokość kolumny z punktami, żeby przyciski nie skakały w bok
-       przy przejściu z 9 na 10 punktów. */
-    min-width: 2.5ch;
-    text-align: right;
+.strip-tile h2 {
+    margin: 0 0 0.7em;
+    font-size: clamp(0.9rem, 1.9vmin, 1.4rem);
+}
+
+.steps {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(0.72rem, 1.4vmin, 1rem);
+    color: var(--muted);
+}
+
+.steps strong {
+    color: var(--fg);
+}
+
+.step-no {
+    display: inline-grid;
+    place-items: center;
+    width: 1.7em;
+    height: 1.7em;
+    margin-right: 0.5em;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #22160a;
+    font-weight: 900;
+}
+
+.strip-rows,
+.strip-rank {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(0.72rem, 1.5vmin, 1.05rem);
+}
+
+.strip-rows > div,
+.strip-rank li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.strip-rows dt,
+.strip-rank span {
+    margin: 0;
+    color: var(--muted);
+}
+
+.strip-rows dd,
+.strip-rank strong {
+    margin: 0;
+    font-weight: 800;
+}
+
+/* Lider wyróżniony kolorem akcentu - z makiety. */
+.strip-rank li:first-child strong,
+.strip-rank li:first-child span {
+    color: var(--accent);
 }
 
 /* ---------- kafelki gier ---------- */
 
+/* Kafelki gier w rzędzie, nie w kolumnie. min(100%, 12rem) sprawia, że na
+   telefonie schodzą do jednej kolumny same, bez media query - a na telewizorze
+   mieszczą się obok siebie nawet obok kolumny z drużynami. */
 .game-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
     gap: clamp(0.6rem, 1.6vmin, 1.4rem);
+    width: 100%;
+    align-content: center;
 }
 
 .game-card {
@@ -567,53 +936,6 @@ input:focus-visible,
     border: 2px dashed var(--card);
     color: var(--card);
     text-transform: uppercase;
-}
-
-/* ---------- dolny pas ---------- */
-
-.tv-bottom {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
-    gap: clamp(0.6rem, 1.6vmin, 1.4rem);
-    align-content: start;
-}
-
-.tile {
-    padding: clamp(0.8rem, 2vmin, 1.6rem);
-    border-radius: 16px;
-    background: rgba(21, 24, 41, 0.66);
-    border: 1px solid #232741;
-}
-
-.tile h2 {
-    margin: 0 0 0.7em;
-    font-size: clamp(0.95rem, 2vmin, 1.5rem);
-}
-
-.steps {
-    display: grid;
-    gap: 0.7rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: clamp(0.78rem, 1.5vmin, 1.05rem);
-    color: var(--muted);
-}
-
-.steps strong {
-    color: var(--fg);
-}
-
-.step-no {
-    display: inline-grid;
-    place-items: center;
-    width: 1.7em;
-    height: 1.7em;
-    margin-right: 0.5em;
-    border-radius: 8px;
-    background: var(--accent);
-    color: #22160a;
-    font-weight: 900;
 }
 
 .tv-footer {
@@ -694,16 +1016,21 @@ input:focus-visible,
 
 /* ---------- panel gry na ekranie hosta ---------- */
 
+/* Panel gry wypełnia scenę - to on jest treścią ekranu, a nie kafelek
+   pośrodku pustego tła. min-height: 0 pozwala planszy i kołu kurczyć się
+   do dostępnej wysokości zamiast rozpychać stronę poza ekran. */
 .game-panel {
     display: grid;
     align-content: center;
-    gap: clamp(0.6rem, 1.6vmin, 1.2rem);
-    padding: clamp(0.9rem, 2.4vmin, 1.8rem);
+    gap: clamp(0.5rem, 1.6vmin, 1.2rem);
+    padding: clamp(0.8rem, 2.2vmin, 1.8rem);
     border-radius: var(--radius);
     background: rgba(21, 24, 41, 0.75);
     border: 1px solid #232741;
     justify-items: center;
     text-align: center;
+    height: 100%;
+    min-height: 0;
 }
 
 .panel-row {
@@ -714,9 +1041,13 @@ input:focus-visible,
     justify-content: center;
 }
 
+/* Przyciski hosta obsługuje się z kanapy, często pilotem albo na oko -
+   mają być duże i trudne do chybienia. */
 .panel-controls .btn {
     width: auto;
     min-width: 12ch;
+    font-size: clamp(1rem, 2.4vmin, 1.8rem);
+    padding: 0.6em 1.4em;
 }
 
 .select {
@@ -735,10 +1066,12 @@ input:focus-visible,
     gap: 0.2rem;
 }
 
-/* Odpowiedź czyta host z odległości - większa niż reszta panelu i tylko
-   wtedy, gdy jest komu oceniać (kontroler czyści ją poza fazą oceny). */
+/* Rozwiązanie - tytuł utworu albo hasło. Pokazuje się WYŁĄCZNIE po odsłonięciu
+   (melodia: finish/cancel, koło: rozwiązane hasło), bo ten ekran ogląda cały
+   pokój. Kontroler czyści je w każdej innej fazie. */
 .track-answer {
-    font-size: clamp(1.2rem, 3.4vmin, 2.6rem);
+    font-size: clamp(1.4rem, 4vmin, 3.2rem);
+    font-weight: 800;
     color: var(--accent);
 }
 
@@ -877,13 +1210,25 @@ input:focus-visible,
     padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
 }
 
-.player-header {
+/* Pasek gracza: nazwa, punkty, status - w jednym rzędzie, bez zawijania.
+   Wcześniej flex-wrap przy dłuższej nazwie drużyny łamał pasek na trzy piętra
+   i zjadał połowę ekranu telefonu. Teraz nazwa się skraca (text-truncate),
+   a punkty i status mają stałe miejsce. */
+.player-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 0.5rem;
-    flex-wrap: wrap;
     min-width: 0;
+}
+
+.player-bar .team-badge {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.score-unit {
+    color: var(--muted);
+    font-size: 0.8em;
 }
 
 .team-badge {
@@ -894,14 +1239,14 @@ input:focus-visible,
     font-weight: 800;
 }
 
+/* Treść gry bierze pełną szerokość telefonu i jest wyśrodkowana w pionie.
+   NIE "place-content: center": to zwęża ścieżkę siatki do szerokości treści,
+   przez co karty i klawiatura liter zbiegały się w wąski sznurek pośrodku
+   ekranu zamiast wykorzystać całą dostępną szerokość. */
 .player-main {
     display: grid;
-    place-content: center;
-    /* justify-items zamiast szerokości 100% na dziecku: przy place-content:center
-       ścieżka siatki dopasowuje się do treści, więc "100%" odnosiłoby się do
-       samego siebie i buzzer wychodził poza ekran telefonu. */
-    justify-items: center;
-    text-align: center;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
     gap: 0.5rem;
     min-width: 0;
 }
@@ -927,35 +1272,63 @@ input:focus-visible,
 
 /* ---------- koło fortuny ---------- */
 
+/* Kolumna flex, nie grid: tylko wtedy scena koła może dostać "flex: 1"
+   i zabrać całą wysokość, która zostanie po planszy hasła. W gridzie
+   liczba wierszy zmienia się przy każdym ukryciu elementu (display: none
+   wypada z układu), więc sztywny grid-template-rows byłby nie do utrzymania. */
+.kolo-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
 .kolo-stage {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: clamp(1rem, 4vmin, 3rem);
     flex-wrap: wrap;
+    /* Scena koła zjada całą wysokość, jaka zostanie po planszy hasła. */
+    flex: 1;
+    min-height: 0;
+    width: 100%;
 }
 
-/* Ekran hosta ma sie miescic w calosci - telewizora nikt nie przewija. */
-.tv {
-    max-height: 100dvh;
-    overflow: hidden;
-}
-
+/* Koło jest bohaterem tego ekranu - bierze tyle wysokości, ile zostało po
+   planszy hasła. Wcześniej stało na sztywnym 21vmin i na telewizorze wychodziło
+   wielkości podstawki pod kubek. */
 .wheel {
-    width: clamp(140px, 21vmin, 300px);
-    height: auto;
+    width: auto;
+    height: min(52vmin, 100%);
+    max-width: 100%;
 }
 
 .kolo-side {
+    min-width: min(18rem, 32vw);
+    text-align: center;
+}
+
+.kolo-side .card-body {
     display: grid;
-    gap: 0.4rem;
-    min-width: 12rem;
+    gap: clamp(0.4rem, 1.4vmin, 1rem);
+    padding: clamp(0.7rem, 2vmin, 1.6rem);
+}
+
+/* Pasek porządkowy nad planszą: kategoria i numer hasła. Celowo drobny
+   i stonowany - gdyby był duży, konkurowałby wzrokowo z samą planszą. */
+.panel-eyebrow {
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(0.8rem, 1.6vmin, 1.15rem);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .turn-line {
     margin: 0;
-    font-size: clamp(1rem, 2.4vmin, 1.6rem);
-    font-weight: 700;
+    font-size: clamp(1.2rem, 3vmin, 2.4rem);
+    font-weight: 800;
 }
 
 .banner-small {
@@ -977,12 +1350,12 @@ input:focus-visible,
 .puzzle-cell {
     display: grid;
     place-items: center;
-    width: clamp(1.1rem, 3.4vmin, 2.6rem);
-    height: clamp(1.6rem, 4.6vmin, 3.4rem);
-    border-radius: 4px;
+    width: clamp(1.4rem, 4.4vmin, 3.6rem);
+    height: clamp(2rem, 6vmin, 4.8rem);
+    border-radius: 6px;
     background: #f5f6fb;
     color: #10121f;
-    font-size: clamp(0.9rem, 2.8vmin, 2rem);
+    font-size: clamp(1.1rem, 3.6vmin, 2.9rem);
     font-weight: 800;
 }
 
@@ -1005,12 +1378,12 @@ input:focus-visible,
 
 /* ---------- koło: telefon ---------- */
 
+/* Pełna szerokość na telefonie, ograniczona dopiero na tablecie i wyżej -
+   na 7-calowym ekranie 30rem to było mniej niż połowa dostępnego miejsca. */
 .kolo-player {
-    display: grid;
-    gap: 0.75rem;
     width: 100%;
-    max-width: 30rem;
-    text-align: center;
+    max-width: 38rem;
+    margin-inline: auto;
 }
 
 .puzzle-mini {
@@ -1026,9 +1399,14 @@ input:focus-visible,
     font-size: 0.85rem;
 }
 
-.bank-line {
-    margin: 0;
-    color: var(--muted);
+/* Bank to liczba, na którą gracz zerka najczęściej - ma być duża i czytelna
+   kątem oka, bez czytania podpisu. */
+.bank-value {
+    font-size: clamp(1.6rem, 9vw, 2.6rem);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
 }
 
 .turn-note {
@@ -1043,23 +1421,34 @@ input:focus-visible,
     gap: 0.75rem;
 }
 
+/* Klawiatura liter. Klawisz musi być trafialny kciukiem w ruchu - stąd
+   kwadratowe pole i wymiary powyżej zalecanych 44 px, a nie upakowanie
+   jak największej liczby liter w rzędzie. */
 .letters {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(2.4rem, 1fr));
-    gap: 0.35rem;
+    grid-template-columns: repeat(auto-fit, minmax(2.9rem, 1fr));
+    gap: 0.4rem;
 }
 
 .letter-key {
-    min-height: 3rem;
+    min-height: 3.4rem;
     border: 1px solid #2b3050;
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--bg-soft);
     color: var(--fg);
     font: inherit;
-    font-size: 1.15rem;
+    font-size: 1.35rem;
     font-weight: 700;
     cursor: pointer;
     touch-action: manipulation;
+}
+
+/* Przycisk "Zakręć kołem" - najważniejsza akcja w grze, na pełną szerokość. */
+.btn-xl {
+    font-size: 1.35rem;
+    font-weight: 800;
+    padding: 0.9em 1.2em;
+    min-height: 3.6rem;
 }
 
 .letter-key:disabled {
@@ -1159,4 +1548,340 @@ input:focus-visible,
     display: grid;
     gap: 0.75rem;
     text-align: left;
+}
+
+/* ================= ekrany gier wg makiet w _other/ =================
+
+   Wspólny układ dla melodii i koła (jaka_to_melodia.png, kolo_fortuny.png):
+   lewa szyna z tytułem i ilustracją, środek z akcją, tablo po prawej rysuje
+   ekran hosta. Reguły są na końcu pliku celowo - nadpisują wcześniejsze
+   definicje .game-panel i .kolo-panel bez podbijania specyficzności. */
+
+.game-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    grid-template-areas:
+        'rail main'
+        'foot foot';
+    align-content: stretch;
+    justify-items: stretch;
+    text-align: left;
+    gap: clamp(0.6rem, 1.8vmin, 1.6rem);
+}
+
+/* .kolo-panel dostawał wcześniej flex-column - tu wraca do wspólnej siatki. */
+.kolo-panel {
+    display: grid;
+}
+
+.game-rail {
+    grid-area: rail;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: clamp(0.5rem, 1.6vmin, 1.2rem);
+    min-height: 0;
+}
+
+/* Tytuł gry łamany na dwie linie, tak jak na makiecie - druga linia jest
+   większa i kolorowa, bo to ona niesie nazwę. */
+.game-name {
+    margin: 0;
+    display: grid;
+    line-height: 0.94;
+    text-transform: uppercase;
+}
+
+.game-name-1 {
+    font-size: clamp(1.2rem, 3.4vmin, 3rem);
+    font-weight: 900;
+}
+
+.game-name-2 {
+    font-size: clamp(1.6rem, 4.6vmin, 4rem);
+    font-weight: 900;
+}
+
+.c-melodia { color: #3e7bfa; }
+.c-kolo { color: #f5a524; }
+
+.game-art {
+    display: grid;
+    place-items: center;
+    min-height: 0;
+}
+
+.game-art svg,
+.game-rail .wheel {
+    width: auto;
+    height: min(38vmin, 100%);
+    max-width: 100%;
+}
+
+/* Niebieska karta z instrukcją dla graczy - z makiety. */
+.tip-card {
+    margin: 0;
+    padding: clamp(0.6rem, 1.6vmin, 1.1rem);
+    border-radius: 14px;
+    background: rgba(46, 107, 216, 0.16);
+    border: 1px solid rgba(62, 123, 250, 0.45);
+    color: var(--fg);
+    font-size: clamp(0.75rem, 1.5vmin, 1.1rem);
+}
+
+.game-main {
+    grid-area: main;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: clamp(0.5rem, 1.6vmin, 1.2rem);
+    padding: clamp(0.7rem, 2vmin, 1.6rem);
+    border-radius: 18px;
+    background: rgba(13, 16, 30, 0.55);
+    border: 1px solid #232741;
+    min-height: 0;
+    text-align: center;
+}
+
+.board-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+}
+
+.board-hint {
+    color: var(--accent);
+}
+
+/* Stopka panelu - drobna wskazówka na dole ekranu, jak na makiecie. */
+.game-foot {
+    grid-area: foot;
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(0.7rem, 1.4vmin, 1rem);
+    text-align: center;
+}
+
+/* Tablo po prawej to "PUNKTACJA" z makiety. */
+.teams-head {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* ---------- telefon wg makiet ---------- */
+
+.player-brand {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+/* Pasek z nazwą gry - pełna szerokość, kolor gry. */
+.game-tab {
+    margin: 0 0 0.75rem;
+    padding: 0.7em 1em;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: 900;
+    font-size: 1.15rem;
+    letter-spacing: 0.04em;
+    color: #fff;
+}
+
+.c-bg-melodia { background: #2f6bd8; }
+.c-bg-kolo { background: #2f6bd8; }
+
+.player-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.fact-card {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    background: rgba(242, 239, 230, 0.06);
+    border: 1px solid #232741;
+    text-align: center;
+}
+
+.fact-label {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.fact-value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--team-color, var(--fg));
+}
+
+.fact-team {
+    font-size: 1.4rem;
+}
+
+/* Okrągła akcja główna - dominanta ekranu telefonu, jak na makietach. */
+.round-action {
+    display: grid;
+    place-items: center;
+    width: min(64vw, 17rem);
+    aspect-ratio: 1;
+    margin: 0.5rem auto;
+    border: 6px solid rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    color: #fff;
+    font-size: clamp(1.4rem, 7vw, 2.2rem);
+    font-weight: 900;
+    line-height: 1.05;
+    text-transform: uppercase;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.round-action:active {
+    transform: scale(0.97);
+}
+
+.action-caption {
+    margin: 0.5rem 0 0;
+    text-align: center;
+    color: var(--muted);
+}
+
+/* ---------- panel punktacji po lewej (miejsca + animacja) ---------- */
+
+.tv-teams {
+    grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+/* Kafelek drużyny: numer miejsca, nazwa, wynik, przyciski hosta. */
+.tv-teams .team {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+        'rank name score'
+        'rank buttons score';
+}
+
+.tv-teams .team-rank {
+    grid-area: rank;
+    display: grid;
+    place-items: center;
+    width: 1.7em;
+    height: 1.7em;
+    margin-right: 0.5rem;
+    border-radius: 8px;
+    background: rgba(242, 239, 230, 0.1);
+    color: var(--muted);
+    font-size: clamp(0.9rem, 1.9vmin, 1.5rem);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Lider wyróżniony - z kanapy widać, kto prowadzi, bez czytania liczb. */
+.tv-teams .team:first-child .team-rank {
+    background: var(--accent);
+    color: #22160a;
+}
+
+/* Zmiana wyniku podbija liczbę; przesunięcie kafelka animuje kontroler
+   techniką FLIP, bo CSS nie widzi zmiany kolejności w DOM-ie. */
+.tv-teams .team-score.bump {
+    animation: pop 0.35s ease-out;
+}
+
+/* ---------- poprawki po obejrzeniu zrzutów ekranu ----------
+
+   Wąska kolumna punktacji nie mieściła wyniku w jednym rzędzie z nazwą
+   i przyciskami - liczba punktów wypadała poza kafelek. Układ pionowy:
+   miejsce i nazwa na górze, pod spodem duży wynik i przyciski hosta. */
+
+.tv-teams .team {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        'rank name'
+        'score buttons';
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+}
+
+.tv-teams .team-rank {
+    margin-right: 0;
+}
+
+.tv-teams .team-score {
+    grid-area: score;
+    text-align: left;
+    font-size: clamp(1.4rem, 3vmin, 2.6rem);
+}
+
+.tv-teams .team-buttons {
+    justify-content: flex-end;
+}
+
+/* Przyciski korekty to narzędzie hosta, nie treść - mają nie dominować
+   kafelka, którego głównym zadaniem jest pokazać wynik. */
+.tv-teams .btn-score {
+    min-height: 2rem;
+    padding: 0.15em 0.6em;
+    font-size: 1rem;
+}
+
+/* Scena wypełnia całą wysokość zamiast skleić się do górnej krawędzi.
+   Dolna połowa ekranu telewizora stała pusta, bo align-content: center
+   przy jednym wierszu ustawia go w pionie na środku, ale nie rozciąga. */
+.tv-stage {
+    align-content: stretch;
+}
+
+.game-panel {
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100%;
+}
+
+.game-main {
+    height: 100%;
+}
+
+/* Koło bierze tyle wysokości, ile zostanie po tytule i karcie z instrukcją. */
+.game-rail .wheel {
+    height: min(52vmin, 100%);
+}
+
+/* ---------- proporcje sceny i plansza hasła ----------
+
+   Pół na pół: koło jest bohaterem gry i zasługuje na tyle samo miejsca
+   co plansza. Wcześniej szyna miała sztywne 20rem i koło dusiło się
+   w kolumnie węższej niż jedna trzecia ekranu. */
+.game-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.game-rail .wheel {
+    height: min(64vmin, 100%);
+}
+
+/* Odstępy rozłożone równomiernie zamiast zbicia treści w środku karty
+   z pustką nad i pod. */
+.game-main {
+    align-content: space-evenly;
+}
+
+/* Kafelki hasła mają czytać się jako miejsca na litery także wtedy, gdy są
+   puste - stąd ramka. Bez niej to były bezkształtne szare prostokąty. */
+.puzzle-cell {
+    border: 2px solid #38406a;
+}
+
+.puzzle-hidden {
+    background: #1a1f36;
+}
+
+.puzzle-space {
+    border-color: transparent;
 }

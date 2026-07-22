@@ -10,6 +10,21 @@
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.1em%22 font-size=%22104%22>🎲</text></svg>">
 
         {% block stylesheets %}
+            {# Tabler (Bootstrap 5) daje siatkę, odstępy i komponenty - zwłaszcza
+               na telefonie, gdzie własny CSS wymagał ręcznego dopieszczania
+               każdego breakpointu.
+
+               Wersja PINOWANA, nie @latest: wydanie w górę potrafi przestawić
+               układ bez uprzedzenia, a tego nikt nie chce odkryć przy stole.
+
+               UWAGA: to jedyna zależność z sieci w runtime. Świadome odstępstwo
+               od spec §15 - gra stoi pod publiczną domeną, więc internet i tak
+               jest warunkiem wejścia. Gdyby wróciła praca w LAN bez internetu,
+               ściągnij ten plik do assets/styles/vendor/ i podmień href. #}
+            <link rel="stylesheet"
+                  href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
+            {# Nasz CSS po Tablerze - dopowiada to, czego framework nie umie:
+               skalę czytelną z 3 metrów na telewizorze i pełnoekranowy buzzer. #}
             <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
         {% endblock %}
 
@@ -17,7 +32,9 @@
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </head>
-    <body class="{% block body_class %}{% endblock %}">
+    {# data-bs-theme: Tabler ma wbudowany tryb ciemny, a gra jest ciemna
+       z założenia - jasny framework na telewizorze oślepiałby pokój. #}
+    <body class="{% block body_class %}{% endblock %}" data-bs-theme="dark">
         {% for label, messages in app.flashes %}
             {% for message in messages %}
                 <p class="flash flash-{{ label }}">{{ message }}</p>

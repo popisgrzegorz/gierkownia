@@ -16,19 +16,26 @@ Stan: **kamienie 1–3 i 5** — rdzeń pokoju, silnik gry, „Jaka to melodia" 
 ./bin/dev
 ```
 
-Skrypt podnosi kontenery i wystawia aplikację na `0.0.0.0`, żeby telefony
-w sieci ją widziały. Adres i porty siedzą w `.env` — nadpisuj w `.env.local`.
+Skrypt podnosi kontenery i uruchamia serwer PHP. Adresy i porty siedzą w `.env`;
+w `.env.local` trzymaj **wyłącznie sekrety** — kopia całości powoduje, że
+aplikacja i kontenery startują z dwóch różnych zestawów wartości.
 
-| Usługa            | Port    | Uwaga                                            |
-|-------------------|---------|--------------------------------------------------|
-| Aplikacja         | `8210`  | ekran hosta i sterowniki telefonów                |
-| Mercure (SSE)     | `3010`  | push serwer → klient                              |
-| Redis             | `56379` | stan „live" pokoju                                |
-| PostgreSQL        | `55432` | treści: kategorie, nagrania, hasła, karty         |
+Gra stoi za `nginx-proxy-manager`, który terminuje TLS dla `gierkownia.j33.pl`.
+
+| Usługa            | Nasłuch              | Uwaga                                     |
+|-------------------|----------------------|-------------------------------------------|
+| Aplikacja         | `10.0.7.1:8210`      | tylko dla proxy, nie z internetu           |
+| Mercure (SSE)     | `10.0.7.1:3010`      | proxy przepuszcza pod `/.well-known/mercure` |
+| Redis             | `127.0.0.1:56379`    | stan „live" pokoju; brak hasła             |
+| PostgreSQL        | `127.0.0.1:55432`    | treści: kategorie, nagrania, hasła, karty  |
 
 Porty są nietypowe celowo: na tej maszynie stoją już inne projekty zajmujące
 `6379`, `5432`, `3000` i `8080`. Własne kontenery zamiast współdzielenia tamtych,
 żeby reset pokoju nie skasował cudzych kluczy.
+
+Adresy nasłuchu też są celowe: maszyna ma publiczny adres i nie ma firewalla,
+więc nic, co nie musi, nie stoi na `0.0.0.0`. W czystym LAN ustaw
+`APP_BIND=0.0.0.0` i `MERCURE_PUBLIC_PORT=${MERCURE_PORT}`.
 
 ```bash
 php bin/phpunit                     # testy (wymagają Redisa i bazy testowej)
@@ -120,11 +127,18 @@ domain"). Ten sam serwer jest widziany raz jako `192.168.x.x` z telewizora, raz
 jako `localhost` przy pisaniu kodu — więc adres huba wyprowadzamy z bieżącego
 żądania. Warunek: aplikacja i hub muszą być osiągalne pod **tą samą** nazwą/IP.
 
+Stąd `MERCURE_PUBLIC_PORT`: `0` znaczy „hub pod tym samym adresem co gra",
+czyli przepuszczony przez to samo proxy pod `/.well-known/mercure`. Wtedy SSE
+jest zapytaniem same-origin, CORS w ogóle nie wchodzi w grę, a ciasteczko
+z tokenem subskrypcji dolatuje bez kombinowania z `SameSite`. W LAN wpisz tam
+port huba — stoi wtedy obok, we własnym originie.
+
 ## Do rozstrzygnięcia
 
-- **PWA wymaga HTTPS** (spec §13.4). Service worker nie zarejestruje się po
-  `http://192.168.x.x`. Potrzebny Caddy z lokalnym CA albo cert instalowany na
-  telefonach — decyzja przed kamieniem 4.
+- **PWA wymaga HTTPS** (spec §13.4) — i to już jest: gra chodzi za proxy
+  z certyfikatem Let's Encrypt, więc kamień 4 nie jest niczym blokowany.
+  Otwarte zostaje pytanie odwrotne: czy gra ma nadal działać bez internetu
+  w LAN, gdzie pod adresem IP HTTPS-a nie ma.
 - **Timer i rozjazd zegarów** (spec §8): sam `deadline` w evencie skłamie na
   telefonie z przestawionym zegarem. Proponowane `{deadline, serverNow}`, klient
   liczy offset.

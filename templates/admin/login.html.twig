@@ -1,23 +1,45 @@
 {% extends 'base.html.twig' %}
 
 {% block title %}Panel — logowanie{% endblock %}
-{% block body_class %}screen-center{% endblock %}
+{# body_class "admin" nie tylko nazywa ekran - wycofuje z niego nasze
+   nadpisania przycisków i pól (patrz body:not(.admin) w app.css), więc
+   logowanie wygląda jak standardowy Tabler, a nie jak sterownik gry. #}
+{% block body_class %}admin{% endblock %}
 
 {% block body %}
-    <main class="panel">
-        <h1 class="logo">Panel treści</h1>
-        <p class="lead">Zarządzanie nagraniami, hasłami i kartami.</p>
+    <div class="page page-center">
+        <div class="container container-tight py-4">
+            <div class="text-center mb-4">
+                <h1 class="navbar-brand navbar-brand-autodark">NASZE<span class="brand-star">★</span>GIERKI</h1>
+            </div>
 
-        {% for label, messages in app.flashes %}
-            {% for message in messages %}
-                <p class="note note-{{ label }}">{{ message }}</p>
-            {% endfor %}
-        {% endfor %}
+            <div class="card card-md">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-1">Panel treści</h2>
+                    <p class="text-secondary text-center mb-4">
+                        Zarządzanie nagraniami, hasłami i kartami.
+                    </p>
 
-        <form method="post" class="join-form">
-            <label for="password">Hasło</label>
-            <input type="password" id="password" name="password" autofocus required autocomplete="current-password">
-            <button type="submit" class="btn btn-primary btn-lg">Wejdź</button>
-        </form>
-    </main>
+                    {% for label, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+
+                    <form method="post">
+                        <div class="mb-3">
+                            <label class="form-label" for="password">Hasło</label>
+                            <input type="password" id="password" name="password" class="form-control"
+                                   autofocus required autocomplete="current-password">
+                        </div>
+                        <div class="form-footer">
+                            <button type="submit" class="btn btn-primary w-100">Wejdź</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}

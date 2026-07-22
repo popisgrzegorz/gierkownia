@@ -1,36 +1,55 @@
-{# Panel koła fortuny na ekranie hosta: plansza hasła, koło i sterowanie.
+{# Panel koła na ekranie hosta - układ wg _other/kolo_fortuny.png: lewa szyna
+   z tytułem i kołem, środek z planszą hasła, tablo po prawej (rysuje je ekran
+   hosta, wspólne dla wszystkich gier).
+
    Cały stan pochodzi z serwera - kontroler tylko go pokazuje i animuje koło. #}
 <section class="game-panel kolo-panel"
          data-controller="kolo-host"
          data-kolo-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
          data-kolo-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
 
-    <div class="panel-row" data-kolo-host-target="categoryPicker" hidden>
-        <label for="kolo-category">Kategoria</label>
-        <select id="kolo-category" data-kolo-host-target="categorySelect" class="select"></select>
-        <button type="button" class="btn btn-primary" data-action="kolo-host#pickCategory">Wybierz</button>
-    </div>
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1 c-kolo">KOŁO</span>
+            <span class="game-name-2 c-kolo">FORTUNY</span>
+        </h2>
 
-    <p class="muted" data-kolo-host-target="progress"></p>
-
-    {# Plansza hasła: każda litera osobnym kafelkiem, żeby z kanapy było widać,
-       ile znaków ma słowo i gdzie są przerwy. #}
-    <div class="puzzle-board" data-kolo-host-target="board"></div>
-
-    <p class="puzzle-hint" data-kolo-host-target="hintText"></p>
-
-    <div class="kolo-stage">
-        <canvas class="wheel" data-kolo-host-target="wheel" width="420" height="420"
-                aria-label="Koło fortuny"></canvas>
-
-        <div class="kolo-side">
-            <p class="turn-line" data-kolo-host-target="turn"></p>
-            <p class="track-answer" data-kolo-host-target="answer"></p>
-            <p class="banner-small" data-kolo-host-target="event"></p>
+        <div class="kolo-stage">
+            {# Rozdzielczość rysowania większa niż dawne 420: koło zajmuje teraz
+               sporą część ekranu telewizora, a canvas skalowany w górę rozmywa się. #}
+            <canvas class="wheel" data-kolo-host-target="wheel" width="720" height="720"
+                    aria-label="Koło fortuny"></canvas>
         </div>
+
+        <p class="tip-card">
+            <strong>Naciśnij na telefonie</strong>, aby zakręcić kołem i zgłosić literę.
+        </p>
     </div>
 
-    <div class="panel-row panel-controls" data-kolo-host-target="controls"></div>
+    <div class="game-main">
+        <div class="panel-row" data-kolo-host-target="categoryPicker" hidden>
+            <label for="kolo-category">Kategoria</label>
+            <select id="kolo-category" data-kolo-host-target="categorySelect" class="form-select select"></select>
+            <button type="button" class="btn btn-primary" data-action="kolo-host#pickCategory">Wybierz</button>
+        </div>
 
-    <p class="hint muted" data-kolo-host-target="hint"></p>
+        <div class="board-head">
+            <p class="panel-eyebrow" data-kolo-host-target="progress"></p>
+            <p class="panel-eyebrow board-hint" data-kolo-host-target="hintText"></p>
+        </div>
+
+        {# Plansza hasła: każda litera osobnym kafelkiem, żeby z kanapy było widać,
+           ile znaków ma słowo i gdzie są przerwy. #}
+        <div class="puzzle-board" data-kolo-host-target="board"></div>
+
+        <p class="turn-line" data-kolo-host-target="turn"></p>
+        <p class="banner-small" data-kolo-host-target="event"></p>
+        <p class="track-answer" data-kolo-host-target="answer"></p>
+
+        <div class="panel-row panel-controls" data-kolo-host-target="controls"></div>
+
+        <p class="hint muted" data-kolo-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot">Zgłoś literę lub zakręć kołem na telefonie.</p>
 </section>

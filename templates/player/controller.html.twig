@@ -4,23 +4,36 @@
 {% block body_class %}player{% endblock %}
 
 {% block body %}
+    {# Sterownik drużyny - układ wg makiet w _other/: marka u góry, pod nią
+       pasek z nazwą gry (dokłada go moduł), potem drużyna i punkty, a resztę
+       ekranu zajmuje jedna wielka akcja.
+
+       Nazwy gry nie ma tutaj celowo: rdzeń nie zna żadnej konkretnej gry
+       (spec §7), więc pasek tytułu należy do szablonu modułu. #}
     <main class="player-screen" style="--team-color: {{ team.color }}"
           data-controller="player-status"
           data-player-status-hub-value="{{ hubUrl }}"
           data-player-status-team-value="{{ team.id }}">
 
-        <header class="player-header">
-            <span class="team-badge">{{ team.name }}</span>
-            <span class="score-pill">
-                <span data-player-status-target="score">{{ score }}</span> pkt
-            </span>
+        <header class="player-bar">
+            <p class="player-brand">GIERK<span class="brand-o">★</span>WNIA</p>
             <span class="conn" data-player-status-target="connection" data-state="connecting">łączenie…</span>
         </header>
 
         <section class="player-main">
+            <div class="player-facts">
+                <div class="fact-card">
+                    <span class="fact-label">Drużyna:</span>
+                    <span class="fact-value fact-team">{{ team.name }}</span>
+                </div>
+                <div class="fact-card">
+                    <span class="fact-label">Punkty:</span>
+                    <span class="fact-value" data-player-status-target="score">{{ score }}</span>
+                </div>
+            </div>
+
             {% if gameType is not null %}
-                {# Widok modułu gry po konwencji game/{typ}/player - rdzeń nie zna
-                   żadnej konkretnej gry, więc i tu nie ma o niej ani słowa. #}
+                {# Widok modułu gry po konwencji game/{typ}/player. #}
                 {{ include('game/' ~ gameType ~ '/player.html.twig') }}
             {% else %}
                 <p class="waiting" data-player-status-target="waiting">

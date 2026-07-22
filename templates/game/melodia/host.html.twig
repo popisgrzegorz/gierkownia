@@ -1,6 +1,7 @@
-{# Panel melodii na ekranie hosta. Cała logika stanu siedzi w kontrolerze
-   Stimulus - tu jest tylko szkielet, który on wypełnia po każdej zmianie fazy. #}
-<section class="game-panel"
+{# Panel melodii na ekranie hosta - układ wg _other/jaka_to_melodia.png:
+   lewa szyna z tytułem i płytą, środek z odtwarzaniem, tablo po prawej
+   (rysuje je ekran hosta, wspólne dla wszystkich gier). #}
+<section class="game-panel melodia-panel"
          data-controller="melodia-host"
          data-melodia-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
          data-melodia-host-view-url-value="{{ path('game_view', {code: room.code}) }}"
@@ -9,20 +10,48 @@
     {# Odtwarzacz jest na ekranie hosta i tylko tam - jeden głośnik w sali (spec 10). #}
     <audio data-melodia-host-target="audio" preload="auto"></audio>
 
-    <div class="panel-row" data-melodia-host-target="categoryPicker" hidden>
-        <label for="category-select">Kategoria</label>
-        <select id="category-select" data-melodia-host-target="categorySelect" class="select"></select>
-        <button type="button" class="btn btn-primary" data-action="melodia-host#pickCategory">Wybierz</button>
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1">JAKA TO</span>
+            <span class="game-name-2 c-melodia">MELODIA</span>
+        </h2>
+
+        <div class="game-art" aria-hidden="true">
+            <svg viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="92" fill="#0d0f18"/>
+                <circle cx="100" cy="100" r="92" fill="none" stroke="#1b2036" stroke-width="1"/>
+                {% for r in [78, 66, 54] %}
+                    <circle cx="100" cy="100" r="{{ r }}" fill="none" stroke="#22283f" stroke-width="2"/>
+                {% endfor %}
+                <circle cx="100" cy="100" r="36" fill="#2f6bd8"/>
+                <circle cx="100" cy="100" r="6" fill="#0d0f18"/>
+            </svg>
+        </div>
+
+        <p class="tip-card">
+            <strong>Naciśnij STOP na telefonie</strong>, aby zatrzymać muzykę i odpowiedzieć.
+        </p>
     </div>
 
-    <div class="track-line">
-        <span class="muted" data-melodia-host-target="progress"></span>
+    <div class="game-main">
+        <div class="panel-row" data-melodia-host-target="categoryPicker" hidden>
+            <label for="category-select">Kategoria</label>
+            <select id="category-select" data-melodia-host-target="categorySelect" class="form-select select"></select>
+            <button type="button" class="btn btn-primary" data-action="melodia-host#pickCategory">Wybierz</button>
+        </div>
+
+        <p class="panel-eyebrow" data-melodia-host-target="progress"></p>
+
+        <p class="buzz-banner" data-melodia-host-target="banner" hidden></p>
+
+        {# Tytuł pojawia się WYŁĄCZNIE po odsłonięciu rundy - w trakcie zgadywania
+           pole jest puste, bo na ten ekran patrzy cały pokój. #}
         <strong class="track-answer" data-melodia-host-target="answer"></strong>
+
+        <div class="panel-row panel-controls" data-melodia-host-target="controls"></div>
+
+        <p class="hint muted" data-melodia-host-target="hint"></p>
     </div>
 
-    <p class="buzz-banner" data-melodia-host-target="banner" hidden></p>
-
-    <div class="panel-row panel-controls" data-melodia-host-target="controls"></div>
-
-    <p class="hint muted" data-melodia-host-target="hint"></p>
+    <p class="game-foot">Fragment zostanie odtworzony tylko raz.</p>
 </section>

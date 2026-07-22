@@ -18,6 +18,7 @@ export default class extends Controller {
     connect() {
         this.angle = 0;
         this.sectors = [];
+        this.spinning = false;
 
         // Nazwy drużyn bierzemy z tablo wyrenderowanego przez serwer. Sam
         // nasłuch zdarzeń nie wystarczy: drużyny dołączyły, zanim host wybrał
@@ -61,7 +62,7 @@ export default class extends Controller {
             case 'wheel_result':
                 // Serwer już zna wynik; animacja go tylko pokazuje, a po jej
                 // zakończeniu meldujemy zatrzymanie i gra rusza dalej.
-                this.#spinTo(event.index).then(() => this.#send('land'));
+                this.#startSpin(event.index);
 
                 return;
 
@@ -107,12 +108,48 @@ export default class extends Controller {
             : '';
 
         this.#renderBoard(view.mask);
-        this.hintTextTarget.textContent = [view.category, view.hint].filter(Boolean).join(' • ');
-        this.answerTarget.textContent = view.phrase ?? '';
+        this.hintTextTarget.textContent = [view.categoryName, view.hint].filter(Boolean).join(' • ');
+        // Hasło pokazujemy WYŁĄCZNIE po rozwiązaniu. Ekran hosta to telewizor,
+        // na który patrzy cały pokój - "host widzi rozwiązanie" ma sens przy
+        // osobnym urządzeniu prowadzącego, a nie tutaj. Wcześniej hasło stało
+        // na ekranie od chwili wylosowania i gra nie miała czego zgadywać.
+        // Serwer i tak sam ocenia odpowiedź (akcja 'solve'), więc nikomu ta
+        // podpowiedź nie była do niczego potrzebna.
+        this.answerTarget.textContent = 'solved' === view.state ? (view.phrase ?? '') : '';
         this.turnTarget.textContent = view.turn ? `Tura: ${this.#teamName(view.turn)}` : '';
 
         this.#drawWheel();
         this.#renderControls(view);
+        this.#resumeSpin(view);
+    }
+
+    /**
+     * Jedyne wejście w animację - pilnuje, żeby nie ruszyła dwa razy naraz.
+     * Dwie pętle rAF pisałyby po tym samym kącie i obie zameldowały `land`,
+     * a drugie zgłoszenie jest już niedozwolonym przejściem.
+     */
+    #startSpin(index) {
+        if (this.spinning || undefined === index || null === index) {
+            return;
+        }
+
+        this.#spinTo(index).then(() => this.#send('land'));
+    }
+
+    /**
+     * Dokańcza kręcenie, o którym ten ekran nie usłyszał.
+     *
+     * `wheel_result` leci raz i tylko do podłączonych klientów. Jeśli telewizor
+     * akurat się przeładowywał (po wyborze gry robi to sam) albo na moment
+     * zgubił SSE, event przepada bezpowrotnie - a wtedy gra stoi w `spinning`
+     * na zawsze: host nigdy nie zamelduje `land`, telefon nie ma czym ruszyć
+     * i jedynym wyjściem jest reset. Stan i wynik koła są w widoku, więc po
+     * każdym odświeżeniu można podjąć kręcenie tam, gdzie się urwało.
+     */
+    #resumeSpin(view) {
+        if ('spinning' === view.state) {
+            this.#startSpin(view.wheel?.index);
+        }
     }
 
     #renderBoard(mask) {
@@ -195,12 +232,25 @@ export default class extends Controller {
             return Promise.resolve();
         }
 
-        const sector = (2 * Math.PI) / count;
-        // Środek sektora pod wskaźnikiem (-90°), plus kilka pełnych obrotów,
-        // żeby zatrzymanie wyglądało na wynik kręcenia, a nie przeskok.
+        this.spinning = true;
+
+        const turn = 2 * Math.PI;
+        const sector = turn / count;
+        // Kąt tarczy, przy którym środek wylosowanego sektora stoi pod
+        // wskaźnikiem u góry (-90°). Połówka sektora to właśnie "środek,
+        // a nie krawędź".
         const target = -Math.PI / 2 - (index + 0.5) * sector;
         const from = this.angle;
-        const to = target - 6 * Math.PI - ((target - from) % (2 * Math.PI));
+        // Ile jeszcze brakuje do celu, licząc w stronę, w którą kręci animacja
+        // (kąt maleje). Podwójne modulo, bo % w JS zachowuje znak dzielnej
+        // i dla ujemnej różnicy zwróciłoby wynik ujemny, czyli obrót w tył.
+        const remaining = (((from - target) % turn) + turn) % turn;
+        // Pełne obroty dla efektu + dojazd do celu. Odejmowanie samego
+        // "remaining" jest tym, co ustawia sektor pod wskaźnikiem; wcześniej
+        // ten składnik znosił się z celem i tarcza wracała zawsze do kąta
+        // wyjściowego - czyli przy dwunastu polach dokładnie na styk sektorów,
+        // niezależnie od tego, co wylosował serwer.
+        const to = from - remaining - 3 * turn;
 
         return new Promise((resolve) => {
             const start = performance.now();
@@ -215,6 +265,7 @@ export default class extends Controller {
                 if (t < 1) {
                     this.frame = requestAnimationFrame(step);
                 } else {
+                    this.spinning = false;
                     resolve();
                 }
             };

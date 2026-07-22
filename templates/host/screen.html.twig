@@ -5,90 +5,95 @@
 
 {% block body %}
     {# Jeden kontroler na całą stronę: subskrybuje topic pokoju, aktualizuje
-       tablo i rozsyła zdarzenia do panelu gry. Telewizor nigdy się nie odświeża. #}
+       tablo i rozsyła zdarzenia do panelu gry. Telewizor nigdy się nie odświeża.
+
+       Układ: wąski pasek u góry, scena gry na całą resztę, drużyny w kolumnie
+       z boku. Kod QR nie zajmuje ekranu na stałe - wysuwa się na żądanie, bo
+       potrzebny jest tylko w momencie dołączania, a gra potrzebuje miejsca
+       przez cały czas. #}
     <main class="tv"
           data-controller="room-board"
           data-room-board-hub-value="{{ hubUrl }}"
           data-room-board-code-value="{{ room.code }}"
           data-room-board-score-url-value="{{ path('game_score', {code: room.code}) }}">
 
-        <header class="tv-header">
-            <div class="brand">
-                <h1 class="brand-name">NASZE<span class="brand-star">★</span>GIERKI</h1>
-                <p class="brand-tag">gramy razem!</p>
-            </div>
-
-            <div class="join-box">
-                <div class="join-text">
-                    <p class="join-hint">Dołącz do gry na swoim telefonie</p>
-                    <p class="room-code">{{ room.code }}</p>
-                    <p class="join-hint">lub wejdź na: <strong>{{ joinUrl|replace({'http://': '', 'https://': ''}) }}</strong></p>
+        {# Poczekalnia dostaje pełny nagłówek z makiety (_other/layout2.png):
+           duży logotyp po lewej, kod i QR po prawej. W trakcie gry ten sam
+           nagłówek kurczy się do paska, bo plansza potrzebuje ekranu. #}
+        <header class="tv-bar {{ gameType is null ? 'tv-bar-lobby' : '' }}">
+            {% if gameType is null %}
+                <div class="brand-block">
+                    <h1 class="brand-word">GIERK<span class="brand-o">★</span>WNIA</h1>
+                    <p class="brand-tag">gramy razem!</p>
                 </div>
-                <img class="qr" src="{{ qr }}" alt="Kod QR do pokoju {{ room.code }}" width="320" height="320">
+
+                <div class="join-inline">
+                    <div class="join-inline-text">
+                        <p class="join-inline-lead">Dołącz do gry na swoim telefonie</p>
+                        <p class="join-inline-code">{{ room.code }}</p>
+                        <p class="join-inline-url">
+                            lub wejdź na: <strong>{{ joinUrl|replace({'http://': '', 'https://': ''}) }}</strong>
+                        </p>
+                    </div>
+                    <img class="join-inline-qr" src="{{ qr }}" alt="Kod QR do pokoju {{ room.code }}"
+                         width="320" height="320">
+                </div>
+            {% else %}
+                <p class="tv-brand">GIERK<span class="brand-o">★</span>WNIA</p>
+            {% endif %}
+
+            <div class="tv-bar-right">
+                <span class="conn" data-room-board-target="connection" data-state="connecting">łączenie…</span>
+
+                {% if gameType is not null %}
+                    <button type="button" class="btn btn-join" data-action="room-board#toggleJoin">
+                        Dołącz <strong class="bar-code">{{ room.code }}</strong>
+                    </button>
+                {% endif %}
+
+                <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
+                      onsubmit="return confirm('Zerować punkty i stan gry? Drużyny zostają w pokoju.')">
+                    <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
+                </form>
             </div>
         </header>
 
-        {% if gameType is null %}
-            {# Gry z planu (spec §1), których moduły jeszcze nie powstały. Pokazujemy
-               je jako "wkrótce" i odsiewamy te, które już się wpięły - dzięki temu
-               kafelek zamienia się w grywalny sam, bez zmiany w tym pliku. #}
-            {% set planned = [
-                {name: 'Kalambury', color: '#30a46c', lead: 'Pokaż to bez słów. Reszta odgadnie!', type: 'kalambury'},
-                {name: 'Państwa Miasta', color: '#8e4ec6', lead: 'Litera, kategoria, czas start!', type: 'panstwa-miasta'}
-            ] %}
-            {% set registered = games|map(g => g.type) %}
-
-            <section class="game-grid" data-controller="game-starter"
-                     data-game-starter-start-url-value="{{ path('game_start', {code: room.code}) }}">
-                {% for game in games %}
-                    {# Kafelek modułu, jeśli go dostarczył; inaczej wersja zapasowa.
-                       Rdzeń nie zna gier z nazwy - wygląd należy do modułu. #}
-                    {{ include(
-                        ['game/' ~ game.type ~ '/card.html.twig', 'game/_card.html.twig'],
-                        {game: game}
-                    ) }}
-                {% endfor %}
-
-                {% for soon in planned|filter(p => p.type not in registered) %}
-                    <article class="game-card game-card-soon" style="--card: {{ soon.color }}">
-                        <h3 class="game-card-title">{{ soon.name }}</h3>
-                        <div class="game-card-art">
-                            <svg viewBox="0 0 120 120" aria-hidden="true">
-                                <rect x="20" y="20" width="80" height="80" rx="18" fill="none"
-                                      stroke="currentColor" stroke-width="5" stroke-dasharray="10 8"/>
-                            </svg>
-                        </div>
-                        <p class="game-card-lead">{{ soon.lead }}</p>
-                        <span class="game-card-btn game-card-btn-soon">wkrótce</span>
-                    </article>
-                {% endfor %}
-            </section>
-        {% else %}
-            {{ include('game/' ~ gameType ~ '/host.html.twig') }}
+        {# Panel dołączania wysuwa się WYŁĄCZNIE na żądanie - przyciskiem
+           „Dołącz" w panelu punktacji. Otwierany sam po wejściu na ekran
+           hosta zasłaniał grę każdemu, kto tylko odświeżył stronę. #}
+        {% if gameType is not null %}
+        <div class="join-drawer" data-room-board-target="joinPanel" hidden>
+            <div class="join-card">
+                <p class="join-lead">Dołącz na telefonie</p>
+                <p class="room-code">{{ room.code }}</p>
+                <img class="qr" src="{{ qr }}" alt="Kod QR do pokoju {{ room.code }}" width="320" height="320">
+                <p class="join-url">{{ joinUrl|replace({'http://': '', 'https://': ''}) }}</p>
+                <button type="button" class="btn btn-ghost" data-action="room-board#toggleJoin">Zamknij</button>
+            </div>
+        </div>
         {% endif %}
 
-        <section class="tv-bottom">
-            {# Instrukcja tylko w poczekalni: w trakcie gry nikt nie dołącza,
-               a miejsce jest potrzebne planszy i tablo. #}
-            <div class="tile" {{ gameType is null ? '' : 'hidden' }}>
-                <h2>Jak to działa?</h2>
-                <ol class="steps">
-                    <li><span class="step-no">1</span><strong>Dołącz</strong><br>Zeskanuj kod QR albo wpisz kod gry na telefonie</li>
-                    <li><span class="step-no">2</span><strong>Weź udział</strong><br>Telefon jest twoim pilotem do gry</li>
-                    <li><span class="step-no">3</span><strong>Baw się razem</strong><br>Rywalizujcie i zdobywajcie punkty</li>
-                </ol>
-            </div>
+        <div class="tv-body">
+            {# Tablo po LEWEJ, na pełną wysokość: przyciski hosta u góry, pod nimi
+               drużyny posortowane po punktach. Kolejność przestawia kontroler
+               przy każdej zmianie wyniku - w kole fortuny punkty to wygrane
+               pieniądze, więc miejsca zmieniają się w trakcie rundy. #}
+            <aside class="tv-teams card">
+                <div class="card-header teams-head-row">
+                    <h2 class="card-title teams-head">
+                        Punktacja <span class="text-secondary" data-room-board-target="count">({{ teams|length }})</span>
+                    </h2>
+                </div>
 
-            <div class="tile">
-                <h2>Drużyny <span class="muted" data-room-board-target="count">({{ teams|length }})</span></h2>
-
-                <p class="empty" data-room-board-target="empty" {{ teams is not empty ? 'hidden' : '' }}>
+                <p class="empty text-secondary px-3" data-room-board-target="empty"
+                   {{ teams is not empty ? 'hidden' : '' }}>
                     Czekam na telefony…
                 </p>
 
                 <ul class="teams" data-room-board-target="list">
-                    {% for team in teams %}
+                    {% for team in teams|sort((a, b) => b.score <=> a.score) %}
                         <li class="team" data-team-id="{{ team.id }}" style="--team-color: {{ team.color }}">
+                            <span class="team-rank">{{ loop.index }}</span>
                             <span class="team-name">{{ team.name }}</span>
                             <span class="team-score" data-score>{{ team.score }}</span>
                             <span class="team-buttons">
@@ -100,32 +105,103 @@
                         </li>
                     {% endfor %}
                 </ul>
-            </div>
-        </section>
+            </aside>
 
-        <footer class="tv-footer">
-            <span class="conn" data-room-board-target="connection" data-state="connecting">łączenie…</span>
-            <span>Nasze Gierki — gry towarzyskie na każdą okazję</span>
-            <span class="sep">|</span><span>Imprezy</span>
-            <span class="sep">|</span><span>Wieczory rodzinne</span>
-            <span class="sep">|</span><span>Spotkania ze znajomymi</span>
+            <section class="tv-stage">
+                {% if gameType is null %}
+                    {# Gry z planu (spec §1), których moduły jeszcze nie powstały. Pokazujemy
+                       je jako "wkrótce" i odsiewamy te, które już się wpięły - dzięki temu
+                       kafelek zamienia się w grywalny sam, bez zmiany w tym pliku. #}
+                    {% set planned = [
+                        {name: 'Kalambury', color: '#30a46c', lead: 'Pokaż to bez słów. Reszta odgadnie!', type: 'kalambury'},
+                        {name: 'Państwa Miasta', color: '#8e4ec6', lead: 'Litera, kategoria, czas start!', type: 'panstwa-miasta'}
+                    ] %}
+                    {% set registered = games|map(g => g.type) %}
 
-            <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
-                  onsubmit="return confirm('Zerować punkty i stan gry? Drużyny zostają w pokoju.')">
-                <button type="submit" class="btn btn-ghost">Reset gry</button>
-            </form>
-        </footer>
+                    <section class="game-grid" data-controller="game-starter"
+                             data-game-starter-start-url-value="{{ path('game_start', {code: room.code}) }}">
+                        {% for game in games %}
+                            {# Kafelek modułu, jeśli go dostarczył; inaczej wersja zapasowa.
+                               Rdzeń nie zna gier z nazwy - wygląd należy do modułu. #}
+                            {{ include(
+                                ['game/' ~ game.type ~ '/card.html.twig', 'game/_card.html.twig'],
+                                {game: game}
+                            ) }}
+                        {% endfor %}
+
+                        {% for soon in planned|filter(p => p.type not in registered) %}
+                            <article class="game-card game-card-soon" style="--card: {{ soon.color }}">
+                                <h3 class="game-card-title">{{ soon.name }}</h3>
+                                <div class="game-card-art">
+                                    <svg viewBox="0 0 120 120" aria-hidden="true">
+                                        <rect x="20" y="20" width="80" height="80" rx="18" fill="none"
+                                              stroke="currentColor" stroke-width="5" stroke-dasharray="10 8"/>
+                                    </svg>
+                                </div>
+                                <p class="game-card-lead">{{ soon.lead }}</p>
+                                <span class="game-card-btn game-card-btn-soon">wkrótce</span>
+                            </article>
+                        {% endfor %}
+                    </section>
+
+                    {# Dolny pas z makiety. "Ostatni zwycięzcy" to prawdziwe tablo
+                       posortowane malejąco - wymyślona lista wyglądałaby ładnie
+                       i kłamała przy pierwszej rozgrywce. #}
+                    <div class="lobby-strip">
+                        <section class="strip-tile">
+                            <h2>Jak to działa?</h2>
+                            <ol class="steps">
+                                <li><span class="step-no">1</span><strong>Dołącz</strong><br>Zeskanuj kod QR albo wpisz kod gry na telefonie</li>
+                                <li><span class="step-no">2</span><strong>Weź udział</strong><br>Telefon jest twoim pilotem do gry</li>
+                                <li><span class="step-no">3</span><strong>Baw się razem</strong><br>Rywalizujcie i zdobywajcie punkty</li>
+                            </ol>
+                        </section>
+
+                        <section class="strip-tile">
+                            <h2>Ustawienia gry</h2>
+                            <dl class="strip-rows">
+                                <div><dt>Drużyn w pokoju</dt><dd>{{ teams|length }}</dd></div>
+                                <div><dt>Kod pokoju</dt><dd>{{ room.code }}</dd></div>
+                                <div><dt>Tryb</dt><dd>Drużyny</dd></div>
+                            </dl>
+                        </section>
+
+                        <section class="strip-tile">
+                            <h2>Tablo <span class="trophy">🏆</span></h2>
+                            {% set ranked = teams|sort((a, b) => b.score <=> a.score) %}
+                            {% if ranked is empty %}
+                                <p class="muted">Jeszcze nikt nie gra.</p>
+                            {% else %}
+                                <ol class="strip-rank">
+                                    {% for team in ranked %}
+                                        <li><span>{{ team.name }}</span><strong>{{ team.score }}</strong></li>
+                                    {% endfor %}
+                                </ol>
+                            {% endif %}
+                        </section>
+                    </div>
+                {% else %}
+                    {{ include('game/' ~ gameType ~ '/host.html.twig') }}
+                {% endif %}
+            </section>
+
+        </div>
+
+        {# Szablon kafelka drużyny - kontroler klonuje go zamiast sklejać HTML w JS.
+           Musi leżeć WEWNĄTRZ elementu z data-controller: Stimulus szuka targetów
+           tylko wśród potomków kontrolera, a target poza nim nie jest błędem
+           składni - zgłasza się dopiero przy pierwszym użyciu, czyli gdy pierwszy
+           telefon dołącza do pokoju. #}
+        <template data-room-board-target="template">
+            <li class="team team-new">
+                <span class="team-rank"></span>
+                <span class="team-name"></span>
+                <span class="team-score" data-score>0</span>
+                <span class="team-buttons">
+                    <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="-1">−</button>
+                    <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="1">+</button>
+                </span>
+            </li>
+        </template>
     </main>
-
-    {# Szablon kafelka drużyny - kontroler klonuje go zamiast sklejać HTML w JS. #}
-    <template data-room-board-target="template">
-        <li class="team team-new">
-            <span class="team-name"></span>
-            <span class="team-score" data-score>0</span>
-            <span class="team-buttons">
-                <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="-1">−</button>
-                <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="1">+</button>
-            </span>
-        </li>
-    </template>
 {% endblock %}

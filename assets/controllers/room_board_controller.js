@@ -6,7 +6,7 @@ import { MercureStream } from '../live/mercure_stream.js';
  * oraz punkty - telewizor nigdy sie nie odswieza recznie.
  */
 export default class extends Controller {
-    static targets = ['list', 'empty', 'count', 'template', 'connection'];
+    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel'];
     static values = { hub: String, code: String, scoreUrl: String };
 
     connect() {
@@ -19,6 +19,17 @@ export default class extends Controller {
 
     disconnect() {
         this.stream?.disconnect();
+    }
+
+    /**
+     * Wysuwa panel z kodem QR. W trakcie gry jest schowany, bo zabierał ekran
+     * planszy przez cały czas, a potrzebny jest tylko w chwili dołączania -
+     * najczęściej komuś, kto dosiadł się w połowie imprezy.
+     */
+    toggleJoin() {
+        if (this.hasJoinPanelTarget) {
+            this.joinPanelTarget.hidden = !this.joinPanelTarget.hidden;
+        }
     }
 
     /**
@@ -89,6 +100,7 @@ export default class extends Controller {
 
         this.listTarget.append(tile);
         this.#refreshCount();
+        this.#reorder();
     }
 
     #setScore(teamId, total) {
@@ -101,12 +113,71 @@ export default class extends Controller {
         scoreEl.classList.remove('bump');
         void scoreEl.offsetWidth; // restart animacji przy kolejnym punkcie z rzedu
         scoreEl.classList.add('bump');
+
+        this.#reorder();
+    }
+
+    /**
+     * Ustawia drużyny wg punktów i przesuwa kafelki animacją.
+     *
+     * Technika FLIP: mierzymy pozycje PRZED przestawieniem, przestawiamy
+     * w DOM-ie, mierzymy po - i odtwarzamy różnicę jako ruch. Animowanie
+     * samego "top" zmuszałoby przeglądarkę do przeliczania układu w każdej
+     * klatce; transform idzie po stronie kompozytora i nie gubi klatek nawet
+     * na słabym procesorze telewizora.
+     */
+    #reorder() {
+        const tiles = [...this.listTarget.children];
+
+        if (tiles.length < 2) {
+            this.#renumber();
+
+            return;
+        }
+
+        const before = new Map(tiles.map((tile) => [tile, tile.getBoundingClientRect().top]));
+
+        // Malejąco po punktach; przy remisie zostaje dotychczasowa kolejność,
+        // żeby kafelki nie skakały bez powodu przy każdym punkcie.
+        const sorted = [...tiles].sort((a, b) => this.#scoreOf(b) - this.#scoreOf(a));
+        sorted.forEach((tile) => this.listTarget.append(tile));
+
+        this.#renumber();
+
+        sorted.forEach((tile) => {
+            const delta = before.get(tile) - tile.getBoundingClientRect().top;
+
+            if (0 === delta) {
+                return;
+            }
+
+            tile.animate(
+                [{ transform: `translateY(${delta}px)` }, { transform: 'none' }],
+                { duration: 420, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+            );
+        });
+    }
+
+    #renumber() {
+        [...this.listTarget.children].forEach((tile, index) => {
+            const rank = tile.querySelector('.team-rank');
+
+            if (rank) {
+                rank.textContent = String(index + 1);
+            }
+        });
+    }
+
+    #scoreOf(tile) {
+        return Number(tile.querySelector('[data-score]')?.textContent ?? 0);
     }
 
     #resetScores() {
         this.listTarget.querySelectorAll('[data-score]').forEach((el) => {
             el.textContent = '0';
         });
+
+        this.#renumber();
     }
 
     #tile(teamId) {

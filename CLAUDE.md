@@ -36,6 +36,15 @@ Ponadto: panel administracyjny `/admin`, którego spec nie przewidywała.
 Kolejność ma znaczenie. Kroki 1–3 **wymagają internetu** — aplikacja działa
 offline dopiero po nich, bo wtedy wszystkie zależności leżą już na dysku.
 
+Najpierw rozszerzenia PHP — bez nich nie ruszy ani baza, ani testy, a komunikaty
+o tym są mylące (`could not find driver`, PHPUnit odmawiający startu):
+
+```bash
+apt install php8.3-pgsql php8.3-mbstring
+```
+
+`gd` nie jest potrzebny — QR generujemy jako SVG (patrz pułapki).
+
 ```bash
 composer install
 
@@ -61,8 +70,9 @@ php bin/console doctrine:migrations:migrate --no-interaction --env=test
 ./bin/dev                                              # serwer na 0.0.0.0
 ```
 
-**Zanim uruchomisz:** ustaw `LAN_HOST` w `.env` na adres nowej maszyny —
-w repo siedzi adres starej i telefony nie połączą się z hubem.
+**Zanim uruchomisz:** ustaw w `.env` `PUBLIC_URL` (adres, pod którym grę widzą
+telefony) oraz `APP_BIND`/`MERCURE_BIND` (adresy nasłuchu). W repo siedzą
+wartości poprzedniej maszyny.
 
 ```bash
 php bin/phpunit                                        # wymaga Redisa i bazy testowej
@@ -85,13 +95,43 @@ ADMIN_PASSWORD=<hasło do panelu; bez niego panel nie wpuszcza nikogo>
 
 W `.env` (trafia do repo, bo `docker compose` czyta **tylko** ten plik):
 
-- `LAN_HOST` — adres serwera widziany z telefonów. **Musi się zmienić** po
-  przenosinach; w repo siedzi adres starej maszyny.
-- `APP_PORT`, `MERCURE_PORT`, `REDIS_PORT`, `POSTGRES_PORT` — porty dobrane tak,
-  by nie kolidowały z innymi projektami na starej maszynie. Na nowej można je
-  uprościć, ale wtedy zmień też `cors_origins` w `compose.yaml`.
+- `PUBLIC_URL` — adres, pod którym grę widzą telefony i telewizor. Za reverse
+  proxy jest to adres publiczny (`https://…`), **nie** adres nasłuchu.
+- `APP_BIND` + `APP_PORT` — gdzie nasłuchuje PHP i dokąd celuje proxy.
+  W czystym LAN `APP_BIND=0.0.0.0`; za proxy — adres widoczny tylko dla proxy.
+- `TRUSTED_PROXIES` — adres kontenera proxy. Puste = aplikacja uzna połączenie
+  za nieszyfrowane (patrz pułapki).
+- `MERCURE_BIND`, `MERCURE_PUBLIC_PORT` — gdzie stoi hub i pod jakim portem
+  widzi go przeglądarka. `0` = ten sam adres co gra, przepuszczony przez to samo
+  proxy pod `/.well-known/mercure`.
+- `MERCURE_PORT`, `REDIS_PORT`, `POSTGRES_PORT` — porty dobrane tak, by nie
+  kolidowały z innymi projektami na maszynie.
 - `MERCURE_JWT_SECRET` — domyślna wartość z recepty. W LAN bez znaczenia;
-  przed wystawieniem na świat podmień i przeładuj kontener huba.
+  przy wystawieniu na świat podmień i przeładuj kontener huba.
+
+**Nie kopiuj całego `.env` do `.env.local`.** Przy przenosinach oba pliki
+rozjechały się tak, że aplikacja generowała adresy z `.env.local`, a kontenery
+i `bin/dev` startowały z wartościami z `.env`. W `.env.local` trzymaj wyłącznie
+sekrety.
+
+### Wdrożenie za reverse proxy
+
+Aktualna maszyna: `nginx-proxy-manager` terminuje TLS dla `gierkownia.j33.pl`
+i przekazuje ruch na `10.0.7.1:8210` (brama sieci dockerowej proxy). Proxy musi
+mieć **dwie** rzeczy:
+
+1. `location /` → `http://10.0.7.1:8210` — sama gra.
+2. `location /.well-known/mercure` → `http://10.0.7.1:3010` — hub, **koniecznie**
+   z `proxy_buffering off` i długim `proxy_read_timeout`. SSE to jedno wiszące
+   połączenie; przy domyślnym buforowaniu nginx trzyma eventy u siebie i tablo
+   aktualizuje się skokami albo wcale.
+
+Hub musi być widoczny pod **tą samą nazwą** co aplikacja — `Subscription`
+wyprowadza jego adres z bieżącego żądania (patrz decyzje).
+
+Redis, Postgres i hub są związane z adresami nieosiągalnymi z internetu
+(`compose.yaml`). Maszyna ma publiczny adres i nie ma firewalla, a Redis nie ma
+hasła — na `0.0.0.0` zostałby przejęty w kilka godzin.
 
 ---
 
@@ -167,6 +207,14 @@ osiągalne pod **tą samą** nazwą/IP.
 i podpowiedzią dla graczy w kole. Dwa poziomy zmuszały osobę dodającą treści
 do rozstrzygania za każdym razem, co jest czym.
 
+**Tabler (Bootstrap 5) z CDN-u zamiast pełnej autonomii offline** (§15). Własny
+CSS wymagał ręcznego dopieszczania każdego breakpointu, a widok telefonu i tak
+wychodził słaby. Skoro gra stoi pod publiczną domeną z certyfikatem, internet
+jest warunkiem wejścia — więc zależność z sieci przestała być realnym ryzykiem.
+**Konsekwencja:** impreza bez internetu = strona bez styli. Powrót do trybu LAN
+oznacza ściągnięcie `tabler.min.css` do `assets/styles/vendor/` i podmianę
+jednego `<link>` w `base.html.twig`. Wersja jest pinowana (1.4.0), nie `@latest`.
+
 **Panel zamiast `app:deck:sync` z YAML** (§13.8). Import z pliku kasował pozycje,
 których w pliku nie było — przy panelu oznaczałoby to ciche kasowanie ręcznej
 pracy. Baza jest jedynym źródłem prawdy. Importer YAML jest w historii gita.
@@ -186,6 +234,19 @@ przejście z kilku stanów źródłowych znaczy „wymaga **wszystkich** naraz"
 (semantyka sieci Petriego) — a gra jest zawsze w jednym stanie, więc taki warunek
 nie spełni się nigdy. `GameFsm` rozbija je na jedno przejście komponentu per stan
 źródłowy.
+
+**Za proxy bez `trusted_proxies` gra zamiera bez śladu błędu.** TLS kończy się
+na proxy, do PHP wchodzi zwykły HTTP — więc Symfony uznaje połączenie za
+nieszyfrowane i buduje adresy z `http://`. Strona otwarta po HTTPS dostaje wtedy
+adres huba po HTTP, przeglądarka blokuje SSE jako mixed content i tablo,
+buzzer oraz fazy gry stoją. Na ekranie nie ma żadnego komunikatu — `EventSource`
+po prostu nigdy się nie otwiera. Ustawienie siedzi w `config/packages/framework.yaml`,
+a pilnuje go test w `SubscriptionTest`.
+
+Objaw pokrewny: ciasteczko sesji dostaje flagę `secure` dopiero wtedy, gdy
+Symfony widzi HTTPS. Dlatego `curl` po zwykłym HTTP do portu nasłuchu dostanie
+403 na ekranie hosta — to nie błąd, tylko nieodesłane ciasteczko. Testuj przez
+prawdziwą domenę albo sprawdzaj nagłówki `Set-Cookie`.
 
 **`[hidden]` nie działa** na elementach z `display:flex/grid` — nasze reguły
 wygrywają z domyślnym stylem przeglądarki. W `app.css` jest globalne
@@ -245,9 +306,12 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 
 ### Decyzje czekające na użytkownika
 
-- **HTTPS a PWA (kamień 4).** Service worker nie zarejestruje się po
-  `http://IP`. Potrzebny Caddy z lokalnym CA albo cert instalowany na telefonach.
-  Blokuje kamień 4; reszta jest od tego niezależna.
+- ~~**HTTPS a PWA (kamień 4).**~~ **Rozstrzygnięte przez przenosiny:** gra stoi
+  za `nginx-proxy-manager` z certyfikatem Let's Encrypt, więc service worker ma
+  wymagane HTTPS i kamień 4 nie jest już niczym blokowany. Zostaje pytanie
+  odwrotne: czy gra ma nadal działać **bez internetu** w LAN — bo wtedy pod
+  adresem IP HTTPS-a nie ma i PWA się nie zarejestruje. Tryb LAN jest wciąż
+  wspierany konfiguracją (`APP_BIND=0.0.0.0`, `MERCURE_PUBLIC_PORT=3010`).
 - **Timer a rozjazd zegarów (§8).** Sam `deadline` w evencie skłamie na telefonie
   z przestawionym zegarem. Propozycja: `{deadline, serverNow}`, klient liczy
   offset. Do rozstrzygnięcia przy kalamburach.
