@@ -23,6 +23,14 @@
     box-sizing: border-box;
 }
 
+/* Atrybut hidden ustawia display:none tylko na poziomie stylu przeglądarki,
+   więc każde nasze display:flex/grid go nadpisuje. Bez tej reguły ukrywane
+   z JS-a fragmenty (wybór talii, klawiatura liter, komunikaty) zostają na
+   ekranie - a zauważa się to dopiero przy graczach. */
+[hidden] {
+    display: none !important;
+}
+
 html,
 body {
     margin: 0;
@@ -244,7 +252,7 @@ input:focus-visible,
 .tv {
     min-height: 100dvh;
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto 1fr auto auto;
     gap: clamp(0.8rem, 2.2vmin, 2rem);
     padding: clamp(0.8rem, 2.4vmin, 2.4rem);
     background:
@@ -263,7 +271,7 @@ input:focus-visible,
 
 .brand-name {
     margin: 0;
-    font-size: clamp(2rem, 7vmin, 5.5rem);
+    font-size: clamp(1.8rem, 5.5vmin, 4.5rem);
     font-weight: 900;
     letter-spacing: -0.01em;
     line-height: 0.95;
@@ -298,7 +306,7 @@ input:focus-visible,
 }
 
 .qr {
-    width: clamp(88px, 13vmin, 170px);
+    width: clamp(80px, 11vmin, 150px);
     height: auto;
     border-radius: 10px;
     /* Białe tło pod QR: czytniki telefonów gubią kod odwrócony kolorystycznie. */
@@ -309,7 +317,7 @@ input:focus-visible,
 /* Tablo w kafelku dolnego pasa: jedna drużyna na wiersz i mniejsza skala niż
    samodzielna lista - obok stoi "Jak to działa?" i oba mają się zmieścić. */
 .tile .teams {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
     gap: clamp(0.35rem, 0.9vmin, 0.7rem);
 }
 
@@ -513,7 +521,7 @@ input:focus-visible,
 
 .room-code {
     margin: 0;
-    font-size: clamp(3rem, 14vmin, 11rem);
+    font-size: clamp(2.5rem, 9vmin, 7rem);
     font-weight: 800;
     letter-spacing: 0.08em;
     line-height: 1;
@@ -537,6 +545,7 @@ input:focus-visible,
 
 .game-panel {
     display: grid;
+    align-content: center;
     gap: clamp(0.6rem, 1.6vmin, 1.2rem);
     padding: clamp(0.9rem, 2.4vmin, 1.8rem);
     border-radius: var(--radius);
@@ -775,8 +784,14 @@ input:focus-visible,
     flex-wrap: wrap;
 }
 
+/* Ekran hosta ma sie miescic w calosci - telewizora nikt nie przewija. */
+.tv {
+    max-height: 100dvh;
+    overflow: hidden;
+}
+
 .wheel {
-    width: clamp(180px, 34vmin, 420px);
+    width: clamp(140px, 21vmin, 300px);
     height: auto;
 }
 

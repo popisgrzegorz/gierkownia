@@ -18,7 +18,16 @@ export default class extends Controller {
     connect() {
         this.angle = 0;
         this.sectors = [];
-        this.teams = new Map();
+
+        // Nazwy drużyn bierzemy z tablo wyrenderowanego przez serwer. Sam
+        // nasłuch zdarzeń nie wystarczy: drużyny dołączyły, zanim host wybrał
+        // grę, więc "team_joined" dawno przeleciało i tura pokazywałaby id.
+        this.teams = new Map(
+            [...document.querySelectorAll('[data-team-id]')].map((tile) => [
+                tile.dataset.teamId,
+                tile.querySelector('.team-name')?.textContent?.trim() ?? 'drużyna',
+            ]),
+        );
 
         this.onEvent = (event) => this.#onServerEvent(event.detail);
         window.addEventListener('gierki:event', this.onEvent);
@@ -57,7 +66,7 @@ export default class extends Controller {
                 return;
 
             case 'team_joined':
-                this.teams.set(event.team.id, event.team);
+                this.teams.set(event.team.id, event.team.name);
                 break;
 
             case 'letter_revealed':
@@ -132,7 +141,7 @@ export default class extends Controller {
     #renderControls(view) {
         const buttons = {
             idle: view.deck ? [['next_puzzle', 'Losuj hasło', 'primary']] : [],
-            next_team: [['spin', '🎡 Zakręć', 'primary'], ['skip_turn', 'Oddaj turę', '']],
+            next_team: [['spin', 'Zakręć kołem', 'primary'], ['skip_turn', 'Oddaj turę', '']],
             spinning: [],
             landed: [],
             pick_letter: [['skip_turn', 'Oddaj turę', '']],
@@ -161,7 +170,7 @@ export default class extends Controller {
     }
 
     #teamName(teamId) {
-        return this.teams.get(teamId)?.name ?? 'drużyna';
+        return this.teams.get(teamId) ?? 'drużyna';
     }
 
     #fillDecks(decks) {
