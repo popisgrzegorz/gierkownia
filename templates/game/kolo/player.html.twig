@@ -1,0 +1,31 @@
+{# Sterownik koła: plansza do podglądu i - gdy to twoja tura - klawiatura liter. #}
+<div class="kolo-player"
+     data-controller="kolo-player"
+     data-kolo-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
+     data-kolo-player-team-id-value="{{ team.id }}"
+     data-kolo-player-state-value="{{ game.state }}"
+     data-kolo-player-my-turn-value="{{ game.myTurn ? 'true' : 'false' }}">
+
+    <p class="puzzle-mini" data-kolo-player-target="board">{{ game.mask }}</p>
+    <p class="muted small" data-kolo-player-target="hint">{{ [game.category, game.hint]|filter(v => v)|join(' • ') }}</p>
+
+    <p class="bank-line">
+        Twój bank: <strong data-kolo-player-target="bank">{{ game.myBank }}</strong>
+    </p>
+
+    <p class="turn-note" data-kolo-player-target="note"></p>
+
+    <div class="kolo-actions" data-kolo-player-target="actions" hidden>
+        <button type="button" class="btn btn-primary btn-lg" data-kolo-player-target="spin"
+                data-action="kolo-player#spin">🎡 Zakręć</button>
+
+        {# Klawiatura liter: polski alfabet, bo "Ł" nie odsłania "L". #}
+        <div class="letters" data-kolo-player-target="letters" hidden></div>
+
+        <form class="solve-form" data-action="submit->kolo-player#solve">
+            <input type="text" placeholder="Zgaduję hasło…" autocomplete="off"
+                   data-kolo-player-target="answer" enterkeyhint="send">
+            <button type="submit" class="btn">Zgaduję</button>
+        </form>
+    </div>
+</div>

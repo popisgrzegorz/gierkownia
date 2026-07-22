@@ -1,0 +1,23 @@
+{# Kafelek gry na ekranie hosta.
+
+   Moduł może dostarczyć własny (game/{typ}/card.html.twig) z ilustracją
+   i kolorem; ten jest zapasowy, żeby nowa gra pojawiła się na ekranie
+   od razu po wpięciu, jeszcze zanim ktokolwiek narysuje jej ikonę. #}
+<article class="game-card" style="--card: {{ color|default('#8d93b0') }}">
+    <h3 class="game-card-title">{{ game.name }}</h3>
+
+    <div class="game-card-art">
+        {% block art %}
+            <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
+                <rect x="18" y="18" width="84" height="84" rx="16" fill="none" stroke="currentColor" stroke-width="6"/>
+                <circle cx="60" cy="60" r="10" fill="currentColor"/>
+            </svg>
+        {% endblock %}
+    </div>
+
+    <p class="game-card-lead">{{ lead|default('Zagraj z telefonami gości.') }}</p>
+
+    <button type="button" class="btn game-card-btn"
+            data-game-type="{{ game.type }}"
+            data-action="game-starter#start">GRAJ</button>
+</article>

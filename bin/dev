@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Serwer developerski wystawiony na LAN - telefony musza go widziec,
+# wiec nasluchujemy na 0.0.0.0, nie na localhost.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# shellcheck disable=SC1091
+PORT="$(grep -E '^APP_PORT=' .env | cut -d= -f2)"
+HOST="$(grep -E '^LAN_HOST=' .env | cut -d= -f2)"
+
+docker compose up -d >/dev/null
+
+echo "Ekran hosta:  http://${HOST}:${PORT}/"
+echo "Hub Mercure:  http://${HOST}:$(grep -E '^MERCURE_PORT=' .env | cut -d= -f2)/.well-known/mercure"
+echo
+
+exec php -S "0.0.0.0:${PORT}" -t public bin/dev-router.php

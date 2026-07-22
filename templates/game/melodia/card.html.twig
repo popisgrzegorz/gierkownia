@@ -1,0 +1,25 @@
+{# Kafelek melodii na ekranie wyboru gry. Moduł sam decyduje o swoim kolorze
+   i haśle - rdzeń nie wie o żadnej grze, także po stronie wyglądu. #}
+{% embed 'game/_card.html.twig' with {
+    game: game,
+    color: '#3e63dd',
+    lead: 'Posłuchaj fragmentu i odgadnij tytuł piosenki!'
+} %}
+    {% block art %}
+        {# Płyta winylowa z nutami - rysowana inline, bo aplikacja działa bez internetu. #}
+        <svg viewBox="0 0 120 120" role="img" aria-label="Płyta winylowa">
+            <circle cx="58" cy="66" r="38" fill="#15182a"/>
+            <circle cx="58" cy="66" r="27" fill="none" stroke="#2b3050" stroke-width="2"/>
+            <circle cx="58" cy="66" r="19" fill="none" stroke="#2b3050" stroke-width="2"/>
+            <circle cx="58" cy="66" r="11" fill="var(--card)"/>
+            <circle cx="58" cy="66" r="3" fill="#15182a"/>
+            <g fill="#15182a">
+                <ellipse cx="93" cy="42" rx="8" ry="6" transform="rotate(-20 93 42)"/>
+                <rect x="99" y="14" width="4" height="27" rx="2"/>
+                <path d="M99 14 L114 10 L114 18 L99 22 Z"/>
+                <ellipse cx="24" cy="34" rx="6" ry="5" transform="rotate(-20 24 34)"/>
+                <rect x="29" y="14" width="3" height="19" rx="1.5"/>
+            </g>
+        </svg>
+    {% endblock %}
+{% endembed %}

@@ -1,0 +1,16 @@
+{# Sterownik melodii: jeden wielki przycisk. Telefon trzymany w dłoni, często
+   bez patrzenia - stąd cały ekran jako pole trafienia zamiast zgrabnego guzika. #}
+<div class="buzzer"
+     data-controller="melodia-player"
+     data-melodia-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
+     data-melodia-player-team-id-value="{{ team.id }}"
+     data-melodia-player-state-value="{{ game.hasFloor ? 'floor' : (game.armed ? 'armed' : 'waiting') }}"
+     data-melodia-player-round-value="{{ game.round }}">
+
+    <button type="button"
+            class="buzzer-button"
+            data-melodia-player-target="button"
+            data-action="pointerdown->melodia-player#buzz">
+        <span data-melodia-player-target="label">Czekaj…</span>
+    </button>
+</div>

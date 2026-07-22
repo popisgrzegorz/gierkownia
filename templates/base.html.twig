@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+{# Blok hot-reload FrankenPHP celowo usuniety: ciagnal skrypty z jsdelivr,
+   a aplikacja ma dzialac w LAN bez internetu (spec 15). #}
+<html lang="pl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta name="theme-color" content="#0b0d17">
+        <title>{% block title %}Nasze Gierki{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.1em%22 font-size=%22104%22>🎲</text></svg>">
+
+        {% block stylesheets %}
+            <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+        {% endblock %}
+
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+    </head>
+    <body class="{% block body_class %}{% endblock %}">
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <p class="flash flash-{{ label }}">{{ message }}</p>
+            {% endfor %}
+        {% endfor %}
+
+        {% block body %}{% endblock %}
+    </body>
+</html>

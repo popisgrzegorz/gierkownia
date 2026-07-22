@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nasze Gierki{% endblock %}
+{% block body_class %}home{% endblock %}
+
+{% block body %}
+    <main class="home-screen">
+        <div class="brand">
+            <h1 class="brand-name">NASZE<span class="brand-star">★</span>GIERKI</h1>
+            <p class="brand-tag">gramy razem!</p>
+        </div>
+
+        <div class="home-cards">
+            {# Dwie drogi wejścia: telewizor zakłada pokój, telefon do niego dołącza.
+               Rozdzielone, bo to dwie różne osoby przy dwóch różnych ekranach. #}
+            <section class="home-card">
+                <h2>Na telewizorze</h2>
+                <p class="lead">Załóż pokój — na ekranie pojawi się kod i QR dla gości.</p>
+                <form method="post" action="{{ path('room_create') }}">
+                    <button type="submit" class="btn btn-primary btn-lg">Nowa gra</button>
+                </form>
+            </section>
+
+            <section class="home-card">
+                <h2>Na telefonie</h2>
+                <p class="lead">Masz kod z telewizora? Wpisz go i dołącz do drużyny.</p>
+                <form method="get" action="{{ path('room_join_by_code') }}" class="row" data-controller="join-by-code">
+                    <input name="code" class="code-input" maxlength="4" autocomplete="off"
+                           autocapitalize="characters" spellcheck="false" placeholder="ABCD"
+                           aria-label="Kod pokoju" data-join-by-code-target="input">
+                    <button type="submit" class="btn">Dołącz</button>
+                </form>
+            </section>
+        </div>
+
+        <ul class="home-games">
+            <li><span class="dot" style="--dot: #3e63dd"></span>Jaka to melodia</li>
+            <li><span class="dot" style="--dot: #f5a524"></span>Koło fortuny</li>
+            <li class="soon"><span class="dot" style="--dot: #30a46c"></span>Kalambury <em>wkrótce</em></li>
+            <li class="soon"><span class="dot" style="--dot: #8e4ec6"></span>Państwa Miasta <em>wkrótce</em></li>
+        </ul>
+
+        <p class="home-foot muted">Wszystko działa w waszej sieci — bez internetu i bez zakładania kont.</p>
+    </main>
+{% endblock %}

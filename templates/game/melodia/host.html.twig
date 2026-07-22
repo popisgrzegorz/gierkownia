@@ -1,0 +1,28 @@
+{# Panel melodii na ekranie hosta. Cała logika stanu siedzi w kontrolerze
+   Stimulus - tu jest tylko szkielet, który on wypełnia po każdej zmianie fazy. #}
+<section class="game-panel"
+         data-controller="melodia-host"
+         data-melodia-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-melodia-host-view-url-value="{{ path('game_view', {code: room.code}) }}"
+         data-melodia-host-media-url-value="{{ path('host_media', {code: room.code, id: 0}) }}">
+
+    {# Odtwarzacz jest na ekranie hosta i tylko tam - jeden głośnik w sali (spec 10). #}
+    <audio data-melodia-host-target="audio" preload="auto"></audio>
+
+    <div class="panel-row" data-melodia-host-target="deckPicker" hidden>
+        <label for="deck-select">Talia</label>
+        <select id="deck-select" data-melodia-host-target="deckSelect" class="select"></select>
+        <button type="button" class="btn btn-primary" data-action="melodia-host#pickDeck">Wybierz</button>
+    </div>
+
+    <div class="track-line">
+        <span class="muted" data-melodia-host-target="progress"></span>
+        <strong class="track-answer" data-melodia-host-target="answer"></strong>
+    </div>
+
+    <p class="buzz-banner" data-melodia-host-target="banner" hidden></p>
+
+    <div class="panel-row panel-controls" data-melodia-host-target="controls"></div>
+
+    <p class="hint muted" data-melodia-host-target="hint"></p>
+</section>

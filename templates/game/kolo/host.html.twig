@@ -1,0 +1,36 @@
+{# Panel koła fortuny na ekranie hosta: plansza hasła, koło i sterowanie.
+   Cały stan pochodzi z serwera - kontroler tylko go pokazuje i animuje koło. #}
+<section class="game-panel kolo-panel"
+         data-controller="kolo-host"
+         data-kolo-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-kolo-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
+
+    <div class="panel-row" data-kolo-host-target="deckPicker" hidden>
+        <label for="kolo-deck">Talia</label>
+        <select id="kolo-deck" data-kolo-host-target="deckSelect" class="select"></select>
+        <button type="button" class="btn btn-primary" data-action="kolo-host#pickDeck">Wybierz</button>
+    </div>
+
+    <p class="muted" data-kolo-host-target="progress"></p>
+
+    {# Plansza hasła: każda litera osobnym kafelkiem, żeby z kanapy było widać,
+       ile znaków ma słowo i gdzie są przerwy. #}
+    <div class="puzzle-board" data-kolo-host-target="board"></div>
+
+    <p class="puzzle-hint" data-kolo-host-target="hintText"></p>
+
+    <div class="kolo-stage">
+        <canvas class="wheel" data-kolo-host-target="wheel" width="420" height="420"
+                aria-label="Koło fortuny"></canvas>
+
+        <div class="kolo-side">
+            <p class="turn-line" data-kolo-host-target="turn"></p>
+            <p class="track-answer" data-kolo-host-target="answer"></p>
+            <p class="banner-small" data-kolo-host-target="event"></p>
+        </div>
+    </div>
+
+    <div class="panel-row panel-controls" data-kolo-host-target="controls"></div>
+
+    <p class="hint muted" data-kolo-host-target="hint"></p>
+</section>

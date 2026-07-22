@@ -1,0 +1,392 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Game\Melodia;
+
+use App\Core\Buzzer\BuzzerArbiter;
+use App\Core\Game\Actor;
+use App\Core\Game\Fsm\GameFsm;
+use App\Core\Game\Fsm\RedisMarkingStore;
+use App\Core\Game\GameEngine;
+use App\Core\Game\GameRegistry;
+use App\Core\Game\GameState;
+use App\Core\Game\IllegalActionException;
+use App\Core\Realtime\Publisher;
+use App\Core\Redis\RedisReader;
+use App\Core\Room\Room;
+use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomManager;
+use App\Core\Room\Team;
+use App\Core\Score\Scoreboard;
+use App\Entity\Deck;
+use App\Entity\Track;
+use App\Game\Melodia\MelodiaGame;
+use App\Game\Melodia\MelodiaPlaylist;
+use App\Repository\DeckRepository;
+use App\Repository\TrackRepository;
+use App\Tests\DoctrineTestCase;
+use App\Tests\RedisConnection;
+use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
+use Symfony\Component\Mercure\MockHub;
+use Symfony\Component\Mercure\Update;
+
+/**
+ * Pelna runda melodii przez silnik - tak, jak poleci z kontrolera.
+ *
+ * Testujemy modul przez GameEngine, a nie w izolacji: to wlasnie na styku
+ * modulu z rdzeniem (przejscia FSM, publikacja, punkty) siedza bledy, ktore
+ * przy stole objawiaja sie jako "buzzery nie gasna" albo "punkt nie doszedl".
+ */
+final class MelodiaGameTest extends DoctrineTestCase
+{
+    use RedisConnection;
+
+    private const TTL = 60;
+
+    private GameEngine $engine;
+    private BuzzerArbiter $buzzer;
+    private Scoreboard $scoreboard;
+    private GameState $gameState;
+    private RoomManager $rooms;
+    private Room $room;
+    private Team $kanapowcy;
+    private Team $dywanowi;
+
+    /** @var list<Update> */
+    private array $published = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->connectRedis();
+
+        $this->published = [];
+
+        $reader = new RedisReader($this->redis);
+        $this->gameState = new GameState($this->redis, $reader, self::TTL);
+        $fsm = new GameFsm(new RedisMarkingStore($this->gameState));
+        $this->rooms = new RoomManager($this->redis, $reader, new RoomCodeGenerator(), self::TTL);
+
+        $publisher = new Publisher(new MockHub(
+            url: 'http://localhost/.well-known/mercure',
+            jwtProvider: new StaticTokenProvider('test'),
+            publisher: function (Update $update): string {
+                $this->published[] = $update;
+
+                return 'test-id';
+            },
+        ));
+
+        $this->seedDeck();
+
+        $this->buzzer = new BuzzerArbiter($this->redis, $reader, $publisher, self::TTL);
+        $this->scoreboard = new Scoreboard($this->redis, $reader, $this->rooms, $publisher, self::TTL);
+
+        $decks = self::getContainer()->get(DeckRepository::class);
+        $tracks = self::getContainer()->get(TrackRepository::class);
+
+        $melodia = new MelodiaGame($fsm, $this->gameState, $this->buzzer, $this->scoreboard, new MelodiaPlaylist($decks, $tracks));
+
+        $this->engine = new GameEngine(
+            new GameRegistry([$melodia]),
+            $this->gameState,
+            $fsm,
+            $this->rooms,
+            $publisher,
+        );
+
+        $this->room = $this->rooms->create();
+        $this->kanapowcy = $this->rooms->join($this->room->code, 'Kanapowcy');
+        $this->dywanowi = $this->rooms->join($this->room->code, 'Dywanowi');
+
+        $this->engine->start($this->room, 'melodia');
+
+        // Kazda runda zaczyna sie od talii i wylosowanego utworu - bez nich
+        // host nie ma czego puscic, wiec 'arm' slusznie odmawia.
+        $this->host('pick_deck', ['deck' => 'testowa']);
+        $this->host('next_track');
+    }
+
+    /** Talia w bazie testowej; transakcja z DoctrineTestCase wycofa ja po tescie. */
+    private function seedDeck(): void
+    {
+        $deck = new Deck('testowa', 'Talia testowa', 'melodia');
+        $this->entityManager->persist($deck);
+
+        foreach ([['demo/wlazl-kotek.wav', 'Wlazl kotek', 'Tradycyjne'], ['demo/sto-lat.wav', 'Sto lat', 'Tradycyjne']] as $i => [$path, $title, $artist]) {
+            $track = new Track($deck, $path, $title, $artist);
+            $track->setPosition($i);
+            $this->entityManager->persist($track);
+        }
+
+        $this->entityManager->flush();
+    }
+
+    /** Kryterium akceptacji ze spec 16, przejscie od uzbrojenia do punktu. */
+    public function testFullRoundFromArmToPoint(): void
+    {
+        self::assertSame('idle', $this->engine->currentState($this->room));
+
+        $this->host('arm');
+        self::assertSame('armed', $this->engine->currentState($this->room));
+        self::assertTrue($this->buzzer->isArmed($this->room->code));
+
+        $this->team($this->kanapowcy, 'buzz');
+        self::assertSame('buzzed', $this->engine->currentState($this->room));
+
+        $this->host('judge', ['correct' => true]);
+        self::assertSame('judging', $this->engine->currentState($this->room));
+        self::assertSame(1, $this->scoreboard->get($this->room->code, $this->kanapowcy->id));
+
+        $this->host('finish');
+        self::assertSame('idle', $this->engine->currentState($this->room));
+    }
+
+    /** Zwycieski buzz musi zgasic buzzery - inaczej druga druzyna tez "ma glos". */
+    public function testWinningBuzzClosesTheRound(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        self::assertFalse($this->buzzer->isArmed($this->room->code));
+    }
+
+    public function testHostSeesWhoHasTheFloor(): void
+    {
+        $this->host('arm');
+        $this->team($this->dywanowi, 'buzz');
+
+        $view = $this->engine->hostView($this->room);
+        self::assertIsArray($view['buzz']);
+        self::assertSame('Dywanowi', $view['buzz']['teamName']);
+    }
+
+    /**
+     * Telefon musi rozroznic "to ja mam glos" od "ktos inny" - to jedyna
+     * roznica miedzy ekranem "MASZ GLOS" a lockoutem (spec 9).
+     */
+    public function testOnlyTheBuzzingTeamGetsTheFloorOnItsPhone(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        self::assertTrue($this->engine->playerView($this->room, $this->kanapowcy)['hasFloor']);
+        self::assertFalse($this->engine->playerView($this->room, $this->dywanowi)['hasFloor']);
+    }
+
+    public function testSecondTeamIsLockedOutAndToldWhoWasFaster(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $mark = \count($this->published);
+
+        $this->team($this->dywanowi, 'buzz');
+
+        $rejected = $this->onlyUpdateSince($mark);
+        self::assertTrue($rejected->isPrivate(), 'Odmowa idzie tylko do spoznionego telefonu.');
+        self::assertSame(['room/'.$this->room->code.'/team/'.$this->dywanowi->id], $rejected->getTopics());
+
+        $payload = $this->decode($rejected->getData());
+        self::assertSame('buzz_rejected', $payload['type']);
+        self::assertSame('locked', $payload['reason']);
+        self::assertSame($this->kanapowcy->id, $payload['winner']);
+    }
+
+    public function testLockedOutBuzzDoesNotMoveTheGame(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        $this->team($this->dywanowi, 'buzz');
+
+        self::assertSame('buzzed', $this->engine->currentState($this->room));
+        self::assertSame($this->kanapowcy->id, $this->buzzer->winner(
+            $this->room->code,
+            $this->buzzer->currentRound($this->room->code),
+        ));
+    }
+
+    public function testWrongAnswerCostsNoPoints(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        $this->host('judge', ['correct' => false]);
+
+        self::assertSame(0, $this->scoreboard->get($this->room->code, $this->kanapowcy->id));
+        self::assertSame('wrong', $this->engine->hostView($this->room)['lastResult']);
+    }
+
+    public function testHostCanAwardMoreThanOnePoint(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        $this->host('judge', ['correct' => true, 'points' => 3]);
+
+        self::assertSame(3, $this->scoreboard->get($this->room->code, $this->kanapowcy->id));
+    }
+
+    /** Najczestszy przebieg przy stole: zle zgadl, wiec utwor wraca dla reszty. */
+    public function testWrongAnswerLetsTheOthersTryTheSameTrack(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+
+        $this->host('rearm');
+
+        self::assertSame('armed', $this->engine->currentState($this->room));
+        self::assertTrue($this->buzzer->isArmed($this->room->code));
+
+        $this->team($this->dywanowi, 'buzz');
+
+        self::assertSame('buzzed', $this->engine->currentState($this->room));
+
+        $buzz = $this->engine->hostView($this->room)['buzz'];
+        self::assertIsArray($buzz);
+        self::assertSame('Dywanowi', $buzz['teamName']);
+    }
+
+    public function testRearmOpensAFreshRoundSoTheOldOneCannotBeWonTwice(): void
+    {
+        $this->host('arm');
+        $firstRound = $this->buzzer->currentRound($this->room->code);
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+        $this->host('rearm');
+
+        self::assertGreaterThan($firstRound, $this->buzzer->currentRound($this->room->code));
+    }
+
+    /** Nikt nie zabuzzowal - bez tego pokoj zostalby uzbrojony na zawsze. */
+    public function testHostCanAbortARoundNobodyAnswered(): void
+    {
+        $this->host('arm');
+
+        $this->host('cancel');
+
+        self::assertSame('idle', $this->engine->currentState($this->room));
+        self::assertFalse($this->buzzer->isArmed($this->room->code));
+
+        // ...i od razu da sie puscic kolejny utwor.
+        $this->host('arm');
+        self::assertSame('armed', $this->engine->currentState($this->room));
+    }
+
+    /**
+     * Nacisniecie, zanim host cokolwiek pusci, nie jest bledem - ktos po prostu
+     * bawi sie przyciskiem. Telefon dostaje odmowe, a gra stoi w miejscu;
+     * wyjatek zamieniłby zabawe przyciskiem w blad 400 na ekranie gracza.
+     */
+    public function testBuzzBeforeTheHostArmsIsPolitelyRefused(): void
+    {
+        $mark = \count($this->published);
+
+        $this->team($this->kanapowcy, 'buzz');
+
+        $payload = $this->decode($this->onlyUpdateSince($mark)->getData());
+
+        self::assertSame('buzz_rejected', $payload['type']);
+        self::assertSame('stale', $payload['reason']);
+        self::assertSame('idle', $this->engine->currentState($this->room));
+    }
+
+    public function testPhoneCannotArmTheRound(): void
+    {
+        $this->expectException(IllegalActionException::class);
+        $this->expectExceptionMessageMatches('/tylko dla hosta/');
+
+        $this->team($this->kanapowcy, 'arm');
+    }
+
+    public function testPhoneCannotJudgeItself(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        $this->expectException(IllegalActionException::class);
+        $this->expectExceptionMessageMatches('/tylko dla hosta/');
+
+        $this->team($this->kanapowcy, 'judge', ['correct' => true]);
+    }
+
+    public function testHostCannotBuzzForATeam(): void
+    {
+        $this->host('arm');
+
+        $this->expectException(IllegalActionException::class);
+        $this->expectExceptionMessageMatches('/tylko dla druzyny/');
+
+        $this->host('buzz');
+    }
+
+    /**
+     * Telefon, ktory nie zauwazyl konca rundy, wysyla numer sprzed chwili.
+     * Ma dostac odmowe, a nie zaliczenie do biezacej rundy.
+     */
+    public function testBuzzCarryingAStaleRoundNumberIsRefused(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+        $this->host('rearm');
+        $mark = \count($this->published);
+
+        $this->team($this->dywanowi, 'buzz', ['round' => 1]);
+
+        $payload = $this->decode($this->onlyUpdateSince($mark)->getData());
+
+        self::assertSame('buzz_rejected', $payload['type']);
+        self::assertSame('locked', $payload['reason']);
+        self::assertSame($this->kanapowcy->id, $payload['winner'], 'Runda 1 nalezala do Kanapowcow.');
+        self::assertSame('armed', $this->engine->currentState($this->room), 'Biezaca runda ma trwac dalej.');
+    }
+
+    public function testJudgingWithoutABuzzIsRefused(): void
+    {
+        $this->host('arm');
+
+        $this->expectException(IllegalActionException::class);
+
+        $this->host('judge', ['correct' => true]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function host(string $action, array $payload = []): void
+    {
+        $this->engine->handle($this->room, $action, $payload, Actor::host());
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function team(Team $team, string $action, array $payload = []): void
+    {
+        $this->engine->handle($this->room, $action, $payload, Actor::team($team));
+    }
+
+    private function onlyUpdateSince(int $mark): Update
+    {
+        $updates = \array_slice($this->published, $mark);
+
+        self::assertCount(1, $updates, 'Oczekiwano dokladnie jednego eventu.');
+
+        return $updates[0];
+    }
+
+    /** @return array<string, mixed> */
+    private function decode(string $json): array
+    {
+        $payload = json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($payload);
+
+        $typed = [];
+        foreach ($payload as $key => $value) {
+            if (\is_string($key)) {
+                $typed[$key] = $value;
+            }
+        }
+
+        return $typed;
+    }
+}

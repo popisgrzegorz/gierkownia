@@ -1,0 +1,44 @@
+# Talia demonstracyjna - wygenerowane dzwieki, zeby dalo sie przetestowac
+# rozgrywke bez wgrywania czyjejkolwiek muzyki.
+#
+# Wlasna talie robisz tak samo: skopiuj pliki do katalogu mediow (MEDIA_DIR),
+# opisz je tutaj i uruchom `php bin/console app:deck:sync`.
+# Plik jest zrodlem prawdy - pozycja usunieta stad znika z bazy przy kolejnym
+# imporcie, wiec nie trzeba niczego kasowac recznie.
+
+deck: demo
+name: Piosenki z dzieciństwa (demo)
+game: melodia
+
+categories:
+  dziecinne: Dziecięce
+  biesiadne: Biesiadne
+
+tracks:
+  - file: demo/wlazl-kotek.wav
+    title: Wlazł kotek na płotek
+    artist: Tradycyjne
+    category: dziecinne
+
+  - file: demo/panie-janie.wav
+    title: Panie Janie
+    artist: Tradycyjne
+    category: dziecinne
+
+  - file: demo/sto-lat.wav
+    title: Sto lat
+    artist: Tradycyjne
+    category: biesiadne
+
+  - file: demo/kurki-trzy.wav
+    title: Miałam raz kurki trzy
+    artist: Tradycyjne
+    category: dziecinne
+
+  # startAt: od ktorej sekundy zaczac granie. Refren rozpoznaje sie szybciej
+  # niz wstep, wiec przy prawdziwych utworach to najwazniejsze pole w taliach.
+  - file: demo/zielona-lodka.wav
+    title: Zielona łódka
+    artist: Tradycyjne
+    category: dziecinne
+    startAt: 0

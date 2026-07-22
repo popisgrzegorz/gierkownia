@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ team.name }} — pokój {{ room.code }}{% endblock %}
+{% block body_class %}player{% endblock %}
+
+{% block body %}
+    <main class="player-screen" style="--team-color: {{ team.color }}"
+          data-controller="player-status"
+          data-player-status-hub-value="{{ hubUrl }}"
+          data-player-status-team-value="{{ team.id }}">
+
+        <header class="player-header">
+            <span class="team-badge">{{ team.name }}</span>
+            <span class="score-pill">
+                <span data-player-status-target="score">{{ score }}</span> pkt
+            </span>
+            <span class="conn" data-player-status-target="connection" data-state="connecting">łączenie…</span>
+        </header>
+
+        <section class="player-main">
+            {% if gameType is not null %}
+                {# Widok modułu gry po konwencji game/{typ}/player - rdzeń nie zna
+                   żadnej konkretnej gry, więc i tu nie ma o niej ani słowa. #}
+                {{ include('game/' ~ gameType ~ '/player.html.twig') }}
+            {% else %}
+                <p class="waiting" data-player-status-target="waiting">
+                    Czekaj na hosta — gra zaraz się zacznie.
+                </p>
+            {% endif %}
+        </section>
+
+        <footer class="player-footer">
+            <span class="muted">pokój {{ room.code }}</span>
+        </footer>
+    </main>
+{% endblock %}

@@ -1,0 +1,73 @@
+services:
+  # Stan "live" pokoju: kody, druzyny, punkty, lockout buzzera.
+  # Wlasna instancja - na tej maszynie dziala juz cudzy Redis na 6379.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --appendonly no
+    ports:
+      - "${REDIS_PORT:-56379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Tresci trwale: talie, utwory, hasla, karty kalambur.
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gierki}
+      POSTGRES_USER: ${POSTGRES_USER:-gierki}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gierki}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gierki} -d ${POSTGRES_DB:-gierki}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+###> symfony/mercure-bundle ###
+  mercure:
+    image: dunglas/mercure
+    restart: unless-stopped
+    environment:
+      # LAN bez internetu - hub jedzie po HTTP, TLS konczy sie na reverse proxy.
+      SERVER_NAME: ':80'
+      MERCURE_PUBLISHER_JWT_KEY: '${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}'
+      MERCURE_SUBSCRIBER_JWT_KEY: '${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}'
+      # anonymous: telefony subskrybuja topic pokoju bez tokenu.
+      # Tajne topici (/host, /team/{id}) ida jako private updates - dostana je
+      # wylacznie subskrybenci z pasujacym JWT, wiec anonim ich nie podejrzy.
+      # cors_origins musi byc konkretnym originem, nie gwiazdka: EventSource
+      # laczy sie z withCredentials (ciasteczko subskrypcji), a przegladarka
+      # odrzuca odpowiedz z Access-Control-Allow-Origin: * przy credentials.
+      MERCURE_EXTRA_DIRECTIVES: |
+        anonymous
+        cors_origins http://${LAN_HOST}:${APP_PORT} http://127.0.0.1:${APP_PORT} http://localhost:${APP_PORT}
+    ports:
+      - "${MERCURE_PORT:-3010}:80"
+    healthcheck:
+      # wget, nie curl: obraz dunglas/mercure curla nie zawiera, wiec przepisany
+      # z recepty healthcheck zawsze konczyl sie bledem i kontener raportowal
+      # "unhealthy" mimo dzialajacego huba.
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - mercure_data:/data
+      - mercure_config:/config
+###< symfony/mercure-bundle ###
+
+volumes:
+  database_data:
+###> symfony/mercure-bundle ###
+  mercure_data:
+  mercure_config:
+###< symfony/mercure-bundle ###

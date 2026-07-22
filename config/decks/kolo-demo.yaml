@@ -1,0 +1,58 @@
+# Talia hasel do kola fortuny.
+#
+# Haslo zapisuj normalnie - import i tak zamienia je na wielkie litery, bo
+# plansza pokazuje wersalikami. Polskie znaki zostaja osobnymi literami:
+# "Ł" nie odslania "L", tak jak w teleturnieju.
+#
+# hint jest widoczny dla graczy od poczatku i to on robi zagadke grywalna -
+# "zwiazek frazeologiczny" mowi duzo wiecej niz same podkreslenia.
+
+deck: kolo-podstawowa
+name: Powiedzenia i przedmioty
+game: kolo
+
+categories:
+  powiedzenia: Powiedzenia
+  dom: W domu
+  natura: Przyroda
+
+puzzles:
+  - phrase: Kasa kwiatowa
+    hint: związek frazeologiczny
+    category: powiedzenia
+
+  - phrase: Bułka z masłem
+    hint: coś bardzo łatwego
+    category: powiedzenia
+
+  - phrase: Rzucać grochem o ścianę
+    hint: mówić bez skutku
+    category: powiedzenia
+
+  - phrase: Szczotka do zębów
+    hint: znajdziesz ją w łazience
+    category: dom
+
+  - phrase: Pralka automatyczna
+    hint: sprzęt domowy
+    category: dom
+
+  - phrase: Żółty parasol
+    hint: przydaje się w deszczu
+    category: dom
+
+  - phrase: Wielki Wóz
+    hint: gwiazdozbiór
+    category: natura
+
+  - phrase: Burza z piorunami
+    hint: zjawisko pogodowe
+    category: natura
+
+  - phrase: Poziomka leśna
+    hint: rośnie w lesie
+    category: natura
+
+  - phrase: Gęsi za wodą
+    hint: z piosenki dla dzieci
+    category: natura

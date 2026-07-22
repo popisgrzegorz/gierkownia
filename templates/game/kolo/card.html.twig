@@ -1,0 +1,26 @@
+{# Kafelek koła fortuny. Kolor i hasło należą do modułu, nie do rdzenia. #}
+{% embed 'game/_card.html.twig' with {
+    game: game,
+    color: '#f5a524',
+    lead: 'Zakręć kołem i wygraj punkty!'
+} %}
+    {% block art %}
+        {# Osiem wycinków na przemian - tarcza czytelna nawet w miniaturze.
+           Punkty wypisane wprost, bo Twig nie zna sinusa, a osiem ścieżek
+           czyta się lepiej niż licznik w szablonie. #}
+        <svg viewBox="0 0 120 120" role="img" aria-label="Koło fortuny">
+            <g transform="translate(60 66)">
+                <path d="M0 0 L40 0 A40 40 0 0 1 28.3 28.3 Z" fill="var(--card)"/>
+                <path d="M0 0 L28.3 28.3 A40 40 0 0 1 0 40 Z" fill="#15182a"/>
+                <path d="M0 0 L0 40 A40 40 0 0 1 -28.3 28.3 Z" fill="var(--card)"/>
+                <path d="M0 0 L-28.3 28.3 A40 40 0 0 1 -40 0 Z" fill="#15182a"/>
+                <path d="M0 0 L-40 0 A40 40 0 0 1 -28.3 -28.3 Z" fill="var(--card)"/>
+                <path d="M0 0 L-28.3 -28.3 A40 40 0 0 1 0 -40 Z" fill="#15182a"/>
+                <path d="M0 0 L0 -40 A40 40 0 0 1 28.3 -28.3 Z" fill="var(--card)"/>
+                <path d="M0 0 L28.3 -28.3 A40 40 0 0 1 40 0 Z" fill="#15182a"/>
+                <circle r="9" fill="#f2efe6" stroke="#15182a" stroke-width="3"/>
+            </g>
+            <path d="M60 16 L68 32 L52 32 Z" fill="#15182a"/>
+        </svg>
+    {% endblock %}
+{% endembed %}

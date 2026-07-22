@@ -1,0 +1,996 @@
+/*
+ * Dwa bardzo rozne ekrany z jednego arkusza:
+ *  - host: telewizor ogladany z 3-4 metrow, wiec skala idzie na vmin, nie na px,
+ *  - player: telefon w rece, kciukiem, czesto w polciemnym pokoju.
+ * Stad ciemny motyw na sztywno - na imprezie nikt nie przelacza trybu.
+ */
+
+:root {
+    --bg: #0b0d17;
+    --bg-soft: #151829;
+    --fg: #f5f6fb;
+    --muted: #8d93b0;
+    --accent: #f5a524;
+    --ok: #30a46c;
+    --err: #e5484d;
+    --radius: 16px;
+    --team-color: var(--accent);
+
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100dvh;
+}
+
+body {
+    background: radial-gradient(circle at 50% 0%, #1b2040 0%, var(--bg) 60%);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+}
+
+.screen-center {
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.logo {
+    margin: 0;
+    font-size: clamp(1.4rem, 3vmin, 2.4rem);
+    letter-spacing: -0.02em;
+}
+
+.flash {
+    margin: 0;
+    padding: 0.9rem 1.2rem;
+    text-align: center;
+    font-weight: 600;
+    background: var(--err);
+}
+
+.flash-success {
+    background: var(--ok);
+}
+
+/* ---------- przyciski i pola ---------- */
+
+.btn {
+    padding: 0.8rem 1.4rem;
+    border: 1px solid #2b3050;
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+    color: var(--fg);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    /* Palec, nie kursor - ponizej 44px trafienie robi sie loteria. */
+    min-height: 44px;
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn-primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: #22160a;
+}
+
+.btn-lg {
+    width: 100%;
+    padding: 1.1rem 1.6rem;
+    font-size: 1.25rem;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--muted);
+}
+
+input {
+    padding: 0.9rem 1rem;
+    border: 1px solid #2b3050;
+    border-radius: var(--radius);
+    background: #0e1120;
+    color: var(--fg);
+    font: inherit;
+    /* 16px to prog, ponizej ktorego iOS zoomuje strone przy fokusie pola. */
+    font-size: 16px;
+    width: 100%;
+}
+
+input:focus-visible,
+.btn:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ---------- strona startowa ---------- */
+
+.home-screen {
+    min-height: 100dvh;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: clamp(1.2rem, 4vmin, 2.5rem);
+    padding: clamp(1.2rem, 5vmin, 3rem);
+    text-align: center;
+}
+
+.home .brand-name {
+    font-size: clamp(2rem, 9vw, 4.5rem);
+}
+
+.home-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: clamp(0.8rem, 2.5vmin, 1.5rem);
+    width: min(46rem, 100%);
+}
+
+.home-card {
+    display: grid;
+    gap: 0.8rem;
+    align-content: start;
+    padding: clamp(1.2rem, 4vmin, 2rem);
+    border-radius: 20px;
+    background: rgba(21, 24, 41, 0.72);
+    border: 1px solid #232741;
+}
+
+.home-card h2 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.home-card .row {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.home-games {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--fg);
+    font-weight: 600;
+}
+
+.home-games .soon {
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.home-games em {
+    font-size: 0.8em;
+    opacity: 0.7;
+}
+
+.dot {
+    display: inline-block;
+    width: 0.7em;
+    height: 0.7em;
+    margin-right: 0.45em;
+    border-radius: 50%;
+    background: var(--dot);
+}
+
+.home-foot {
+    margin: 0;
+    font-size: 0.85rem;
+    max-width: 26rem;
+}
+
+.panel {
+    width: min(28rem, 100%);
+    display: grid;
+    gap: 1.25rem;
+    padding: 2rem;
+    border-radius: 24px;
+    background: rgba(21, 24, 41, 0.7);
+    border: 1px solid #232741;
+    text-align: center;
+}
+
+.lead {
+    margin: 0;
+    color: var(--muted);
+}
+
+.join-by-code {
+    display: grid;
+    gap: 0.6rem;
+    padding-top: 1rem;
+    border-top: 1px solid #232741;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+.join-by-code .row {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.code-input {
+    text-align: center;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 1.4rem;
+}
+
+/* ---------- ekran hosta (TV) ----------
+
+   Telewizor ogląda się z 3-4 metrów, więc wszystko skaluje się na vmin,
+   a nie na px: ten sam układ ma działać na monitorze 24" i na TV 55". */
+
+.tv {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: clamp(0.8rem, 2.2vmin, 2rem);
+    padding: clamp(0.8rem, 2.4vmin, 2.4rem);
+    background:
+        radial-gradient(circle at 15% -10%, #232a52 0%, transparent 55%),
+        radial-gradient(circle at 85% 0%, #1d2547 0%, transparent 50%);
+}
+
+.tv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+    position: relative;
+}
+
+.brand-name {
+    margin: 0;
+    font-size: clamp(2rem, 7vmin, 5.5rem);
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+    /* Lekki obrót i cień: logo ma wyglądać na naklejkę, nie na nagłówek h1. */
+    transform: rotate(-1.5deg);
+    text-shadow: 0 0.06em 0 rgba(0, 0, 0, 0.45);
+}
+
+.brand-star {
+    display: inline-block;
+    margin: 0 0.12em;
+    color: var(--accent);
+    transform: rotate(8deg);
+}
+
+.brand-tag {
+    margin: 0.2em 0 0;
+    color: var(--accent);
+    font-size: clamp(0.9rem, 2vmin, 1.6rem);
+    font-weight: 700;
+    transform: rotate(-1.5deg);
+}
+
+.join-box {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.8rem, 2vmin, 1.6rem);
+}
+
+.join-text {
+    text-align: right;
+}
+
+.qr {
+    width: clamp(88px, 13vmin, 170px);
+    height: auto;
+    border-radius: 10px;
+    /* Białe tło pod QR: czytniki telefonów gubią kod odwrócony kolorystycznie. */
+    background: #fff;
+    padding: 0.35rem;
+}
+
+/* Tablo w kafelku dolnego pasa: jedna drużyna na wiersz i mniejsza skala niż
+   samodzielna lista - obok stoi "Jak to działa?" i oba mają się zmieścić. */
+.tile .teams {
+    grid-template-columns: 1fr;
+    gap: clamp(0.35rem, 0.9vmin, 0.7rem);
+}
+
+.tile .team {
+    font-size: clamp(0.9rem, 1.9vmin, 1.5rem);
+    padding: clamp(0.45rem, 1.1vmin, 0.9rem) clamp(0.6rem, 1.4vmin, 1.1rem);
+}
+
+.tile .team-score {
+    /* Stała szerokość kolumny z punktami, żeby przyciski nie skakały w bok
+       przy przejściu z 9 na 10 punktów. */
+    min-width: 2.5ch;
+    text-align: right;
+}
+
+/* ---------- kafelki gier ---------- */
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: clamp(0.6rem, 1.6vmin, 1.4rem);
+}
+
+.game-card {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    gap: clamp(0.4rem, 1.2vmin, 1rem);
+    padding: clamp(0.8rem, 2vmin, 1.6rem);
+    border: 3px solid var(--card);
+    border-radius: 18px;
+    /* Jasna karta na ciemnym tle - kontrast, który widać z drugiego końca pokoju. */
+    background: #f2efe6;
+    color: #15182a;
+    text-align: center;
+    box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.35);
+}
+
+.game-card-title {
+    margin: 0;
+    font-size: clamp(1.1rem, 2.8vmin, 2.2rem);
+    font-weight: 900;
+    line-height: 1.05;
+    color: var(--card);
+    text-transform: uppercase;
+}
+
+.game-card-art {
+    display: grid;
+    place-items: center;
+    color: var(--card);
+}
+
+.game-card-art svg {
+    width: clamp(70px, 12vmin, 150px);
+    height: auto;
+}
+
+.game-card-lead {
+    margin: 0;
+    font-size: clamp(0.8rem, 1.6vmin, 1.1rem);
+    color: #454a63;
+}
+
+.game-card-btn {
+    width: 100%;
+    padding: 0.7em 1em;
+    border: none;
+    border-radius: 12px;
+    background: var(--card);
+    color: #fff;
+    font: inherit;
+    font-size: clamp(0.9rem, 1.8vmin, 1.3rem);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+}
+
+.game-card-btn:disabled {
+    opacity: 0.6;
+}
+
+.game-card-soon {
+    background: rgba(242, 239, 230, 0.09);
+    color: var(--muted);
+    border-style: dashed;
+    box-shadow: none;
+}
+
+.game-card-soon .game-card-lead {
+    color: var(--muted);
+}
+
+.game-card-btn-soon {
+    display: block;
+    background: transparent;
+    border: 2px dashed var(--card);
+    color: var(--card);
+    text-transform: uppercase;
+}
+
+/* ---------- dolny pas ---------- */
+
+.tv-bottom {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: clamp(0.6rem, 1.6vmin, 1.4rem);
+    align-content: start;
+}
+
+.tile {
+    padding: clamp(0.8rem, 2vmin, 1.6rem);
+    border-radius: 16px;
+    background: rgba(21, 24, 41, 0.66);
+    border: 1px solid #232741;
+}
+
+.tile h2 {
+    margin: 0 0 0.7em;
+    font-size: clamp(0.95rem, 2vmin, 1.5rem);
+}
+
+.steps {
+    display: grid;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(0.78rem, 1.5vmin, 1.05rem);
+    color: var(--muted);
+}
+
+.steps strong {
+    color: var(--fg);
+}
+
+.step-no {
+    display: inline-grid;
+    place-items: center;
+    width: 1.7em;
+    height: 1.7em;
+    margin-right: 0.5em;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #22160a;
+    font-weight: 900;
+}
+
+.tv-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: clamp(0.72rem, 1.4vmin, 1rem);
+}
+
+.tv-footer .sep {
+    opacity: 0.4;
+}
+
+.reset-form {
+    margin-left: auto;
+}
+
+.conn {
+    padding: 0.35em 0.9em;
+    border-radius: 999px;
+    background: var(--bg-soft);
+    color: var(--muted);
+    font-size: clamp(0.75rem, 1.4vmin, 1rem);
+    font-weight: 600;
+}
+
+.conn[data-state="online"] {
+    color: var(--ok);
+}
+
+.conn[data-state="offline"] {
+    color: var(--err);
+}
+
+.join-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1.5rem, 6vmin, 5rem);
+    flex-wrap: wrap;
+}
+
+.join-hint {
+    margin: 0.2em 0;
+    color: var(--muted);
+    font-size: clamp(0.9rem, 1.8vmin, 1.4rem);
+}
+
+.join-url {
+    margin: 0;
+    font-size: clamp(1.2rem, 3vmin, 2.4rem);
+    font-weight: 600;
+}
+
+.room-code {
+    margin: 0;
+    font-size: clamp(3rem, 14vmin, 11rem);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    color: var(--accent);
+}
+
+.room-code.small {
+    font-size: clamp(2.5rem, 12vmin, 4rem);
+}
+
+.qr {
+    width: clamp(140px, 26vmin, 320px);
+    height: auto;
+    border-radius: var(--radius);
+    /* Biale tlo pod QR: czytniki telefonow gubia kod odwrocony kolorystycznie. */
+    background: #fff;
+    padding: 0.5rem;
+}
+
+/* ---------- panel gry na ekranie hosta ---------- */
+
+.game-panel {
+    display: grid;
+    gap: clamp(0.6rem, 1.6vmin, 1.2rem);
+    padding: clamp(0.9rem, 2.4vmin, 1.8rem);
+    border-radius: var(--radius);
+    background: rgba(21, 24, 41, 0.75);
+    border: 1px solid #232741;
+    justify-items: center;
+    text-align: center;
+}
+
+.panel-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.panel-controls .btn {
+    width: auto;
+    min-width: 12ch;
+}
+
+.select {
+    padding: 0.8rem 1rem;
+    border: 1px solid #2b3050;
+    border-radius: var(--radius);
+    background: #0e1120;
+    color: var(--fg);
+    font: inherit;
+    font-size: 1rem;
+    min-height: 44px;
+}
+
+.track-line {
+    display: grid;
+    gap: 0.2rem;
+}
+
+/* Odpowiedź czyta host z odległości - większa niż reszta panelu i tylko
+   wtedy, gdy jest komu oceniać (kontroler czyści ją poza fazą oceny). */
+.track-answer {
+    font-size: clamp(1.2rem, 3.4vmin, 2.6rem);
+    color: var(--accent);
+}
+
+.buzz-banner {
+    margin: 0;
+    padding: 0.4em 1em;
+    border-radius: 999px;
+    background: var(--team-color, var(--accent));
+    color: #10121f;
+    font-size: clamp(1.4rem, 4.5vmin, 3.4rem);
+    font-weight: 900;
+    animation: pop 0.35s ease-out;
+}
+
+.hint {
+    margin: 0;
+    font-size: clamp(0.85rem, 1.6vmin, 1.1rem);
+    min-height: 1.4em;
+}
+
+.board h2 {
+    font-size: clamp(1rem, 2.4vmin, 1.8rem);
+    margin: 0 0 0.8em;
+}
+
+.empty {
+    color: var(--muted);
+    font-size: clamp(1rem, 2.4vmin, 1.8rem);
+}
+
+.teams {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: clamp(0.6rem, 1.6vmin, 1.4rem);
+}
+
+.team {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: clamp(0.8rem, 2vmin, 1.6rem);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+    border-left: 6px solid var(--team-color);
+    font-size: clamp(1.1rem, 3vmin, 2.4rem);
+    font-weight: 600;
+}
+
+.team-score {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    color: var(--team-color);
+    margin-left: auto;
+}
+
+.team-buttons {
+    display: flex;
+    gap: 0.4rem;
+}
+
+/* Host klika te przyciski z odleglosci reki, czesto nie patrzac - stad
+   duze pole trafienia i staly rozmiar niezalezny od skali reszty tablo. */
+.btn-score {
+    min-width: 2.2em;
+    min-height: 2.2em;
+    padding: 0;
+    font-size: clamp(1rem, 2vmin, 1.6rem);
+    line-height: 1;
+    display: grid;
+    place-items: center;
+}
+
+.btn-score:disabled {
+    opacity: 0.5;
+}
+
+.teams-inline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.teams-inline li {
+    padding: 0.35em 0.9em;
+    border-radius: 999px;
+    background: var(--bg-soft);
+    border-left: 4px solid var(--team-color);
+    font-size: 0.9rem;
+}
+
+/* Nowa druzyna i zmiana punktu musza byc widoczne katem oka z kanapy. */
+.team-new {
+    animation: pop 0.45s ease-out;
+}
+
+.bump {
+    animation: bump 0.45s ease-out;
+}
+
+@keyframes pop {
+    from {
+        opacity: 0;
+        transform: translateY(0.8rem) scale(0.96);
+    }
+}
+
+@keyframes bump {
+    50% {
+        transform: scale(1.35);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .team-new,
+    .bump {
+        animation: none;
+    }
+}
+
+/* ---------- sterownik telefonu ---------- */
+
+.player-screen {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 1rem;
+    /* safe-area: pelnoekranowa PWA na iPhonie chowa tresc pod notchem. */
+    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+}
+
+.player-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.team-badge {
+    padding: 0.4em 1em;
+    border-radius: 999px;
+    background: var(--team-color);
+    color: #10121f;
+    font-weight: 800;
+}
+
+.player-main {
+    display: grid;
+    place-content: center;
+    /* justify-items zamiast szerokości 100% na dziecku: przy place-content:center
+       ścieżka siatki dopasowuje się do treści, więc "100%" odnosiłoby się do
+       samego siebie i buzzer wychodził poza ekran telefonu. */
+    justify-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.big-score {
+    margin: 0;
+    font-size: clamp(4rem, 30vmin, 9rem);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--team-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.waiting {
+    color: var(--muted);
+    max-width: 22rem;
+}
+
+.score-pill {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- koło fortuny ---------- */
+
+.kolo-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1rem, 4vmin, 3rem);
+    flex-wrap: wrap;
+}
+
+.wheel {
+    width: clamp(180px, 34vmin, 420px);
+    height: auto;
+}
+
+.kolo-side {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 12rem;
+}
+
+.turn-line {
+    margin: 0;
+    font-size: clamp(1rem, 2.4vmin, 1.6rem);
+    font-weight: 700;
+}
+
+.banner-small {
+    margin: 0;
+    font-size: clamp(1.1rem, 3vmin, 2.2rem);
+    font-weight: 800;
+    color: var(--accent);
+    min-height: 1.2em;
+}
+
+/* Plansza hasła: kafelek na znak, żeby z kanapy było widać długość słów. */
+.puzzle-board {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 0.2rem;
+}
+
+.puzzle-cell {
+    display: grid;
+    place-items: center;
+    width: clamp(1.1rem, 3.4vmin, 2.6rem);
+    height: clamp(1.6rem, 4.6vmin, 3.4rem);
+    border-radius: 4px;
+    background: #f5f6fb;
+    color: #10121f;
+    font-size: clamp(0.9rem, 2.8vmin, 2rem);
+    font-weight: 800;
+}
+
+.puzzle-hidden {
+    background: #2a2f4a;
+}
+
+/* Spacja to przerwa, nie kafelek - inaczej hasło zlewa się w jedno słowo. */
+.puzzle-space {
+    background: transparent;
+    width: clamp(0.5rem, 1.6vmin, 1.2rem);
+}
+
+.puzzle-hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(0.9rem, 2vmin, 1.4rem);
+    font-style: italic;
+}
+
+/* ---------- koło: telefon ---------- */
+
+.kolo-player {
+    display: grid;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 30rem;
+    text-align: center;
+}
+
+.puzzle-mini {
+    margin: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: clamp(1rem, 5vw, 1.6rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    word-break: break-word;
+}
+
+.small {
+    font-size: 0.85rem;
+}
+
+.bank-line {
+    margin: 0;
+    color: var(--muted);
+}
+
+.turn-note {
+    margin: 0;
+    font-weight: 700;
+    color: var(--team-color);
+    min-height: 1.4em;
+}
+
+.kolo-actions {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.letters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(2.4rem, 1fr));
+    gap: 0.35rem;
+}
+
+.letter-key {
+    min-height: 3rem;
+    border: 1px solid #2b3050;
+    border-radius: 10px;
+    background: var(--bg-soft);
+    color: var(--fg);
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.letter-key:disabled {
+    opacity: 0.3;
+}
+
+.letter-key:active:not(:disabled) {
+    background: var(--team-color);
+    color: #10121f;
+}
+
+.solve-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* ---------- buzzer ---------- */
+
+/* Rozmiar trzyma kontener, a przycisk go wypełnia. Ustawiony na samym
+   przycisku rozjeżdżał się: jako element siatki z aspect-ratio dostawał
+   automatyczny rozmiar minimalny i wychodził poza ekran telefonu. */
+.buzzer {
+    width: min(78vw, 62vh);
+    max-width: 100%;
+    aspect-ratio: 1;
+    justify-self: center;
+}
+
+.buzzer-button {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 50%;
+    background: #2a2f4a;
+    color: var(--fg);
+    font: inherit;
+    font-size: clamp(1.4rem, 7vmin, 3rem);
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    box-shadow: 0 0.6rem 0 #1a1e33;
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+    /* touch-action: telefon nie może przewijać strony ani zoomować w trakcie
+       walenia w buzzer - to zjadałoby część naciśnięć. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.buzzer[data-state="armed"] .buzzer-button {
+    background: var(--team-color);
+    color: #10121f;
+    box-shadow: 0 0.6rem 0 rgba(0, 0, 0, 0.45);
+    animation: ready 1.6s ease-in-out infinite;
+}
+
+.buzzer[data-state="armed"] .buzzer-button:active {
+    transform: translateY(0.55rem);
+    box-shadow: 0 0.05rem 0 rgba(0, 0, 0, 0.45);
+}
+
+.buzzer[data-state="floor"] .buzzer-button {
+    background: var(--ok);
+    color: #06120c;
+    animation: none;
+}
+
+.buzzer[data-state="locked"] .buzzer-button,
+.buzzer[data-state="sent"] .buzzer-button {
+    background: #23273f;
+    color: var(--muted);
+    box-shadow: none;
+}
+
+.buzzer-button:disabled {
+    cursor: default;
+}
+
+@keyframes ready {
+    50% {
+        filter: brightness(1.18);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .buzzer[data-state="armed"] .buzzer-button {
+        animation: none;
+    }
+}
+
+.player-footer {
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.join-form {
+    display: grid;
+    gap: 0.75rem;
+    text-align: left;
+}
