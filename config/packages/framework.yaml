@@ -5,6 +5,19 @@ framework:
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 
+    # Za reverse proxy TLS konczy sie na proxy, a do PHP wchodzi zwykly HTTP.
+    # Bez zaufania naglowkom X-Forwarded-* Symfony uznaje polaczenie za
+    # nieszyfrowane, a wtedy sypie sie wiecej niz sam schemat w linkach:
+    # Subscription buduje adres huba jako http:// na stronie otwartej po https,
+    # przegladarka blokuje to jako mixed content i SSE nie rusza - czyli tablo,
+    # buzzer i fazy gry zamieraja bez zadnego bledu na ekranie.
+    #
+    # Lista adresow, a nie "REMOTE_ADDR": port aplikacji ma byc osiagalny
+    # wylacznie dla proxy, wiec zaufanie komukolwiek, kto sie polaczy,
+    # byloby zaproszeniem do podszycia sie pod HTTPS.
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+
     #esi: true
     #fragments: true
 

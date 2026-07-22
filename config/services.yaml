@@ -13,8 +13,6 @@ parameters:
     # Katalog z plikami muzycznymi i katalog z opisami talii. Rozdzielone,
     # bo talie sa wersjonowane razem z kodem, a muzyka nigdy nie powinna byc.
     app.media_dir: '%env(resolve:MEDIA_DIR)%'
-    app.lan_host: '%env(LAN_HOST)%'
-    app.app_port: '%env(int:APP_PORT)%'
 
 services:
     # default configuration for services in *this* file
@@ -23,7 +21,7 @@ services:
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
             int $roomTtl: '%app.room_ttl%'
-            int $mercurePort: '%env(int:MERCURE_PORT)%'
+            int $mercurePublicPort: '%env(int:MERCURE_PUBLIC_PORT)%'
             string $mediaDir: '%app.media_dir%'
             string $adminPassword: '%env(ADMIN_PASSWORD)%'
 

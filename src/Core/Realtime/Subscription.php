@@ -18,6 +18,10 @@ use Symfony\Component\Mercure\Jwt\TokenFactoryInterface;
  * wiec adres huba wyprowadzamy z biezacego zadania. Ciasteczko jest host-only,
  * a port nie wplywa ani na przynaleznosc ciasteczka, ani na SameSite, wiec
  * hub na innym porcie tego samego hosta dostaje je bez problemu.
+ *
+ * Hub stoi w jednym z dwoch miejsc, o czym rozstrzyga MERCURE_PUBLIC_PORT:
+ * obok aplikacji na wlasnym porcie (LAN) albo za tym samym reverse proxy,
+ * pod ta sama nazwa i sciezka HUB_PATH (wdrozenie po HTTPS).
  */
 final readonly class Subscription
 {
@@ -28,7 +32,7 @@ final readonly class Subscription
         // Nazwa argumentu wskazuje hub: bundle rejestruje fabryke tokenow
         // per hub, wiec goly TokenFactoryInterface nie da sie zautowirowac.
         private TokenFactoryInterface $defaultFactory,
-        private int $mercurePort,
+        private int $mercurePublicPort,
         private int $roomTtl,
     ) {
     }
@@ -45,14 +49,17 @@ final readonly class Subscription
             $topics,
         ));
 
-        return sprintf(
-            '%s://%s:%d%s?%s',
-            $request->getScheme(),
-            $request->getHost(),
-            $this->mercurePort,
-            self::HUB_PATH,
-            $query,
-        );
+        // Port 0 znaczy "hub pod tym samym adresem co aplikacja" - przepuszcza
+        // go to samo proxy, ktore obsluguje gre. getHttpHost() sam pomija port
+        // domyslny dla schematu, wiec po HTTPS wychodzi czyste "host", a nie
+        // "host:443" - a to wazne, bo adres huba musi trafic w ten sam origin,
+        // inaczej przegladarka potraktuje SSE jako zapytanie cross-origin
+        // i nie dolaczy ciasteczka z tokenem subskrypcji.
+        $authority = 0 === $this->mercurePublicPort
+            ? $request->getHttpHost()
+            : $request->getHost().':'.$this->mercurePublicPort;
+
+        return sprintf('%s://%s%s?%s', $request->getScheme(), $authority, self::HUB_PATH, $query);
     }
 
     /**

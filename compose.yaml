@@ -5,8 +5,11 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --save 60 1 --appendonly no
+    # Tylko petla zwrotna: Redis nie ma hasla, a maszyna ma publiczny adres
+    # i nie ma firewalla - na 0.0.0.0 zostalby przejety w kilka godzin.
+    # Korzysta z niego wylacznie backend, ktory stoi na tym samym hoscie.
     ports:
-      - "${REDIS_PORT:-56379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-56379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -21,8 +24,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-gierki}
       POSTGRES_USER: ${POSTGRES_USER:-gierki}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gierki}
+    # Jak wyzej: haslo jest domyslne (gierki/gierki), wiec baza nie ma czego
+    # szukac na publicznym adresie.
     ports:
-      - "${POSTGRES_PORT:-55432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
     volumes:
       - database_data:/var/lib/postgresql/data
     healthcheck:
@@ -46,11 +51,16 @@ services:
       # cors_origins musi byc konkretnym originem, nie gwiazdka: EventSource
       # laczy sie z withCredentials (ciasteczko subskrypcji), a przegladarka
       # odrzuca odpowiedz z Access-Control-Allow-Origin: * przy credentials.
+      # Przy hubie za tym samym proxy co gra (MERCURE_PUBLIC_PORT=0) SSE jest
+      # zapytaniem same-origin i CORS nie wchodzi w gre - lista zostaje dla
+      # trybu LAN, gdzie hub stoi na wlasnym porcie, czyli w innym originie.
       MERCURE_EXTRA_DIRECTIVES: |
         anonymous
-        cors_origins http://${LAN_HOST}:${APP_PORT} http://127.0.0.1:${APP_PORT} http://localhost:${APP_PORT}
+        cors_origins ${PUBLIC_URL} http://127.0.0.1:${APP_PORT} http://localhost:${APP_PORT}
+    # Hub musi byc widoczny dla proxy (przepuszcza SSE do przegladarki)
+    # i dla backendu (publikuje eventy) - ale nie dla calego internetu.
     ports:
-      - "${MERCURE_PORT:-3010}:80"
+      - "${MERCURE_BIND:-0.0.0.0}:${MERCURE_PORT:-3010}:80"
     healthcheck:
       # wget, nie curl: obraz dunglas/mercure curla nie zawiera, wiec przepisany
       # z recepty healthcheck zawsze konczyl sie bledem i kontener raportowal

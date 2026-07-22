@@ -1,18 +1,47 @@
 #!/usr/bin/env bash
-# Serwer developerski wystawiony na LAN - telefony musza go widziec,
-# wiec nasluchujemy na 0.0.0.0, nie na localhost.
+# Serwer developerski. Za reverse proxy nasluchuje wylacznie na adresie,
+# spod ktorego widzi go proxy (APP_BIND) - port wystawiony na 0.0.0.0 bylby
+# osiagalny wprost z internetu, z pominieciem TLS. W czystym LAN wpisz
+# w .env APP_BIND=0.0.0.0, zeby telefony widzialy serwer po sieci.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# shellcheck disable=SC1091
-PORT="$(grep -E '^APP_PORT=' .env | cut -d= -f2)"
-HOST="$(grep -E '^LAN_HOST=' .env | cut -d= -f2)"
+# Wartosc zmiennej z .env, nadpisana tym z .env.local - ta sama kolejnosc,
+# ktora stosuje Symfony. Bez tego skrypt startowalby z innymi wartosciami
+# niz aplikacja, co juz raz sie zdarzylo przy przenosinach.
+env_value() {
+  local key="$1" value="" file found
+  for file in .env .env.local; do
+    [ -f "$file" ] || continue
+    found="$(grep -E "^${key}=" "$file" | tail -n 1 | cut -d= -f2- || true)"
+    [ -n "$found" ] && value="$found"
+  done
+  echo "$value"
+}
+
+BIND="$(env_value APP_BIND)"
+PORT="$(env_value APP_PORT)"
+PUBLIC_URL="$(env_value PUBLIC_URL)"
+
+: "${BIND:?Brak APP_BIND w .env - adres nasluchu musi byc jawny}"
+: "${PORT:?Brak APP_PORT w .env}"
 
 docker compose up -d >/dev/null
 
-echo "Ekran hosta:  http://${HOST}:${PORT}/"
-echo "Hub Mercure:  http://${HOST}:$(grep -E '^MERCURE_PORT=' .env | cut -d= -f2)/.well-known/mercure"
+echo "Ekran hosta:  ${PUBLIC_URL:-http://${BIND}:${PORT}}"
+echo "Nasluch:      ${BIND}:${PORT}"
 echo
 
-exec php -S "0.0.0.0:${PORT}" -t public bin/dev-router.php
+# Limity wgrywania nagran do panelu tresci. Ustawiane tutaj, a nie w php.ini:
+# ten sam PHP obsluguje inne projekty na maszynie i nie ma powodu podnosic im
+# limitow przy okazji.
+#
+# post_max_size musi byc WIEKSZE od upload_max_filesize, a nie rowne - zadanie
+# niesie plik plus pola formularza, wiec przy rownych wartosciach nagranie
+# dokladnie na granicy odpada. I to post_max_size decyduje: gdy jest mniejsze,
+# PHP odrzuca zadanie zanim ktokolwiek zobaczy plik, a $_POST przychodzi puste.
+exec php \
+  -d upload_max_filesize=10M \
+  -d post_max_size=12M \
+  -S "${BIND}:${PORT}" -t public bin/dev-router.php

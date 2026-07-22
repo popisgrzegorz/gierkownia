@@ -69,14 +69,20 @@ final readonly class RoomAccess
     }
 
     /** Zapisuje token urzadzenia w ciasteczku - telefon nie musi go pamietac sam. */
-    public function rememberTeam(Response $response, string $code, string $deviceToken): void
+    public function rememberTeam(Request $request, Response $response, string $code, string $deviceToken): void
     {
         $response->headers->setCookie(Cookie::create(
             name: self::TEAM_COOKIE_PREFIX.$code,
             value: $deviceToken,
             expire: time() + $this->roomTtl,
             path: '/',
-            secure: false, // LAN po HTTP; przy HTTPS (PWA) ustawic na true
+            // Flaga idzie za polaczeniem, a nie na sztywno: w LAN po HTTP
+            // "secure" zablokowaloby ciasteczko i telefon gubilby druzyne przy
+            // kazdym przeladowaniu, a po HTTPS jego brak wypuszcza token
+            // druzyny otwartym tekstem, gdyby ktos trafil pod adres bez TLS.
+            // Wymaga zaufanych proxy (framework.yaml) - inaczej za proxy
+            // widac tu zawsze HTTP.
+            secure: $request->isSecure(),
             httpOnly: true,
             sameSite: Cookie::SAMESITE_LAX,
         ));

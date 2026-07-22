@@ -40,6 +40,57 @@ final class SubscriptionTest extends TestCase
         );
     }
 
+    /**
+     * Hub za tym samym reverse proxy co gra: adres musi wyjsc bez portu,
+     * czyli w tym samym originie. Doklejony port zrobilby z SSE zapytanie
+     * cross-origin, a wtedy przegladarka nie dolaczy ciasteczka z tokenem
+     * subskrypcji i prywatne topici (podglad hasla, slowo dla aktora) milkna.
+     */
+    public function testHubSharesTheAppAddressWhenItSitsBehindTheSameProxy(): void
+    {
+        $sameOrigin = new Subscription(new LcobucciFactory(self::SECRET), 0, 3600);
+
+        self::assertStringStartsWith(
+            'https://gierki.lan/.well-known/mercure?',
+            $sameOrigin->url(Request::create('https://gierki.lan/host/ABCD'), ['room/ABCD']),
+        );
+    }
+
+    /**
+     * Za proxy TLS konczy sie na proxy, a do PHP wchodzi zwykly HTTP. Adres
+     * huba ma isc za oryginalnym zadaniem, nie za tym polaczeniem: inaczej
+     * strona otwarta po HTTPS dostaje adres http://, przegladarka blokuje SSE
+     * jako mixed content i gra zamiera na nieaktualnym tablo - bez sladu bledu
+     * na ekranie, bo EventSource po prostu nigdy sie nie otwiera.
+     */
+    public function testHubAddressKeepsTheSchemeTheBrowserActuallyUsed(): void
+    {
+        $sameOrigin = new Subscription(new LcobucciFactory(self::SECRET), 0, 3600);
+
+        Request::setTrustedProxies(
+            ['10.0.7.3'],
+            Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT,
+        );
+
+        try {
+            $behindProxy = Request::create('http://10.0.7.1:8210/host/ABCD', server: [
+                'REMOTE_ADDR' => '10.0.7.3',
+                'HTTP_X_FORWARDED_PROTO' => 'https',
+                'HTTP_X_FORWARDED_HOST' => 'gierkownia.j33.pl',
+            ]);
+
+            self::assertStringStartsWith(
+                'https://gierkownia.j33.pl/.well-known/mercure?',
+                $sameOrigin->url($behindProxy, ['room/ABCD']),
+            );
+        } finally {
+            // Zaufane proxy to stan globalny klasy Request - zostawione
+            // ustawione przeciekloby do kolejnych testow.
+            Request::setTrustedProxies([], Request::HEADER_X_FORWARDED_FOR);
+        }
+    }
+
     public function testEveryTopicLandsInTheQueryString(): void
     {
         $url = $this->subscription->url(

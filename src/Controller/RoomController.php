@@ -103,7 +103,7 @@ final class RoomController extends AbstractController
         ]));
 
         $response = $this->redirectToRoute('player_controller', ['code' => $room->code]);
-        $this->access->rememberTeam($response, $room->code, $team->deviceToken);
+        $this->access->rememberTeam($request, $response, $room->code, $team->deviceToken);
 
         return $response;
     }

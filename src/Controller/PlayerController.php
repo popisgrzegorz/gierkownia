@@ -42,7 +42,7 @@ final class PlayerController extends AbstractController
 
         if ('' !== $token && null !== $this->rooms->teamByDeviceToken($room->code, $token)) {
             $response = $this->redirectToRoute('player_controller', ['code' => $room->code]);
-            $this->access->rememberTeam($response, $room->code, $token);
+            $this->access->rememberTeam($request, $response, $room->code, $token);
 
             return $response;
         }
