@@ -108,7 +108,8 @@ export default class extends Controller {
             : '';
 
         this.#renderBoard(view.mask);
-        this.hintTextTarget.textContent = [view.categoryName, view.hint].filter(Boolean).join(' • ');
+        // Sama podpowiedź - kategoria stoi już w pasku obok numeru hasła.
+        this.hintTextTarget.textContent = view.hint ?? '';
         // Hasło pokazujemy WYŁĄCZNIE po rozwiązaniu. Ekran hosta to telewizor,
         // na który patrzy cały pokój - "host widzi rozwiązanie" ma sens przy
         // osobnym urządzeniu prowadzącego, a nie tutaj. Wcześniej hasło stało

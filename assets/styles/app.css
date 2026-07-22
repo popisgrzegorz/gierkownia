@@ -1885,3 +1885,61 @@ body:not(.admin) .btn:focus-visible {
 .puzzle-space {
     border-color: transparent;
 }
+
+/* ---------- przegląd ekranów: czytelność na TV i telefonie ---------- */
+
+/* Plansza hasła na osi karty - wcześniej uciekała w lewo, bo flex-start
+   wyrównywał ją do krawędzi zamiast do środka. */
+.puzzle-board {
+    align-content: center;
+    width: 100%;
+}
+
+/* Telefon: kolejność z makiety to pasek gry, potem drużyna i punkty.
+   order zamiast przenoszenia znaczników, bo pasek należy do szablonu
+   modułu (rdzeń nie zna nazw gier), a karty do rdzenia. */
+.player-main {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0.5rem;
+}
+
+.game-tab {
+    order: -1;
+    margin-bottom: 0;
+}
+
+/* Akcja główna wypełnia to, co zostanie - bez pustki nad kartami. */
+.buzzer,
+.kolo-player {
+    flex: 1;
+    min-height: 0;
+}
+
+.player-facts {
+    margin-bottom: 0;
+}
+
+/* Nazwa drużyny na telefonie: kolor drużyny bywa ciemny na ciemnym tle,
+   więc trzymamy pełny kontrast i tylko akcentujemy kolorem obwódkę karty. */
+.fact-team {
+    color: var(--fg);
+}
+
+.player-facts .fact-card:first-child {
+    border-left: 5px solid var(--team-color);
+}
+
+/* Kontener buzzera rośnie, ale sam przycisk zostaje kołem: rozciągnięty
+   flexem robił się elipsą, bo aspect-ratio przegrywa z wysokością ścieżki. */
+.buzzer {
+    display: grid;
+    place-items: center;
+}
+
+.buzzer-button {
+    width: min(78vw, 58vh);
+    height: auto;
+    aspect-ratio: 1;
+}
