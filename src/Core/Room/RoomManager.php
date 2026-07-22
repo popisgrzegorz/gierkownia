@@ -177,6 +177,16 @@ final readonly class RoomManager
     }
 
     /**
+     * Wraca do wyboru gry. Osobna metoda zamiast nullable setGameType():
+     * "ustaw grę" i "wróć do lobby" to różne intencje i żadna nie powinna
+     * dziać się przypadkiem przez przekazanie nulla.
+     */
+    public function clearGameType(string $code): void
+    {
+        $this->redis->hdel(RoomKeys::meta($code), ['gameType']);
+    }
+
+    /**
      * Reset rozgrywki: kasuje stan gry i zeruje punkty, ale zostawia pokoj
      * i druzyny - nikt nie musi ponownie skanowac QR miedzy grami.
      */

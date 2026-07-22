@@ -138,6 +138,9 @@ final readonly class GameEngine
     public function stop(Room $room): void
     {
         $this->state->clear($room->code);
+        // Bez tego pokoj dalej twierdzi, ze gra trwa - ekran hosta nie
+        // pokazalby wyboru gry, a telefony zostalyby w starym sterowniku.
+        $this->rooms->clearGameType($room->code);
         $this->rooms->setPhase($room->code, 'lobby');
 
         $this->publisher->broadcast($room->code, new Event(Event::PHASE, ['state' => 'lobby']));

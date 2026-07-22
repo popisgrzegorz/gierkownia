@@ -7,7 +7,7 @@ import { MercureStream } from '../live/mercure_stream.js';
  */
 export default class extends Controller {
     static targets = ['score', 'connection', 'waiting'];
-    static values = { hub: String, team: String };
+    static values = { hub: String, team: String, game: String };
 
     connect() {
         this.stream = new MercureStream(this.hubValue, {
@@ -29,6 +29,18 @@ export default class extends Controller {
 
         if ('reset' === event.type) {
             this.#showScore(0);
+        }
+
+        // Zmiana gry: sterownik to szablon renderowany przez serwer, wiec
+        // telefon musi sie przeladowac, zeby dostac wlasciwy panel. Bez tego
+        // ekran wisi na "Czekaj na hosta" albo w poprzedniej grze, dopoki
+        // ktos nie odswiezy go recznie.
+        if ('phase' === event.type) {
+            const incoming = event.gameType ?? ('lobby' === event.state ? '' : this.gameValue);
+
+            if (incoming !== this.gameValue) {
+                window.location.reload();
+            }
         }
 
         // Jeden strumień SSE na stronę: kontrolery modułów gier (buzzer melodii,

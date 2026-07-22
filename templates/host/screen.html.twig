@@ -51,6 +51,15 @@
                     </button>
                 {% endif %}
 
+                {% if gameType is not null %}
+                    {# Powrot do wyboru gry - druzyny i punkty zostaja, telefony
+                       przelaczaja sie same po evencie fazy. #}
+                    <form method="post" action="{{ path('game_stop', {code: room.code}) }}"
+                          onsubmit="return confirm('Zakończyć tę grę i wrócić do wyboru? Drużyny i punkty zostają.')">
+                        <button type="submit" class="btn btn-ghost btn-reset">Zmień grę</button>
+                    </form>
+                {% endif %}
+
                 <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
                       onsubmit="return confirm('Zerować punkty i stan gry? Drużyny zostają w pokoju.')">
                     <button type="submit" class="btn btn-ghost btn-reset">Reset</button>

@@ -13,6 +13,7 @@ use App\Core\Score\Scoreboard;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -52,6 +53,22 @@ final class GameController extends AbstractController
             'name' => $game->name(),
             'state' => $game->definition()->initialState,
         ]);
+    }
+
+    /**
+     * Koniec gry i powrot do wyboru - druzyny i punkty zostaja w pokoju.
+     * Telefony przelaczaja sie same po evencie fazy "lobby"; przycisk jest
+     * zwyklym formularzem na ekranie hosta, wiec po POST wracamy tam redirectem.
+     */
+    #[Route('/stop', name: 'game_stop', methods: ['POST'])]
+    public function stop(Request $request, string $code): Response
+    {
+        $room = $this->rooms->getOrFail($code);
+        $this->access->requireHost($request, $room->code);
+
+        $this->engine->stop($room);
+
+        return $this->redirectToRoute('host_screen', ['code' => $room->code]);
     }
 
     #[Route('/action', name: 'game_action', methods: ['POST'])]

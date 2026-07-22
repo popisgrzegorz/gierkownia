@@ -232,6 +232,25 @@ final class GameEngineTest extends RedisTestCase
         $this->engine->handle($this->room, 'serve', [], Actor::host());
     }
 
+    /**
+     * Po zatrzymaniu pokoj nie moze twierdzic, ze gra trwa: ekran hosta
+     * nie pokazalby wyboru gry, a telefony zostalyby w starym sterowniku.
+     * To jest fundament grania w kilka gier na jednym kodzie pokoju.
+     */
+    public function testStoppingForgetsTheGameSoAnotherOneCanStart(): void
+    {
+        $this->engine->start($this->room, PingPongGame::type());
+        $this->engine->stop($this->room);
+
+        self::assertNull($this->rooms->getOrFail($this->room->code)->gameType);
+        self::assertFalse($this->engine->hasGame($this->room));
+
+        // Nowa gra rusza bez resetu pokoju - druzyny i punkty zostaja.
+        $this->engine->start($this->room, PingPongGame::type());
+        self::assertTrue($this->engine->hasGame($this->room));
+        self::assertSame('idle', $this->engine->currentState($this->room));
+    }
+
     public function testStoppingReturnsToLobbyButLeavesTeamsAlone(): void
     {
         $this->engine->start($this->room, 'pingpong');

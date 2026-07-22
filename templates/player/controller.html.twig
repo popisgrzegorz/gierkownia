@@ -13,7 +13,8 @@
     <main class="player-screen" style="--team-color: {{ team.color }}"
           data-controller="player-status"
           data-player-status-hub-value="{{ hubUrl }}"
-          data-player-status-team-value="{{ team.id }}">
+          data-player-status-team-value="{{ team.id }}"
+          data-player-status-game-value="{{ gameType ?? '' }}">
 
         <header class="player-bar">
             <p class="player-brand">GIERK<span class="brand-o">★</span>WNIA</p>
