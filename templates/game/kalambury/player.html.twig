@@ -1,0 +1,23 @@
+{# Sterownik kalambur. Aktor widzi hasło, reszta tylko odlicza czas -
+   słowo idzie pod-topikiem jego drużyny i nigdy nie leci rozgłoszeniem. #}
+<p class="game-tab c-bg-kalambury">KALAMBURY</p>
+
+<div class="kalambury-player"
+     data-controller="kalambury-player"
+     data-kalambury-player-view-url-value="{{ path('game_view', {code: room.code}) }}"
+     data-kalambury-player-state-value="{{ game.state }}"
+     data-kalambury-player-actor-value="{{ game.iAmActor ? 'true' : 'false' }}">
+
+    <div class="card mb-2" data-kalambury-player-target="wordCard" hidden>
+        <div class="card-body text-center">
+            <div class="text-secondary small">Pokazuj to hasło</div>
+            <div class="secret-word" data-kalambury-player-target="word">{{ game.word }}</div>
+        </div>
+    </div>
+
+    <div class="clock clock-phone" data-kalambury-player-target="clock" hidden>
+        <span class="clock-value" data-kalambury-player-target="clockValue">--</span>
+    </div>
+
+    <p class="turn-note" data-kalambury-player-target="note"></p>
+</div>

@@ -1943,3 +1943,54 @@ body:not(.admin) .btn:focus-visible {
     height: auto;
     aspect-ratio: 1;
 }
+
+/* ---------- kalambury ---------- */
+
+.c-kalambury { color: #30a46c; }
+.c-bg-kalambury { background: #30a46c; }
+
+/* Zegar rundy: największa liczba na ekranie po planszy hasła - zgadujący
+   patrzą na niego przez całą rundę. Ostatnie 10 sekund na czerwono. */
+.clock {
+    display: grid;
+    place-items: center;
+    padding: clamp(0.5rem, 1.6vmin, 1.2rem);
+    border-radius: 18px;
+    background: rgba(242, 239, 230, 0.06);
+    border: 2px solid #232741;
+}
+
+.clock-value {
+    font-size: clamp(2.5rem, 12vmin, 8rem);
+    font-weight: 900;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.clock[data-state="urgent"] {
+    border-color: var(--err);
+}
+
+.clock[data-state="urgent"] .clock-value {
+    color: var(--err);
+}
+
+.clock-phone .clock-value {
+    font-size: clamp(3rem, 22vw, 6rem);
+}
+
+/* Hasło dla aktora - jedyne miejsce w grze, gdzie tekst ma być duży
+   i czytelny z ręki, bo pokazuje się je na oczach reszty stołu. */
+.secret-word {
+    font-size: clamp(1.6rem, 9vw, 2.8rem);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--accent);
+    text-transform: uppercase;
+}
+
+.kalambury-player {
+    display: grid;
+    align-content: start;
+    gap: 0.6rem;
+}

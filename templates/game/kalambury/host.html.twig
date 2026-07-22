@@ -1,0 +1,59 @@
+{# Panel kalambur na ekranie hosta: kształt hasła, odliczanie i sterowanie.
+   Hasła NIE pokazujemy w trakcie rundy - na ten ekran patrzy cały pokój,
+   łącznie ze zgadującymi. Wychodzi dopiero, gdy runda się skończy. #}
+<section class="game-panel kalambury-panel"
+         data-controller="kalambury-host"
+         data-kalambury-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-kalambury-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
+
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1 c-kalambury">KALAM</span>
+            <span class="game-name-2 c-kalambury">BURY</span>
+        </h2>
+
+        {# Zegar to najważniejszy element tego ekranu - zgadujący patrzą na
+           niego przez całą rundę. #}
+        <div class="clock" data-kalambury-host-target="clock" hidden>
+            <span class="clock-value" data-kalambury-host-target="clockValue">--</span>
+        </div>
+
+        <p class="tip-card">
+            <strong>Pokazuj bez słów.</strong> Hasło widzi tylko telefon aktora.
+        </p>
+    </div>
+
+    <div class="game-main">
+        <div class="panel-row" data-kalambury-host-target="categoryPicker" hidden>
+            <label for="kalambury-category">Kategoria</label>
+            <select id="kalambury-category" data-kalambury-host-target="categorySelect" class="form-select select"></select>
+            <button type="button" class="btn btn-primary" data-action="kalambury-host#pickCategory">Wybierz</button>
+        </div>
+
+        <p class="panel-eyebrow" data-kalambury-host-target="progress"></p>
+
+        {# Kształt hasła: ile wyrazów i ile znaków - jak plansza w kole
+           fortuny, tylko bez odsłaniania liter. #}
+        <div class="puzzle-board" data-kalambury-host-target="board"></div>
+
+        <p class="turn-line" data-kalambury-host-target="turn"></p>
+        <p class="banner-small" data-kalambury-host-target="event"></p>
+        <p class="track-answer" data-kalambury-host-target="answer"></p>
+
+        <div class="panel-row" data-kalambury-host-target="timeRow" hidden>
+            <label for="kalambury-seconds">Czas rundy</label>
+            <select id="kalambury-seconds" data-kalambury-host-target="seconds" class="form-select select">
+                <option value="60">60 s</option>
+                <option value="90" selected>90 s</option>
+                <option value="120">120 s</option>
+                <option value="180">180 s</option>
+            </select>
+        </div>
+
+        <div class="panel-row panel-controls" data-kalambury-host-target="controls"></div>
+
+        <p class="hint muted" data-kalambury-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot">Odgadnięcie punktuje zgadujących i pokazującego.</p>
+</section>
