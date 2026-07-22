@@ -3,6 +3,10 @@
 Platforma gier towarzyskich na jeden telewizor i kilka telefonów, działająca
 w LAN bez internetu. Specyfikacja: [`spec-gry-towarzyskie.md`](spec-gry-towarzyskie.md).
 
+> **Stawiasz projekt na nowej maszynie albo wracasz do niego po przerwie?**
+> Zacznij od [`CLAUDE.md`](CLAUDE.md) — jest tam kolejność kroków instalacji,
+> podjęte decyzje wraz z uzasadnieniem, lista pułapek i to, co zostało do zrobienia.
+
 Stan: **kamienie 1–3 i 5** — rdzeń pokoju, silnik gry, „Jaka to melodia" i „Koło fortuny"
 (spec §13.1–3, §13.5). Obie gry są grywalne od początku do końca.
 
