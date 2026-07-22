@@ -70,10 +70,6 @@ export default class extends Controller {
             case 'letter_revealed':
                 this.guessed.add(event.letter);
                 this.boardTarget.textContent = event.mask;
-
-                if (event.teamId === this.teamIdValue) {
-                    this.bankTarget.textContent = String(event.bank);
-                }
                 break;
 
             case 'puzzle_solved':
@@ -93,6 +89,14 @@ export default class extends Controller {
                 this.guessed.clear();
                 this.myTurnValue = false;
                 break;
+        }
+
+        // Bank aktualizujemy z każdego eventu, który go niesie - wcześniej
+        // robiła to wyłącznie trafiona litera, więc bankrut, stop i rozwiązane
+        // hasło zostawiały na telefonie nieaktualną kwotę już do końca gry.
+        // Serwer przysyła stan wszystkich drużyn, więc nie ma czego doliczać.
+        if (event.banks) {
+            this.bankTarget.textContent = String(event.banks[this.teamIdValue] ?? 0);
         }
 
         this.#render();

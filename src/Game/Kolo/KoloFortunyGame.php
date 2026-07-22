@@ -260,6 +260,10 @@ final class KoloFortunyGame extends AbstractGame
         return [...$this->passTurn($room, 'pass'), Message::broadcast(new Event('penalty', [
             'kind' => \is_string($value) ? $value : Wheel::STOP,
             'teamId' => $current,
+            // Pelny stan bankow, a nie sama kwota jednej druzyny: telefon
+            // odtwarza z tego swoja pozycje bez pamietania historii, wiec
+            // bankrut zeruje licznik takze temu, kto akurat mial zerwane SSE.
+            'banks' => $this->bank($room),
         ]))];
     }
 
@@ -316,6 +320,7 @@ final class KoloFortunyGame extends AbstractGame
             'mask' => $mask,
             'teamId' => $team->id,
             'bank' => $bank[$team->id],
+            'banks' => $bank,
         ]))];
 
         // Ostatnia litera odslonieta - haslo rozwiazuje sie samo, bez zgadywania.
@@ -401,6 +406,9 @@ final class KoloFortunyGame extends AbstractGame
             'teamName' => $team->name,
             'phrase' => $phrase,
             'won' => $won,
+            // Rozwiazane haslo zeruje banki wszystkim - kwota przechodzi
+            // na tablo, a nowe haslo zaczyna sie od zera.
+            'banks' => [],
         ]))];
     }
 

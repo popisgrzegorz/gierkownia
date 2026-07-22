@@ -102,6 +102,10 @@ final class MelodiaGame extends AbstractGame
             'round' => $ctx['round'] ?? 0,
             'buzz' => $ctx['buzz'] ?? null,
             'lastResult' => $ctx['lastResult'] ?? null,
+            // Tytul odsloniety juz calemu pokojowi. Ekran hosta pokazuje go
+            // wylacznie na tej podstawie: 'track' nizej niesie tytul zawsze
+            // (host go potrzebuje do oceny), ale telewizor oglada caly pokoj.
+            'revealed' => $ctx['revealed'] ?? null,
             'category' => $ctx['category'] ?? null,
             'categoryName' => $ctx['categoryName'] ?? null,
             'categories' => $this->playlist->availableCategories(),
