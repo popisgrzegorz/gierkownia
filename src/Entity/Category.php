@@ -158,4 +158,16 @@ class Category
     {
         return $this->tracks->count() + $this->puzzles->count() + $this->charades->count();
     }
+
+    /**
+     * Nazwa kategorii jako jej reprezentacja tekstowa.
+     *
+     * Potrzebne panelowi tresci: listy wyboru pokazuja tak powiazana kategorie
+     * przy hasle czy nagraniu. Bez tego formularz dodawania konczy sie bledem
+     * "could not be converted to string".
+     */
+    public function __toString(): string
+    {
+        return $this->name;
+    }
 }
