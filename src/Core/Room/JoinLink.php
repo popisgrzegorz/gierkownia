@@ -6,7 +6,7 @@ namespace App\Core\Room;
 
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\SvgWriter;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -35,10 +35,18 @@ final readonly class JoinLink
         );
     }
 
+    /**
+     * Kod QR jako data URI.
+     *
+     * SVG, a nie PNG: PngWriter wymaga rozszerzenia GD, ktorego na serwerze
+     * moze nie byc (i nie bylo - "Unable to generate image" przy zakladaniu
+     * pokoju). Wektor jest przy okazji ostrzejszy na duzym telewizorze,
+     * bo skaluje sie bez rozmycia niezaleznie od przekatnej.
+     */
     public function qrDataUri(string $code, int $size = 320): string
     {
         return (new Builder(
-            writer: new PngWriter(),
+            writer: new SvgWriter(),
             data: $this->url($code),
             // Wyzsza korekcja bledow: QR jest fotografowany z drugiego konca pokoju,
             // pod katem i z odbiciem swiatla od telewizora.
