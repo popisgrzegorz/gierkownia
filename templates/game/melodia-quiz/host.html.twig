@@ -1,0 +1,124 @@
+{# Test melodii na ekranie hosta: cztery tytuły dla całego pokoju, odliczanie
+   na płycie i wskaźniki „kto już odpowiedział".
+
+   Poprawna odpowiedź NIE wychodzi na ten ekran przed końcem rundy - patrzą
+   na niego ci sami ludzie, którzy odpowiadają na telefonach. #}
+<section class="game-panel quiz-panel"
+         data-controller="quiz-host"
+         data-quiz-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-quiz-host-view-url-value="{{ path('game_view', {code: room.code}) }}"
+         data-quiz-host-media-url-value="{{ path('host_media', {code: room.code, id: 0}) }}">
+
+    {# Jeden głośnik w sali - dźwięk leci wyłącznie stąd (spec 10). #}
+    <audio data-quiz-host-target="audio" preload="auto"></audio>
+
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1">JAKA TO</span>
+            <span class="game-name-2 c-quiz">MELODIA</span>
+            <span class="game-badge">1 z 4</span>
+        </h2>
+
+        {# Kategoria i numer utworu przy tytule gry, a nie nad odpowiedziami -
+           tam odbierały wysokość kartom, a tu domykają nagłówek szyny. #}
+        <p class="panel-eyebrow" data-quiz-host-target="progress"></p>
+
+        {# Kaseta magnetofonowa: szpule kręcą się tylko wtedy, gdy faktycznie leci
+           dźwięk, a obrys obudowy skraca się z każdą sekundą rundy - na TV to
+           jedyny sygnał, ile czasu zostało (zegar telefonu widzi tylko gracz).
+
+           pathLength="100" na obrysie zwalnia nas z liczenia obwodu zaokrąglonego
+           prostokąta: przeglądarka skaluje kreskowanie do stu jednostek. #}
+        <div class="quiz-tape" data-quiz-host-target="disc">
+            <svg viewBox="0 0 260 168" class="quiz-cassette" aria-hidden="true">
+                <rect class="tape-shell" x="5" y="5" width="250" height="158" rx="13"/>
+                <rect class="tape-run" data-quiz-host-target="ring"
+                      x="5" y="5" width="250" height="158" rx="13"
+                      pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/>
+
+                {# Etykieta - pod nią leży odczyt sekund #}
+                <rect class="tape-label" x="22" y="16" width="216" height="62" rx="5"/>
+                <rect class="tape-strip" x="22" y="16" width="216" height="14" rx="5"/>
+                <rect class="tape-strip" x="22" y="25" width="216" height="5"/>
+
+                {# Okno na taśmę #}
+                <rect class="tape-window" x="22" y="86" width="216" height="56" rx="9"/>
+                <path class="tape-band" d="M82 136 H178"/>
+
+                {# Lewa szpula - pełna, prawa dopiero się nawija #}
+                <g class="tape-reel">
+                    <circle class="tape-wrap" cx="82" cy="113" r="24"/>
+                    <g class="tape-hub tape-hub-left">
+                        <circle class="tape-cog" cx="82" cy="113" r="9"/>
+                        <line class="tape-spoke" x1="82" y1="102" x2="82" y2="124"/>
+                    </g>
+                </g>
+
+                <g class="tape-reel">
+                    <circle class="tape-wrap" cx="178" cy="113" r="16"/>
+                    <g class="tape-hub tape-hub-right">
+                        <circle class="tape-cog" cx="178" cy="113" r="9"/>
+                        <line class="tape-spoke" x1="178" y1="102" x2="178" y2="124"/>
+                    </g>
+                </g>
+
+                {# Otwory na trzpienie i śrubki - bez nich to zwykły prostokąt #}
+                <circle class="tape-hole" cx="130" cy="150" r="4"/>
+                <circle class="tape-hole" cx="104" cy="150" r="4"/>
+                <circle class="tape-hole" cx="156" cy="150" r="4"/>
+                <circle class="tape-screw" cx="14" cy="14" r="3"/>
+                <circle class="tape-screw" cx="246" cy="14" r="3"/>
+                <circle class="tape-screw" cx="14" cy="154" r="3"/>
+                <circle class="tape-screw" cx="246" cy="154" r="3"/>
+            </svg>
+
+            <div class="quiz-readout">
+                <span class="quiz-count" data-quiz-host-target="clockValue">--</span>
+                <span class="quiz-count-label" data-quiz-host-target="clockLabel">SEKUND</span>
+                <span class="quiz-eq" data-quiz-host-target="eq" aria-hidden="true">
+                    {% for i in 1..7 %}<i></i>{% endfor %}
+                </span>
+            </div>
+        </div>
+
+        {# Drużyny pod kasetą, a nie w kolumnie z odpowiedziami: tam wisiały
+           w pustce między kartami a przyciskiem, a tu domykają szynę. #}
+        <div class="quiz-who" data-quiz-host-target="who"></div>
+
+        <p class="tip-card">
+            <strong>Wszyscy odpowiadają naraz.</strong> Na telefonie wybierz jeden z czterech tytułów.
+        </p>
+    </div>
+
+    <div class="game-main">
+        {# Kategorie zaznacza się jak listę - nagrania lecą ze wspólnej puli
+           wszystkich wybranych, żeby wieczór nie brzmiał jednostajnie. #}
+        <div class="cat-picker" data-quiz-host-target="categoryPicker" hidden>
+            <p class="cat-picker-lead">Zaznacz kategorie — nagrania będą losowane ze wszystkich naraz</p>
+            <div class="cat-list" data-quiz-host-target="categoryList"></div>
+            <button type="button" class="btn btn-primary btn-lg" data-action="quiz-host#pickCategory">Graj</button>
+        </div>
+
+        {# Cztery odpowiedzi. Po rundzie kolorują się: zielona poprawna,
+           czerwone błędnie wskazane, reszta przygaszona. #}
+        <div class="quiz-options" data-quiz-host-target="options"></div>
+
+        <p class="quiz-message" data-quiz-host-target="message"></p>
+
+        <div class="panel-row" data-quiz-host-target="timeRow" hidden>
+            <label for="quiz-seconds">Czas rundy</label>
+            <select id="quiz-seconds" data-quiz-host-target="seconds" class="form-select select">
+                <option value="15">15 s</option>
+                <option value="30" selected>30 s</option>
+                <option value="45">45 s</option>
+                <option value="60">60 s</option>
+            </select>
+        </div>
+
+        <div class="panel-row panel-controls" data-quiz-host-target="controls"></div>
+
+        <p class="hint muted" data-quiz-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot">Za trafiony tytuł 10 punktów. Jeśli nikt nie trafi — można puścić jeszcze raz.</p>
+</section>

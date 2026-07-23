@@ -1,0 +1,30 @@
+{# Sterownik testu melodii. Cztery duże przyciski i jedna decyzja - liczy się
+   pierwsza, więc przycisk blokuje się od razu po wysłaniu.
+
+   Stan początkowy renderuje serwer: trasa widoku gry jest dla hosta, więc
+   telefon nie ma jej skąd pobrać i dalej żyje wyłącznie z eventów. #}
+<p class="game-tab c-bg-quiz">JAKA TO MELODIA — 1 z 4</p>
+
+<div class="quiz-player"
+     data-controller="quiz-player"
+     data-team-id="{{ team.id }}"
+     data-quiz-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
+     data-quiz-player-state-value="{{ game.state }}"
+     data-quiz-player-mine-value="{{ game.myAnswer is null ? '' : game.myAnswer }}">
+
+    <div class="clock clock-phone" data-quiz-player-target="clock" hidden>
+        <span class="clock-value" data-quiz-player-target="clockValue">--</span>
+    </div>
+
+    <div class="quiz-choices" data-quiz-player-target="choices">
+        {% for option in game.options %}
+            <button type="button" class="quiz-choice" data-option="{{ loop.index0 }}"
+                    data-action="quiz-player#choose">
+                <span class="quiz-letter">{{ ['A', 'B', 'C', 'D'][loop.index0] ?? '?' }}</span>
+                <span class="quiz-title">{{ option }}</span>
+            </button>
+        {% endfor %}
+    </div>
+
+    <p class="quiz-note" data-quiz-player-target="note"></p>
+</div>
