@@ -311,6 +311,32 @@ final class KoloFortunyGameTest extends DoctrineTestCase
     }
 
     /**
+     * Sila zamachu z telefonu zmienia wylacznie animacje na telewizorze.
+     * Gdyby dotykala wyniku, drozyna z dluzszym palcem wygrywalaby czesciej.
+     */
+    public function testSpinPowerTravelsToTheScreenButNeverPicksTheSector(): void
+    {
+        $mark = \count($this->published);
+        $this->team($this->currentTeam(), 'spin', ['power' => 90]);
+
+        $event = $this->findEventSince($mark, 'wheel_result');
+
+        self::assertSame(90, $event['power']);
+        // Sektor pochodzi z Wheel::spin(), nie z sily - jest w zakresie tarczy.
+        self::assertGreaterThanOrEqual(0, $event['index']);
+        self::assertLessThan(\count(Wheel::sectors()), $event['index']);
+    }
+
+    /** Wartosci spoza skali nie moga rozpedzic animacji w nieskonczonosc. */
+    public function testSpinPowerIsClamped(): void
+    {
+        $mark = \count($this->published);
+        $this->team($this->currentTeam(), 'spin', ['power' => 9999]);
+
+        self::assertSame(100, $this->findEventSince($mark, 'wheel_result')['power']);
+    }
+
+    /**
      * Kreci kolem i podmienia wynik na zadany sektor, po czym melduje zatrzymanie.
      * Bez podmiany testy konkretnych sektorow byly by loteria.
      */

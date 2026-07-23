@@ -550,6 +550,42 @@ body:not(.admin) .btn:focus-visible {
 /* Panel punktacji po LEWEJ, scena po prawej - kolejność z prośby użytkownika.
    Kolumna jest stała, scena bierze resztę; minmax(0,...) na scenie nie pozwala
    wielkiej planszy rozepchnąć siatki i wypchnąć tablo poza ekran. */
+/* Tryb pełnego ekranu: znika pasek u góry i punktacja z boku, scena gry dostaje
+   cały telewizor. Punkty nadal się liczą - schowany jest tylko ich podgląd
+   i ręczna korekta, więc wyjście musi zostać widoczne. */
+.tv.tv-focus > .tv-bar,
+.tv.tv-focus .tv-teams { display: none; }
+
+/* Bez tego scena ląduje w wierszu po schowanym nagłówku (czyli w tym "auto"),
+   a wiersz 1fr zostaje pusty na dole ekranu. */
+.tv.tv-focus { grid-template-rows: minmax(0, 1fr); }
+
+.tv.tv-focus .tv-body { grid-template-columns: minmax(0, 1fr); }
+
+.tv-focus-exit {
+    display: none;
+    position: fixed;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 40;
+    width: 2.4rem;
+    height: 2.4rem;
+    place-items: center;
+    border: 1px solid #2c3358;
+    border-radius: 50%;
+    background: rgba(13, 16, 30, 0.6);
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.tv-focus-exit:hover {
+    color: var(--fg);
+    background: rgba(13, 16, 30, 0.9);
+}
+
+.tv.tv-focus .tv-focus-exit { display: grid; }
+
 .tv-body {
     display: grid;
     /* Wąska kolumna punktacji po LEWEJ, scena bierze resztę. minmax(0,...)
@@ -1359,10 +1395,6 @@ body:not(.admin) .btn:focus-visible {
     font-weight: 800;
 }
 
-.puzzle-hidden {
-    background: #2a2f4a;
-}
-
 /* Spacja to przerwa, nie kafelek - inaczej hasło zlewa się w jedno słowo. */
 .puzzle-space {
     background: transparent;
@@ -1874,16 +1906,59 @@ body:not(.admin) .btn:focus-visible {
 
 /* Kafelki hasła mają czytać się jako miejsca na litery także wtedy, gdy są
    puste - stąd ramka. Bez niej to były bezkształtne szare prostokąty. */
+/* Kafelek hasła ma dwie strony: zakrytą i literę na odwrocie. Kolory i ramka
+   siedzą na ścianach, nie na kafelku - inaczej przy obrocie prześwitywałyby
+   przez siebie. */
 .puzzle-cell {
-    border: 2px solid #38406a;
+    background: transparent;
+    border: 0;
+    perspective: 700px;
 }
 
-.puzzle-hidden {
-    background: #1a1f36;
+.cell-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 620ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+
+.cell-inner.revealed { transform: rotateY(180deg); }
+
+.cell-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    border: 2px solid #38406a;
+    backface-visibility: hidden;
+}
+
+.cell-back { background: #1a1f36; }
+
+/* Kalambury: zakryte kafelki w kolorze gry. Ciemny granat zlewał się z tłem
+   ekranu i z drugiego końca pokoju nie dało się policzyć liter - a właśnie po
+   to ta plansza tam jest. */
+.kalambury-panel .cell-back {
+    background: #1f7a51;
+    border-color: #35b57c;
+}
+
+.kalambury-panel .cell-front {
+    background: #e8f7ef;
+    border-color: #35b57c;
+}
+
+.cell-front {
+    background: #f5f6fb;
+    color: #10121f;
+    transform: rotateY(180deg);
 }
 
 .puzzle-space {
     border-color: transparent;
+    background: transparent;
 }
 
 /* ---------- przegląd ekranów: czytelność na TV i telefonie ---------- */
@@ -1993,4 +2068,1093 @@ body:not(.admin) .btn:focus-visible {
     display: grid;
     align-content: start;
     gap: 0.6rem;
+}
+
+/* ---------- państwa i miasta ---------- */
+
+.c-panstwa { color: #8e4ec6; }
+.c-bg-panstwa { background: #8e4ec6; }
+
+/* Litera jest sercem tej gry: musi być czytelna z kanapy przez całą rundę,
+   więc dostaje tyle miejsca, ile zostanie po zegarze. */
+.letter-box {
+    display: grid;
+    place-items: center;
+    padding: clamp(0.5rem, 2vmin, 1.5rem);
+    border-radius: 24px;
+    background: rgba(142, 78, 198, 0.12);
+    border: 3px solid #8e4ec6;
+}
+
+.letter-value {
+    font-size: clamp(4rem, 20vmin, 14rem);
+    font-weight: 900;
+    line-height: 1;
+    color: #c9a2ec;
+}
+
+/* Postęp drużyn w trakcie pisania. Kropki zamiast liczb, bo z kanapy liczy
+   się jedno: czy ktoś jeszcze pisze, czy wszyscy już czekają. */
+.pm-progress {
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+}
+
+.pm-progress-row {
+    display: grid;
+    grid-template-columns: minmax(6rem, 12rem) 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: clamp(1rem, 2.2vmin, 1.6rem);
+}
+
+.pm-progress-name {
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pm-dots {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.pm-dot {
+    width: clamp(0.7rem, 1.8vmin, 1.2rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: rgba(242, 239, 230, 0.14);
+}
+
+.pm-dot-on {
+    background: #8e4ec6;
+}
+
+.pm-progress-count {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+}
+
+/* Tabela wyników. Mieści się w panelu bez rozpychania go w bok - przy ośmiu
+   rubrykach i pięciu drużynach to jedyny sposób, żeby dało się ją przeczytać. */
+.pm-results {
+    overflow: auto;
+    max-height: 100%;
+}
+
+.pm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: clamp(0.75rem, 1.6vmin, 1.15rem);
+}
+
+.pm-table th,
+.pm-table td {
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #232741;
+}
+
+.pm-table th {
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75em;
+    letter-spacing: 0.04em;
+}
+
+.pm-team {
+    border-left: 4px solid var(--team-color, #8e4ec6);
+    padding-left: 0.5rem !important;
+    color: var(--fg) !important;
+    text-transform: none !important;
+    font-size: 1em !important;
+}
+
+/* Komórka jest przyciskiem: klik uznaje albo odrzuca odpowiedź. Kursor
+   i podświetlenie mówią o tym wprost, bo host klika to na dużym ekranie. */
+.pm-cell {
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.pm-cell:hover {
+    background: rgba(242, 239, 230, 0.06);
+}
+
+.pm-cell .pm-text {
+    display: block;
+    line-height: 1.2;
+}
+
+.pm-cell .pm-points {
+    display: block;
+    font-size: 0.8em;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+}
+
+.pm-unique .pm-text { color: var(--ok, #30a46c); font-weight: 700; }
+.pm-shared .pm-text { color: var(--accent); }
+.pm-empty { cursor: default; color: var(--muted); }
+.pm-empty:hover { background: none; }
+.pm-wrong_letter .pm-text,
+.pm-too_short .pm-text,
+.pm-rejected .pm-text {
+    color: var(--err);
+    text-decoration: line-through;
+}
+
+/* Słowo spoza wykazu państw i miast to nie to samo, co pudło: automat nie zna
+   każdej miejscowości, więc komórka czeka na decyzję hosta, a nie ogłasza
+   wyroku. Stąd żółty i znak zapytania zamiast przekreślenia. */
+.pm-unknown .pm-text {
+    color: var(--accent);
+    text-decoration: underline dotted;
+}
+
+.pm-unknown .pm-text::after {
+    content: ' ?';
+    font-weight: 800;
+}
+
+/* Ślad po decyzji hosta - żeby po chwili było widać, co poprawiał ręcznie. */
+.pm-forced {
+    outline: 2px dashed rgba(142, 78, 198, 0.7);
+    outline-offset: -2px;
+}
+
+.pm-total {
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    text-align: right !important;
+}
+
+/* ---------- państwa i miasta: telefon ---------- */
+
+.panstwa-player {
+    display: grid;
+    align-content: start;
+    gap: 0.7rem;
+}
+
+.pm-head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pm-letter {
+    display: grid;
+    place-items: center;
+    width: clamp(3.5rem, 18vw, 5rem);
+    aspect-ratio: 1;
+    border-radius: 16px;
+    background: rgba(142, 78, 198, 0.15);
+    border: 2px solid #8e4ec6;
+    font-size: clamp(2rem, 10vw, 3rem);
+    font-weight: 900;
+    color: #c9a2ec;
+}
+
+.pm-fields {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.pm-field {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.pm-field-name {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+/* Duże pole: wpisuje się je kciukiem, w pośpiechu i na kolanie. */
+.pm-input {
+    font-size: 1.15rem;
+    padding: 0.6rem 0.75rem;
+}
+
+.pm-input:disabled {
+    opacity: 0.55;
+}
+
+/* STOP kończy rundę wszystkim - musi być trudny do przypadkowego trafienia
+   i łatwy do celowego. Stąd osobny, szeroki przycisk pod polami. */
+.btn-stop {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    background: var(--err);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+}
+
+.btn-stop:disabled {
+    opacity: 0.5;
+}
+
+.pm-note {
+    color: var(--muted);
+    text-align: center;
+    margin: 0;
+}
+
+
+/* Punktacja zmienia hierarchie ekranu: litera zrobila swoje, teraz wszyscy
+   czytaja tabele. Bez tego wyniki zostawaly drobnym drukiem obok wielkiej
+   litery - sprawdzone na zrzucie z 1920x1080. */
+.panstwa-panel[data-state="scoring"] {
+    grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+}
+
+.panstwa-panel[data-state="scoring"] .letter-value {
+    font-size: clamp(2.5rem, 8vmin, 5rem);
+}
+
+.panstwa-panel[data-state="scoring"] .pm-table {
+    font-size: clamp(1rem, 2.1vmin, 1.9rem);
+}
+
+.panstwa-panel[data-state="scoring"] .pm-table th,
+.panstwa-panel[data-state="scoring"] .pm-table td {
+    padding: 0.5rem 0.7rem;
+}
+
+.panstwa-panel[data-state="scoring"] .game-main {
+    align-content: start;
+}
+
+/* Wąski pas w trybie punktacji: litera przestaje się rozciągać na całą
+   wysokość, a nazwa gry schodzi na rozmiar, który się w nim mieści. */
+.panstwa-panel[data-state="scoring"] .letter-box {
+    align-self: start;
+    aspect-ratio: 1;
+}
+
+.panstwa-panel[data-state="scoring"] .game-name {
+    font-size: 0.6em;
+}
+
+.panstwa-panel[data-state="scoring"] .game-name-1,
+.panstwa-panel[data-state="scoring"] .game-name-2 {
+    font-size: clamp(1rem, 2.4vmin, 1.8rem);
+}
+
+/* ---------- animacje: ruch ma coś znaczyć ---------- */
+
+/* Wszystkie animacje na tej stronie znikają, gdy system prosi o ograniczenie
+   ruchu. Migający ekran przy stole to nie tylko kwestia gustu - dla części
+   ludzi to realny problem. */
+@media (prefers-reduced-motion: reduce) {
+    .vinyl .vinyl-disc,
+    .quiz-option.entering,
+    .mime.acting .mime-arm-l,
+    .mime.acting .mime-arm-r,
+    .mime.acting svg,
+    .letter-box.rolling,
+    .letter-box.landed {
+        animation: none !important;
+    }
+
+    /* Obrót kafelka i opadanie ramienia to przejścia, nie animacje - samo
+       "animation: none" ich nie dotyka. */
+    .cell-inner,
+    .vinyl .vinyl-arm-tube {
+        transition: none !important;
+    }
+}
+
+/* --- koło: ładowanie zamachu na telefonie --- */
+
+/* Przycisk puchnie i jaśnieje w miarę trzymania - gracz musi widzieć, ile
+   już naładował, zanim puści. Bez tego "trzymaj i puść" jest zgadywanką. */
+.round-action.charging {
+    transform: scale(calc(1 + 0.12 * var(--power, 0)));
+    filter: brightness(calc(1 + 0.5 * var(--power, 0)));
+    transition: transform 90ms linear, filter 90ms linear;
+}
+
+.round-action.charging::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: calc(100% * var(--power, 0));
+    background: rgba(255, 255, 255, 0.18);
+    pointer-events: none;
+}
+
+.round-action {
+    position: relative;
+    overflow: hidden;
+}
+
+/* --- melodia: płyta kręci się, gdy leci dźwięk --- */
+
+.vinyl-stage {
+    position: relative;
+    /* Płyta to główna ilustracja tego ekranu, więc bierze całą szerokość szyny
+       i tyle wysokości, ile zostaje po tytule i karcie z podpowiedzią. */
+    width: min(100%, 62vmin);
+    aspect-ratio: 1;
+    margin-inline: auto;
+    filter:
+        drop-shadow(0 1.5vmin 3vmin rgba(0, 0, 0, 0.75))
+        drop-shadow(0 0 6vmin rgba(62, 123, 250, 0.14));
+}
+
+/* Rowki: kilkaset prążków z powtarzanego gradientu. Rysowane okręgi dawały
+   tarczę strzelniczą - dopiero drobne ziarno wygląda jak tłoczony winyl. */
+.vinyl .vinyl-disc {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    transform-origin: 50% 50%;
+    background:
+        repeating-radial-gradient(circle at center,
+            #08090f 0, #08090f 2px, #171a2c 3px, #171a2c 4px),
+        radial-gradient(circle at center, #1a1d31 0%, #05060d 100%);
+    box-shadow:
+        inset 0 0 6vmin rgba(0, 0, 0, 0.9),
+        inset 0 0 12vmin rgba(0, 0, 0, 0.5);
+    will-change: transform;
+}
+
+/* Dwa jaśniejsze pierścienie: krawędź płyty i przejście w pole etykiety.
+   Bez nich rowki ciągną się do samego środka i płyta traci głębię. */
+.vinyl .vinyl-disc::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at center,
+        transparent 0%, transparent 36%,
+        rgba(120, 132, 190, 0.35) 36.4%, transparent 36.8%,
+        transparent 91%,
+        rgba(120, 132, 190, 0.28) 91.4%, transparent 91.8%,
+        transparent 100%);
+}
+
+.vinyl .vinyl-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 34%;
+    height: 34%;
+    border-radius: 50%;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 0.2em;
+    text-align: center;
+    background:
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), transparent 50%),
+        radial-gradient(circle at center, #4b86ff, #2f6bd8 72%, #1b3f86);
+    box-shadow:
+        inset 0 0 2vmin rgba(0, 0, 0, 0.45),
+        0 0 0 2px rgba(0, 0, 0, 0.4);
+    color: #f2efe6;
+}
+
+/* Kreski nad i pod napisem - tyle zostaje z typografii etykiety, gdy koło
+   ma na ekranie kilkanaście centymetrów. */
+.vinyl .vinyl-label::before,
+.vinyl .vinyl-label::after {
+    content: '';
+    position: absolute;
+    left: 15%;
+    width: 70%;
+    height: 1px;
+    background: rgba(245, 165, 36, 0.5);
+}
+
+.vinyl .vinyl-label::before { top: 12%; }
+.vinyl .vinyl-label::after { bottom: 12%; }
+
+/* Przerwa pod nazwą robi miejsce na otwór - inaczej trzpień przecina napis
+   z prędkościami, czyli dokładnie ten wiersz, który ma być czytelny. */
+.vinyl .vinyl-brand {
+    margin-bottom: 1.5em;
+    font-weight: 900;
+    font-size: clamp(0.55rem, 2.1vmin, 1.3rem);
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
+
+.vinyl .vinyl-rpm {
+    font-size: clamp(0.4rem, 1.1vmin, 0.75rem);
+    letter-spacing: 0.22em;
+    color: var(--accent);
+}
+
+.vinyl .vinyl-side {
+    font-size: clamp(0.35rem, 0.95vmin, 0.65rem);
+    letter-spacing: 0.18em;
+    color: rgba(242, 239, 230, 0.7);
+}
+
+/* Połysk stoi w miejscu, gdy płyta się kręci - światło w sali też stoi,
+   a bez tej nieruchomej smugi obrót jednolitej czerni jest niewidoczny. */
+.vinyl .vinyl-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    z-index: 3;
+    pointer-events: none;
+    background: linear-gradient(125deg,
+        transparent 35%,
+        rgba(255, 255, 255, 0.05) 48%,
+        rgba(255, 255, 255, 0.13) 50%,
+        rgba(255, 255, 255, 0.05) 52%,
+        transparent 65%);
+}
+
+.vinyl .vinyl-hole {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3.2%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #05060d;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    z-index: 4;
+}
+
+.vinyl.playing .vinyl-disc {
+    /* 1,8 s na obrót to mniej więcej tempo, w jakim oko czyta ruch płyty;
+       przy 2,4 s wyglądała, jakby zwalniała. */
+    animation: vinyl-spin 1.8s linear infinite;
+}
+
+/* Ramię opada na płytę razem ze startem - drobiazg, ale to on sprzedaje
+   całą metaforę gramofonu. */
+.vinyl .vinyl-arm {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    overflow: visible;
+    filter: drop-shadow(0 0.4vmin 0.8vmin rgba(0, 0, 0, 0.6));
+}
+
+/* W spoczynku igła stoi tuż za krawędzią płyty, przy starcie opada mniej
+   więcej w dwóch trzecich promienia - tam, gdzie zaczyna się nagranie. */
+.vinyl .vinyl-arm-tube {
+    transform-origin: 184px 28px;
+    transform: rotate(-8deg);
+    transition: transform 900ms cubic-bezier(0.3, 0.8, 0.4, 1);
+}
+
+.vinyl.playing .vinyl-arm-tube {
+    transform: rotate(14deg);
+}
+
+@keyframes vinyl-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* --- kalambury: ludzik pokazuje na migi --- */
+
+.mime {
+    display: grid;
+    place-items: center;
+    min-height: 0;
+    color: #30a46c;
+}
+
+.mime svg {
+    width: 100%;
+    height: 100%;
+    max-height: 34vmin;
+}
+
+/* Poza rundą ludzik stoi. Ruch na ekranie ma znaczyć "gramy", a nie
+   "strona się wczytała". */
+.mime.acting svg {
+    animation: mime-hop 900ms ease-in-out infinite;
+}
+
+.mime.acting .mime-arm-l {
+    transform-origin: 60px 56px;
+    animation: mime-wave-l 700ms ease-in-out infinite alternate;
+}
+
+.mime.acting .mime-arm-r {
+    transform-origin: 60px 56px;
+    animation: mime-wave-r 620ms ease-in-out infinite alternate;
+}
+
+@keyframes mime-hop {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@keyframes mime-wave-l {
+    from { transform: rotate(-18deg); }
+    to { transform: rotate(26deg); }
+}
+
+@keyframes mime-wave-r {
+    from { transform: rotate(22deg); }
+    to { transform: rotate(-20deg); }
+}
+
+/* --- państwa i miasta: losowanie litery --- */
+
+/* Przewijanie: litera drga i pulsuje, żeby było widać, że jeszcze się kręci. */
+.letter-box.rolling {
+    animation: letter-roll 220ms ease-in-out infinite;
+}
+
+.letter-box.rolling .letter-value {
+    opacity: 0.75;
+}
+
+/* Wylądowała - jedno mocne uderzenie, żeby wszyscy podnieśli głowy. */
+.letter-box.landed {
+    animation: letter-land 600ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes letter-roll {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.02); }
+}
+
+@keyframes letter-land {
+    0% { transform: scale(1.35); box-shadow: 0 0 0 0 rgba(142, 78, 198, 0.6); }
+    100% { transform: scale(1); box-shadow: 0 0 0 2.5rem rgba(142, 78, 198, 0); }
+}
+
+/* ---------- jaka to melodia: wariant 1 z 4 ---------- */
+
+.c-quiz { color: #5b7cf0; }
+.c-bg-quiz { background: #5b7cf0; }
+
+.game-badge {
+    /* Bez fit-content siatka nazwy gry rozciąga odznakę na całą szerokość
+       szyny - wygląda wtedy jak pasek ładowania, nie jak plakietka. */
+    align-self: start;
+    justify-self: start;
+    width: fit-content;
+    background: #5b7cf0;
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.1rem 0.6rem;
+    font-size: 0.45em;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+/* ---------- wybór kategorii (obie melodie) ---------- */
+
+/* Kategorie zaznacza się jak listę, a nie wybiera jedną z rozwijanego pola:
+   nagrania lecą ze wspólnej puli wszystkich zaznaczonych. */
+.cat-picker {
+    display: grid;
+    justify-items: center;
+    gap: clamp(0.5rem, 1.4vmin, 1rem);
+    width: 100%;
+}
+
+.cat-picker-lead {
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(0.8rem, 1.5vmin, 1.1rem);
+}
+
+.cat-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    max-height: 46vh;
+    overflow-y: auto;
+}
+
+.cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.45em 0.9em;
+    border-radius: 999px;
+    border: 2px solid #2c3358;
+    background: rgba(242, 239, 230, 0.06);
+    color: var(--fg);
+    font-weight: 700;
+    font-size: clamp(0.85rem, 1.6vmin, 1.2rem);
+    cursor: pointer;
+}
+
+.cat-chip-count {
+    padding: 0.05em 0.5em;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--muted);
+    font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
+}
+
+.cat-chip.on {
+    border-color: #5b7cf0;
+    background: rgba(91, 124, 240, 0.2);
+}
+
+.cat-chip.on .cat-chip-count {
+    background: #5b7cf0;
+    color: #fff;
+}
+
+/* Koło ratunkowe stoi obok zwykłych przycisków rundy, więc musi się od nich
+   odróżniać - ale nie krzyczeć: to wyjście awaryjne, nie główna ścieżka. */
+.btn-lifeline {
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
+}
+
+/* Kaseta magnetofonowa: szpule kręcą się, gdy leci nagranie, a obrys obudowy
+   skraca się z każdą sekundą rundy. Na TV to jedyny sygnał, ile czasu zostało,
+   bo zegar telefonu widzi tylko gracz. */
+.quiz-tape {
+    position: relative;
+    width: 100%;
+    align-self: center;
+    margin-inline: auto;
+    /* Poświata siedzi pod kasetą, ale nie pod całym panelem - bez izolacji
+       z-index -1 przebiłby się przez tło ekranu hosta. */
+    isolation: isolate;
+}
+
+.quiz-tape::before {
+    content: '';
+    position: absolute;
+    inset: -20% -12%;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(91, 124, 240, 0.24), transparent 72%);
+    opacity: 0;
+    transition: opacity 450ms ease;
+}
+
+.quiz-tape.playing::before { opacity: 1; }
+
+.quiz-cassette {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 1.2vmin 2.4vmin rgba(0, 0, 0, 0.45));
+}
+
+.tape-shell {
+    fill: #1b1f38;
+    stroke: #2c3358;
+    stroke-width: 2;
+}
+
+.tape-run {
+    fill: none;
+    stroke: #5b7cf0;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 220ms linear;
+}
+
+.quiz-tape[data-state="urgent"] .tape-run { stroke: var(--err); }
+
+.tape-label { fill: #f2efe6; }
+.tape-strip { fill: #5b7cf0; }
+.quiz-tape[data-state="urgent"] .tape-strip { fill: var(--err); }
+
+.tape-window {
+    fill: #0b0e1d;
+    stroke: #2c3358;
+    stroke-width: 1.5;
+}
+
+/* Nawinięta taśma: lewa szpula pełna, prawa dopiero zaczyna. */
+.tape-wrap { fill: #33260f; stroke: #5a4620; stroke-width: 2; }
+
+.tape-cog {
+    fill: none;
+    stroke: #cfd6ff;
+    stroke-width: 5;
+    /* Kreskowanie zamiast rysowanych zębów - obrót widać po nich najlepiej. */
+    stroke-dasharray: 3 4.2;
+}
+
+.tape-spoke { stroke: #8f9ad6; stroke-width: 2; }
+.tape-band { stroke: #5a4620; stroke-width: 3; fill: none; }
+.tape-hole { fill: #0b0e1d; stroke: #2c3358; stroke-width: 1.5; }
+.tape-screw { fill: #2c3358; }
+
+/* Obrót liczony od środka bryły grupy - bez fill-box punkt zaczepienia
+   wypadłby w rogu układu SVG, a szpula uciekłaby poza kasetę. */
+.tape-hub {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.quiz-tape.playing .tape-hub-left { animation: tape-spin 2.6s linear infinite; }
+.quiz-tape.playing .tape-hub-right { animation: tape-spin 1.7s linear infinite; }
+
+@keyframes tape-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Odczyt sekund leży na etykiecie kasety - stąd ciemny tekst na kremowym tle. */
+.quiz-readout {
+    position: absolute;
+    left: 9%;
+    right: 9%;
+    top: 12%;
+    height: 34%;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.1rem;
+    color: #1c2138;
+}
+
+.quiz-count {
+    font-size: clamp(1.6rem, 6vmin, 3.2rem);
+    font-weight: 900;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.quiz-tape[data-state="urgent"] .quiz-count { color: var(--err); }
+
+.quiz-count-label {
+    font-size: clamp(0.5rem, 1.1vmin, 0.75rem);
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: #5c6386;
+}
+
+/* Słupki równiarki ruszają się tylko wtedy, gdy faktycznie leci dźwięk. */
+.quiz-eq {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.16rem;
+    height: 1.2rem;
+}
+
+.quiz-eq i {
+    width: 0.2rem;
+    height: 0.3rem;
+    border-radius: 0.1rem;
+    background: #5b7cf0;
+    display: block;
+}
+
+.quiz-tape.playing .quiz-eq i { animation: quiz-eq 850ms ease-in-out infinite; }
+.quiz-eq i:nth-child(2) { animation-delay: 100ms; }
+.quiz-eq i:nth-child(3) { animation-delay: 220ms; }
+.quiz-eq i:nth-child(4) { animation-delay: 330ms; }
+.quiz-eq i:nth-child(5) { animation-delay: 150ms; }
+.quiz-eq i:nth-child(6) { animation-delay: 280ms; }
+.quiz-eq i:nth-child(7) { animation-delay: 50ms; }
+
+@keyframes quiz-eq {
+    0%, 100% { height: 0.3rem; }
+    50% { height: 1.1rem; }
+}
+
+/* Cztery odpowiedzi: dwie kolumny na telefonie, cztery na telewizorze. */
+/* Zawsze 2 x 2, także na telewizorze. Cztery kolumny robiły z tytułów słupki
+   po dwa słowa w wierszu - z kanapy nie do przeczytania w 30 sekund. */
+.quiz-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.5rem, 1.5vmin, 0.9rem);
+}
+
+/* Na dużym ekranie karta jest szeroka, więc litera staje obok tytułu, a nie nad
+   nim - tak jak na telefonie. W pionie zostawałby pas pustego tła. */
+@media (min-width: 52rem) {
+    /* Obie kolumny równe: kaseta ma tyle samo miejsca co odpowiedzi. Płyta
+       w wariancie buzzerowym dostaje tę samą szynę - jest tam jedyną ilustracją. */
+    .quiz-panel,
+    .melodia-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    /* Nazwy drużyn pod kasetą czyta się z kanapy, więc rosną razem z ekranem. */
+    .game-rail .quiz-chip { font-size: clamp(1rem, 2.1vmin, 1.6rem); }
+
+    /* Szyna wspólna dla gier ma trzy wiersze i rozciąga ten środkowy; tutaj
+       elementów jest pięć, więc rozciągała podpis kategorii, a kaseta lądowała
+       przy samym dole. Flex plus auto-marginesy wyśrodkowują to, co ma być
+       wyśrodkowane - kasetę. */
+    .quiz-panel .game-rail {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Kaseta rośnie z kolumną, ale nie w nieskończoność - powyżej tej szerokości
+       zaczyna wyglądać jak mebel, a nie jak kaseta. */
+    .quiz-panel .quiz-tape {
+        margin-block: auto;
+        max-width: 36rem;
+    }
+
+    /* Karty mają wysokość swojej treści, a nie całej kolumny: na telewizorze to
+       nie są przyciski do trafienia, tylko cztery czytelne opcje. Rozciągnięte
+       na pół ekranu wyglądały jak panele z tekstem zagubionym w środku.
+       Kolumna jest flexem, żeby cały blok stał w pionowym środku. */
+    .quiz-panel .game-main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .quiz-panel .quiz-options { align-self: stretch; }
+
+    .quiz-options .quiz-option { align-content: center; }
+
+    .quiz-options { gap: clamp(0.9rem, 2vmin, 1.6rem); }
+
+    .quiz-options .quiz-option {
+        grid-template-columns: auto minmax(0, 1fr);
+        justify-items: start;
+        align-items: center;
+        gap: 1rem;
+        text-align: left;
+        padding: clamp(0.9rem, 2.2vmin, 1.4rem) clamp(1rem, 2.4vmin, 1.6rem);
+    }
+
+    .quiz-options .quiz-letter {
+        width: 2.2rem;
+        font-size: 1.25rem;
+    }
+
+    /* Karta jest teraz o połowę węższa niż przy szynie 30rem, więc podpis musi
+       zejść ze skali - inaczej "TOMMY DORSEY & HIS ORCHESTRA" idzie na cztery
+       linie i z kanapy wygląda jak akapit, nie jak odpowiedź. */
+    .quiz-options .quiz-title { font-size: clamp(0.95rem, 1.9vmin, 1.35rem); }
+}
+
+.quiz-option,
+.quiz-choice {
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 0.45rem;
+    padding: clamp(0.6rem, 1.8vmin, 1rem) 0.7rem;
+    border-radius: 14px;
+    background: #f2efe6;
+    color: #1c2138;
+    border: 3px solid #5b7cf0;
+    position: relative;
+    text-align: center;
+    font-family: inherit;
+}
+
+.quiz-letter {
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: #5b7cf0;
+    color: #fff;
+    font-weight: 900;
+}
+
+.quiz-title {
+    font-weight: 700;
+    font-size: clamp(0.85rem, 2vmin, 1.15rem);
+    line-height: 1.2;
+}
+
+/* Karty wchodzą kaskadą - jedna po drugiej, od A do D. Opóźnienie ustawia
+   kontroler, żeby kolejność nie zależała od tego, ile ich akurat jest. */
+.quiz-option.entering {
+    animation: quiz-enter 420ms cubic-bezier(0.25, 0.8, 0.3, 1) both;
+    animation-delay: var(--enter-delay, 0ms);
+}
+
+@keyframes quiz-enter {
+    from {
+        opacity: 0;
+        transform: translateY(0.8rem) scale(0.97);
+    }
+}
+
+/* Wyniki: zielona poprawna, czerwone wskazane błędnie, reszta przygaszona. */
+.quiz-option.good,
+.quiz-choice.good {
+    border-color: #30a46c;
+    background: #e8f7ef;
+}
+
+.quiz-option.good .quiz-letter,
+.quiz-choice.good .quiz-letter { background: #30a46c; }
+
+.quiz-option.bad,
+.quiz-choice.bad {
+    border-color: var(--err);
+    background: #fbecee;
+}
+
+.quiz-option.bad .quiz-letter,
+.quiz-choice.bad .quiz-letter { background: var(--err); }
+
+.quiz-option.dim,
+.quiz-choice.dim { opacity: 0.42; }
+
+/* Ile drużyn wskazało tę odpowiedź - dopiero po rundzie. */
+.quiz-count-badge {
+    position: absolute;
+    top: -0.6rem;
+    right: -0.6rem;
+    min-width: 1.6rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: #10142b;
+    color: var(--fg);
+    font-weight: 800;
+    font-size: 0.85rem;
+}
+
+.quiz-message {
+    margin: 0;
+    font-weight: 800;
+    font-size: clamp(1rem, 2.4vmin, 1.5rem);
+    min-height: 1.2em;
+}
+
+.quiz-message.good { color: #30a46c; }
+.quiz-message.bad { color: var(--err); }
+
+/* Kto już odpowiedział - bez treści odpowiedzi, ta jest tajna do końca rundy. */
+/* Kto już odpowiedział, a po rundzie - kto trafił. Z drugiego końca pokoju ma
+   to być czytelne jednym spojrzeniem, więc plakietki są duże, w kolorze drużyny
+   i ze znacznikiem stanu: kropka czeka, ptaszek odpowiedział, krzyżyk spudłował. */
+.quiz-who {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.quiz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    border-radius: 999px;
+    padding: 0.3em 0.9em 0.3em 0.35em;
+    font-size: 0.9rem;
+    font-weight: 800;
+    background: rgba(242, 239, 230, 0.06);
+    border: 2px solid #2c3358;
+    color: var(--muted);
+}
+
+.quiz-chip-mark {
+    display: grid;
+    place-items: center;
+    width: 1.7em;
+    height: 1.7em;
+    border-radius: 50%;
+    background: #2c3358;
+    color: #0b0e1d;
+    font-size: 0.95em;
+    line-height: 1;
+}
+
+.quiz-chip.answered {
+    border-color: var(--team-color, #5b7cf0);
+    background: rgba(91, 124, 240, 0.12);
+    color: var(--fg);
+}
+
+.quiz-chip.answered .quiz-chip-mark {
+    background: var(--team-color, #5b7cf0);
+    color: #0b0e1d;
+}
+
+.quiz-chip.won {
+    background: #30a46c;
+    border-color: #30a46c;
+    color: #fff;
+}
+
+.quiz-chip.won .quiz-chip-mark {
+    background: #e8f7ef;
+    color: #1a7f4f;
+}
+
+/* Pudło nie znika z ekranu - drużyna ma zobaczyć, że jej odpowiedź weszła
+   i była zła, a nie że jej plakietka gdzieś przepadła. */
+.quiz-chip.missed {
+    border-color: var(--err);
+    color: var(--err);
+}
+
+.quiz-chip.missed .quiz-chip-mark {
+    background: var(--err);
+    color: #fff;
+}
+
+.quiz-chip-points {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
+}
+
+/* ---------- wariant 1 z 4: telefon ---------- */
+
+.quiz-player {
+    display: grid;
+    align-content: start;
+    gap: 0.7rem;
+}
+
+.quiz-choices {
+    display: grid;
+    gap: 0.55rem;
+}
+
+/* Na telefonie odpowiedzi idą w pionie i w poprzek całej szerokości - wybiera
+   się je kciukiem, w pośpiechu i przy muzyce. */
+.quiz-choice {
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    align-items: center;
+    gap: 0.7rem;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+}
+
+.quiz-choice.picked {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.quiz-choice:disabled { cursor: default; }
+
+.quiz-note {
+    color: var(--muted);
+    text-align: center;
+    margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .quiz-tape.playing .quiz-eq i,
+    .quiz-tape.playing .tape-hub { animation: none !important; }
 }

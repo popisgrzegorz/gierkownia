@@ -16,16 +16,45 @@
             <span class="game-name-2 c-melodia">MELODIA</span>
         </h2>
 
-        <div class="game-art" aria-hidden="true">
-            <svg viewBox="0 0 200 200">
-                <circle cx="100" cy="100" r="92" fill="#0d0f18"/>
-                <circle cx="100" cy="100" r="92" fill="none" stroke="#1b2036" stroke-width="1"/>
-                {% for r in [78, 66, 54] %}
-                    <circle cx="100" cy="100" r="{{ r }}" fill="none" stroke="#22283f" stroke-width="2"/>
-                {% endfor %}
-                <circle cx="100" cy="100" r="36" fill="#2f6bd8"/>
-                <circle cx="100" cy="100" r="6" fill="#0d0f18"/>
-            </svg>
+        {# Płyta kręci się, gdy leci nagranie - to jedyny ruch na tym ekranie
+           i jedyny znak, że muzyka gra (dźwięk idzie z głośnika obok TV).
+           Ramię gramofonu opada na płytę razem ze startem. #}
+        <div class="game-art vinyl" data-melodia-host-target="vinyl" aria-hidden="true">
+            <div class="vinyl-stage">
+                {# Rowki to gradient, nie rysowane okręgi: kilkaset prążków daje
+                   drobne ziarno, po którym widać obrót. Trzy narysowane kółka
+                   wyglądały jak tarcza, nie jak płyta. #}
+                <div class="vinyl-disc">
+                    <div class="vinyl-label">
+                        <span class="vinyl-brand">GIERKOWNIA</span>
+                        <span class="vinyl-rpm">33⅓ RPM</span>
+                        <span class="vinyl-side">JAKA TO MELODIA</span>
+                    </div>
+                </div>
+
+                {# Połysk NIE kręci się razem z płytą - światło w sali stoi
+                   w miejscu i to właśnie po nim widać, że płyta się obraca. #}
+                <div class="vinyl-shine"></div>
+                <div class="vinyl-hole"></div>
+
+                {# Ramię opada na płytę razem ze startem. #}
+                {# Oś ramienia siedzi w rogu kwadratu, czyli POZA tarczą - tak stoi
+                   na gramofonie i tylko wtedy odsunięte ramię nie leży na płycie. #}
+                <svg class="vinyl-arm" viewBox="0 0 200 200">
+                    <g class="vinyl-arm-base">
+                        <circle cx="184" cy="28" r="9" fill="#1b2036"/>
+                        <circle cx="184" cy="28" r="5" fill="#5b64a0"/>
+                    </g>
+                    <g class="vinyl-arm-tube">
+                        {# Przeciwwaga nad osią równoważy główkę - bez niej ramię
+                           wygląda jak patyk doklejony do płyty. #}
+                        <rect x="180" y="12" width="8" height="10" rx="2" fill="#39406a"/>
+                        <rect x="182.5" y="28" width="3" height="72" rx="1.5" fill="#8f9ad6"/>
+                        <rect x="179" y="98" width="10" height="9" rx="1.5" fill="#cfd6ff"/>
+                        <path d="M184 107 l0 4" stroke="#f5a524" stroke-width="2" stroke-linecap="round"/>
+                    </g>
+                </svg>
+            </div>
         </div>
 
         <p class="tip-card">
@@ -34,10 +63,12 @@
     </div>
 
     <div class="game-main">
-        <div class="panel-row" data-melodia-host-target="categoryPicker" hidden>
-            <label for="category-select">Kategoria</label>
-            <select id="category-select" data-melodia-host-target="categorySelect" class="form-select select"></select>
-            <button type="button" class="btn btn-primary" data-action="melodia-host#pickCategory">Wybierz</button>
+        {# Kategorie zaznacza się jak listę - nagrania lecą ze wspólnej puli
+           wszystkich wybranych, żeby wieczór nie brzmiał jednostajnie. #}
+        <div class="cat-picker" data-melodia-host-target="categoryPicker" hidden>
+            <p class="cat-picker-lead">Zaznacz kategorie — nagrania będą losowane ze wszystkich naraz</p>
+            <div class="cat-list" data-melodia-host-target="categoryList"></div>
+            <button type="button" class="btn btn-primary btn-lg" data-action="melodia-host#pickCategory">Graj</button>
         </div>
 
         <p class="panel-eyebrow" data-melodia-host-target="progress"></p>

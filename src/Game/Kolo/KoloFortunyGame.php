@@ -86,7 +86,7 @@ final class KoloFortunyGame extends AbstractGame
         return match ($action) {
             'pick_category' => $this->pickCategory($room, $payload, $actor),
             'next_puzzle' => $this->nextPuzzle($room, $actor),
-            'spin' => $this->spin($room, $actor),
+            'spin' => $this->spin($room, $payload, $actor),
             'land' => $this->land($room, $actor),
             'letter' => $this->letter($room, $payload, $actor),
             'solve' => $this->solve($room, $payload, $actor),
@@ -217,17 +217,36 @@ final class KoloFortunyGame extends AbstractGame
      * Kreci kolem. Wynik zapada tutaj, na serwerze - ekran hosta dostaje gotowy
      * indeks sektora i tylko na nim zatrzymuje animacje (spec 14).
      *
+     * @param array<string, mixed> $payload
+     *
      * @return list<Message>
      */
-    private function spin(Room $room, Actor $actor): array
+    private function spin(Room $room, array $payload, Actor $actor): array
     {
         $this->requireTurnOrHost($room, $actor);
         $this->transition($room, 'spin');
 
-        $result = Wheel::spin();
+        // Sila zamachu nie rusza wyniku - ten zapada tutaj, na serwerze
+        // (spec 14). Idzie wylacznie do animacji: dluzsze przytrzymanie
+        // przycisku to wiecej obrotow i dluzsze dohamowanie na telewizorze.
+        // Gdyby wplywala na sektor, telefon decydowalby o wygranej.
+        $result = Wheel::spin() + ['power' => $this->power($payload)];
+
         $this->patchCtx($room, ['wheel' => $result]);
 
         return [Message::broadcast(new Event('wheel_result', $result))];
+    }
+
+    /**
+     * Sila zamachu w skali 0-100.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function power(array $payload): int
+    {
+        $power = $payload['power'] ?? null;
+
+        return \is_numeric($power) ? max(0, min(100, (int) $power)) : 50;
     }
 
     /**

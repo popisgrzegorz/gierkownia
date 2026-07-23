@@ -1,6 +1,13 @@
 import { Controller } from '@hotwired/stimulus';
 
-const SPIN_MS = 3200;
+/* Ile trwa dohamowanie przy zerowym i pełnym zamachu. Nawet lekkie stuknięcie
+   ma dać widowisko, a pełny zamach nie może nudzić czekaniem. */
+const SPIN_MS_MIN = 2200;
+const SPIN_MS_MAX = 5200;
+
+/* Pełne obroty ponad dojazd do sektora - też skalowane siłą zamachu. */
+const TURNS_MIN = 2;
+const TURNS_MAX = 8;
 
 /**
  * Panel koła fortuny na ekranie hosta.
@@ -62,7 +69,7 @@ export default class extends Controller {
             case 'wheel_result':
                 // Serwer już zna wynik; animacja go tylko pokazuje, a po jej
                 // zakończeniu meldujemy zatrzymanie i gra rusza dalej.
-                this.#startSpin(event.index);
+                this.#startSpin(event.index, event.power);
 
                 return;
 
@@ -129,12 +136,12 @@ export default class extends Controller {
      * Dwie pętle rAF pisałyby po tym samym kącie i obie zameldowały `land`,
      * a drugie zgłoszenie jest już niedozwolonym przejściem.
      */
-    #startSpin(index) {
+    #startSpin(index, power) {
         if (this.spinning || undefined === index || null === index) {
             return;
         }
 
-        this.#spinTo(index).then(() => this.#send('land'));
+        this.#spinTo(index, power).then(() => this.#send('land'));
     }
 
     /**
@@ -149,31 +156,92 @@ export default class extends Controller {
      */
     #resumeSpin(view) {
         if ('spinning' === view.state) {
-            this.#startSpin(view.wheel?.index);
+            this.#startSpin(view.wheel?.index, view.wheel?.power);
         }
     }
 
+    /**
+     * Plansza hasła. Kafelek ma dwie strony: zakrytą i literę na odwrocie -
+     * odsłonięcie to obrót o 180 stopni, a nie podmiana tekstu.
+     *
+     * Dlatego plansza przebudowuje się TYLKO przy nowym haśle. Przy trafionej
+     * literze podmieniamy pojedyncze kafelki, bo przebudowa całości obróciłaby
+     * wszystkie naraz - łącznie z tymi, które leżą odkryte od trzech rund.
+     */
     #renderBoard(mask) {
         if (!mask) {
             this.boardTarget.replaceChildren();
+            this.mask = '';
 
             return;
         }
 
-        this.boardTarget.replaceChildren(...[...mask].map((char) => {
-            const cell = document.createElement('span');
-            cell.className = 'puzzle-cell';
+        if (this.mask?.length !== mask.length) {
+            this.mask = mask;
+            this.boardTarget.replaceChildren(...[...mask].map((char) => this.#cell(char)));
 
-            if (' ' === char) {
-                cell.classList.add('puzzle-space');
-            } else if ('_' === char) {
-                cell.classList.add('puzzle-hidden');
-            } else {
-                cell.textContent = char;
+            return;
+        }
+
+        // Litera potrafi wystąpić kilka razy - kafelki obracają się jeden po
+        // drugim, od lewej. Wszystkie naraz to błysk, którego oko nie nadąża
+        // policzyć, a przy stole liczy się właśnie „ile ich jest".
+        let delay = 0;
+
+        [...mask].forEach((char, index) => {
+            if (char === this.mask[index]) {
+                return;
             }
 
+            this.#turn(this.boardTarget.children[index], char, delay);
+            delay += 140;
+        });
+
+        this.mask = mask;
+    }
+
+    #cell(char) {
+        const cell = document.createElement('span');
+        cell.className = 'puzzle-cell';
+
+        if (' ' === char) {
+            cell.classList.add('puzzle-space');
+
             return cell;
-        }));
+        }
+
+        const inner = document.createElement('span');
+        inner.className = 'cell-inner';
+
+        const back = document.createElement('span');
+        back.className = 'cell-face cell-back';
+
+        const front = document.createElement('span');
+        front.className = 'cell-face cell-front';
+
+        inner.append(back, front);
+        cell.append(inner);
+
+        // Litera odkryta przed wejściem na ten ekran (odświeżenie strony
+        // w połowie gry) leży już obrócona - bez animacji, bo nikt jej
+        // przed chwilą nie zgadł.
+        if ('_' !== char) {
+            front.textContent = char;
+            inner.classList.add('revealed');
+        }
+
+        return cell;
+    }
+
+    #turn(cell, char, delay) {
+        const inner = cell?.querySelector('.cell-inner');
+
+        if (!inner) {
+            return;
+        }
+
+        inner.querySelector('.cell-front').textContent = char;
+        setTimeout(() => inner.classList.add('revealed'), delay);
     }
 
     #renderControls(view) {
@@ -226,7 +294,7 @@ export default class extends Controller {
     }
 
     /** Dokręca tarczę tak, żeby wskazany sektor stanął pod wskaźnikiem u góry. */
-    #spinTo(index) {
+    #spinTo(index, power) {
         const count = this.sectors.length;
 
         if (!count) {
@@ -251,13 +319,21 @@ export default class extends Controller {
         // ten składnik znosił się z celem i tarcza wracała zawsze do kąta
         // wyjściowego - czyli przy dwunastu polach dokładnie na styk sektorów,
         // niezależnie od tego, co wylosował serwer.
-        const to = from - remaining - 3 * turn;
+        // Siła zamachu z telefonu (0-100) zmienia WYŁĄCZNIE widowisko: liczbę
+        // obrotów i czas dohamowania. Sektor wybrał serwer i to on siedzi
+        // w `remaining` - mocniejszy zamach dokłada tylko pełne obroty, więc
+        // koło i tak stanie tam, gdzie zapadła decyzja.
+        const strength = Math.min(1, Math.max(0, (Number(power) || 50) / 100));
+        const turns = Math.round(TURNS_MIN + (TURNS_MAX - TURNS_MIN) * strength);
+        const duration = SPIN_MS_MIN + (SPIN_MS_MAX - SPIN_MS_MIN) * strength;
+
+        const to = from - remaining - turns * turn;
 
         return new Promise((resolve) => {
             const start = performance.now();
 
             const step = (now) => {
-                const t = Math.min(1, (now - start) / SPIN_MS);
+                const t = Math.min(1, (now - start) / duration);
                 // easeOutQuart: szybki start, długie dohamowanie - tak zwalnia
                 // prawdziwe koło i to ono buduje napięcie przy stole.
                 this.angle = from + (to - from) * (1 - (1 - t) ** 4);

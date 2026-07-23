@@ -12,6 +12,9 @@ const ALPHABET = [...'AĄBCĆDEĘFGHIJKLŁMNŃOÓPRSŚTUWYZŹŻ'];
  */
 export default class extends Controller {
     static targets = ['board', 'hint', 'bank', 'note', 'actions', 'spin', 'letters', 'answer'];
+
+    /** Po tylu milisekundach trzymania zamach jest maksymalny. */
+    static FULL_POWER_MS = 1600;
     static values = { actionUrl: String, teamId: String, state: String, myTurn: Boolean };
 
     connect() {
@@ -29,8 +32,52 @@ export default class extends Controller {
         window.removeEventListener('gierki:event', this.onEvent);
     }
 
-    async spin() {
-        await this.#send('spin');
+    /**
+     * Zamach: im dłużej trzymasz przycisk, tym więcej obrotów na telewizorze.
+     *
+     * Wynik i tak zapada na serwerze - siła zmienia wyłącznie animację.
+     * Gdyby zmieniała sektor, telefon decydowałby o wygranej.
+     */
+    charge() {
+        if (this.charging) {
+            return;
+        }
+
+        this.charging = performance.now();
+        this.spinTarget.classList.add('charging');
+
+        const grow = () => {
+            if (!this.charging) {
+                return;
+            }
+
+            this.spinTarget.style.setProperty('--power', this.#power() / 100);
+            this.chargeFrame = requestAnimationFrame(grow);
+        };
+
+        grow();
+    }
+
+    async release() {
+        if (!this.charging) {
+            return;
+        }
+
+        const power = this.#power();
+
+        cancelAnimationFrame(this.chargeFrame);
+        this.charging = null;
+        this.spinTarget.classList.remove('charging');
+        this.spinTarget.style.removeProperty('--power');
+
+        await this.#send('spin', { power });
+    }
+
+    /** Krótkie stuknięcie to nie zero - koło ma się kręcić także wtedy. */
+    #power() {
+        const held = performance.now() - (this.charging ?? performance.now());
+
+        return Math.round(15 + 85 * Math.min(1, held / this.constructor.FULL_POWER_MS));
     }
 
     async letter(event) {

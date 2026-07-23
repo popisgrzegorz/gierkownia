@@ -64,8 +64,17 @@
                       onsubmit="return confirm('Zerować punkty i stan gry? Drużyny zostają w pokoju.')">
                     <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
                 </form>
+
+                {# Cała scena na ekran: chowa ten pasek i punktację po lewej. #}
+                <button type="button" class="btn btn-ghost btn-reset"
+                        data-action="room-board#toggleFocus">⤢ Pełny ekran</button>
             </div>
         </header>
+
+        {# W trybie pełnego ekranu to jedyne wyjście widoczne na TV - poza
+           klawiszem Esc, którego przy telewizorze nikt nie ma pod ręką. #}
+        <button type="button" class="tv-focus-exit" data-action="room-board#toggleFocus"
+                title="Wyjdź z pełnego ekranu (Esc)" aria-label="Wyjdź z pełnego ekranu">⤡</button>
 
         {# Panel dołączania wysuwa się WYŁĄCZNIE na żądanie - przyciskiem
            „Dołącz" w panelu punktacji. Otwierany sam po wejściu na ekran

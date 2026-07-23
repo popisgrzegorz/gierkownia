@@ -10,15 +10,64 @@ export default class extends Controller {
     static values = { hub: String, code: String, scoreUrl: String };
 
     connect() {
+        /** Trwające przewijanie licznika - jedno na kafelek drużyny. */
+        this.counters = new Map();
+
         this.stream = new MercureStream(this.hubValue, {
             onEvent: (event) => this.#handle(event),
             onState: (state) => this.#showConnection(state),
         });
         this.stream.connect();
+
+        this.onKey = (event) => {
+            if ('Escape' === event.key) {
+                this.#focus(false);
+            }
+        };
+        // Wyjście z pełnego ekranu przeglądarki (Esc, gest telewizora) ma
+        // sprowadzić z powrotem pasek i punktację - inaczej ekran zostaje
+        // okrojony, choć nikt o to nie prosił.
+        this.onFullscreen = () => {
+            if (!document.fullscreenElement) {
+                this.#focus(false);
+            }
+        };
+
+        window.addEventListener('keydown', this.onKey);
+        document.addEventListener('fullscreenchange', this.onFullscreen);
     }
 
     disconnect() {
         this.stream?.disconnect();
+        window.removeEventListener('keydown', this.onKey);
+        document.removeEventListener('fullscreenchange', this.onFullscreen);
+    }
+
+    /**
+     * Chowa pasek u góry i punktację z boku - zostaje sama scena gry.
+     *
+     * Punkty nadal się liczą; znika tylko ich podgląd i ręczna korekta, więc
+     * wyjście musi być widoczne przez cały czas (przycisk w rogu).
+     */
+    toggleFocus() {
+        this.#focus(!this.element.classList.contains('tv-focus'));
+    }
+
+    #focus(on) {
+        if (on === this.element.classList.contains('tv-focus')) {
+            return;
+        }
+
+        this.element.classList.toggle('tv-focus', on);
+
+        // Przy okazji prawdziwy pełny ekran: na telewizorze pasek adresu zjada
+        // tyle samo miejsca, co nasz nagłówek. Odmowa nic nie psuje - układ
+        // i tak jest już schowany.
+        if (on) {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+        } else if (document.fullscreenElement) {
+            document.exitFullscreen?.().catch(() => {});
+        }
     }
 
     /**
@@ -109,12 +158,50 @@ export default class extends Controller {
             return;
         }
 
-        scoreEl.textContent = String(total);
+        this.#countTo(scoreEl, total);
         scoreEl.classList.remove('bump');
         void scoreEl.offsetWidth; // restart animacji przy kolejnym punkcie z rzedu
         scoreEl.classList.add('bump');
 
         this.#reorder();
+    }
+
+    /**
+     * Przewija liczbę do nowego wyniku zamiast ją podmieniać.
+     *
+     * W kole fortuny runda potrafi dorzucić kilkaset punktów - skok z 300 na
+     * 1750 nie mówi nic, a przewinięcie widać kątem oka z całej sali. Krok
+     * dobieramy tak, by zawsze trwało tyle samo: przy jednym punkcie licznik
+     * po prostu się przełącza.
+     */
+    #countTo(element, total) {
+        const from = Number.parseInt(element.textContent, 10) || 0;
+
+        cancelAnimationFrame(this.counters.get(element));
+
+        if (from === total || 1 === Math.abs(total - from)) {
+            element.textContent = String(total);
+
+            return;
+        }
+
+        const started = performance.now();
+        const DURATION = 520;
+
+        const step = (now) => {
+            // Wyhamowanie na końcu (ease-out) - liczba dobiega do wyniku
+            // i staje, zamiast urywać się w pół biegu.
+            const progress = Math.min(1, (now - started) / DURATION);
+            const eased = 1 - (1 - progress) ** 3;
+
+            element.textContent = String(Math.round(from + (total - from) * eased));
+
+            if (1 > progress) {
+                this.counters.set(element, requestAnimationFrame(step));
+            }
+        };
+
+        this.counters.set(element, requestAnimationFrame(step));
     }
 
     /**

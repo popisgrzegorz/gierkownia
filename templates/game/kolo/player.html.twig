@@ -25,8 +25,13 @@
     <p class="turn-note" data-kolo-player-target="note"></p>
 
     <div class="kolo-actions" data-kolo-player-target="actions" hidden>
+        {# Trzymanie ładuje zamach; puszczenie kręci. pointerup łapiemy też
+           poza przyciskiem, bo palec potrafi zjechać w bok przy szarpnięciu. #}
         <button type="button" class="round-action c-bg-kolo" data-kolo-player-target="spin"
-                data-action="kolo-player#spin">KRĘĆ<br>KOŁEM</button>
+                data-action="pointerdown->kolo-player#charge
+                             pointerup->kolo-player#release
+                             pointerleave->kolo-player#release
+                             pointercancel->kolo-player#release">TRZYMAJ<br>I PUŚĆ</button>
 
         {# Klawiatura liter: polski alfabet, bo „Ł” nie odsłania „L”. #}
         <div class="letters" data-kolo-player-target="letters" hidden></div>

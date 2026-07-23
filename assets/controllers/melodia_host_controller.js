@@ -8,7 +8,7 @@ import { Controller } from '@hotwired/stimulus';
  * utworu - a tego nie wolno rozesłać broadcastem do telefonów.
  */
 export default class extends Controller {
-    static targets = ['audio', 'categoryPicker', 'categorySelect', 'progress', 'answer', 'banner', 'controls', 'hint'];
+    static targets = ['audio', 'vinyl', 'categoryPicker', 'categoryList', 'progress', 'answer', 'banner', 'controls', 'hint'];
     static values = { actionUrl: String, viewUrl: String, mediaUrl: String };
 
     connect() {
@@ -30,12 +30,41 @@ export default class extends Controller {
         }
     }
 
+    /** Zaznaczenie kategorii - wybór potwierdza dopiero przycisk. */
+    toggleCategory(event) {
+        const chip = event.currentTarget;
+        chip.setAttribute('aria-pressed', 'true' === chip.getAttribute('aria-pressed') ? 'false' : 'true');
+        chip.classList.toggle('on');
+    }
+
     async pickCategory() {
-        await this.#send('pick_category', { category: this.categorySelectTarget.value });
+        const categories = [...this.categoryListTarget.querySelectorAll('[aria-pressed="true"]')]
+            .map((chip) => chip.dataset.slug);
+
+        if (0 === categories.length) {
+            this.hintTarget.textContent = 'Zaznacz przynajmniej jedną kategorię.';
+
+            return;
+        }
+
+        await this.#send('pick_category', { categories });
     }
 
     async act(event) {
-        await this.#send(event.currentTarget.dataset.melodiaAction);
+        const action = event.currentTarget.dataset.melodiaAction;
+
+        // "Następny utwór" to dwie rzeczy naraz: zamknięcie rundy i losowanie.
+        // Serwerowe akcje zostają atomowe (finish kończy rundę, next_track
+        // losuje), ale host nie ma powodu klikać dwa razy - a wcześniej ten
+        // przycisk kończył rundę i zostawiał na ekranie ten sam utwór.
+        if ('finish_next' === action) {
+            await this.#send('finish');
+            await this.#send('next_track');
+
+            return;
+        }
+
+        await this.#send(action);
     }
 
     #onServerEvent(event) {
@@ -54,7 +83,8 @@ export default class extends Controller {
     #render(view) {
         this.view = view;
 
-        const hasCategory = Boolean(view.category);
+        const picked = view.picked ?? [];
+        const hasCategory = 0 < picked.length;
         this.categoryPickerTarget.hidden = hasCategory;
 
         if (!hasCategory) {
@@ -89,16 +119,34 @@ export default class extends Controller {
         }
     }
 
+    /** Utwór da się jeszcze zagrać tylko wtedy, gdy nikt nie zna tytułu. */
+    #playable(view) {
+        return Boolean(view.track) && !view.revealed;
+    }
+
+    #idleHint(view) {
+        if (0 === (view.picked ?? []).length) {
+            return 'Zaznacz kategorie i naciśnij „Graj”.';
+        }
+
+        return this.#playable(view)
+            ? 'Wylosuj utwór i puść go gościom.'
+            : 'Runda zamknięta — losuj kolejny utwór.';
+    }
+
     #renderControls(view) {
         const buttons = {
-            idle: view.track
+            // Utwór już odsłonięty (runda zamknięta) nie nadaje się do grania
+            // drugi raz - wszyscy znają odpowiedź. Jedyne sensowne wyjście
+            // to kolejne nagranie.
+            idle: this.#playable(view)
                 ? [['arm', '▶ Graj', 'primary'], ['next_track', 'Inny utwór', '']]
-                : [['next_track', 'Losuj utwór', 'primary']],
+                : [['next_track', view.track ? 'Następny utwór' : 'Losuj utwór', 'primary']],
             armed: [['cancel', '⏹ Nikt nie zgadł', '']],
             buzzed: [['judge_ok', '✓ Dobrze', 'primary'], ['judge_no', '✗ Źle', '']],
             judging: 'wrong' === view.lastResult
-                ? [['rearm', '▶ Graj dalej', 'primary'], ['finish', 'Koniec rundy', '']]
-                : [['finish', 'Następny utwór', 'primary']],
+                ? [['rearm', '▶ Graj dalej', 'primary'], ['finish_next', 'Następny utwór', '']]
+                : [['finish_next', 'Następny utwór', 'primary']],
         }[view.state] ?? [];
 
         this.controlsTarget.replaceChildren(...buttons.map(([action, label, variant]) => {
@@ -113,30 +161,51 @@ export default class extends Controller {
         }));
 
         this.hintTarget.textContent = {
-            idle: view.category ? 'Wylosuj utwór i puść go gościom.' : 'Wybierz kategorię, żeby zacząć.',
+            idle: this.#idleHint(view),
             armed: 'Buzzery aktywne — pierwszy telefon zatrzyma muzykę.',
             buzzed: 'Wysłuchaj odpowiedzi i oceń ją.',
             judging: 'wrong' === view.lastResult ? 'Możesz puścić utwór dalej dla pozostałych.' : '',
         }[view.state] ?? '';
     }
 
+    /**
+     * Kafelki kategorii do zaznaczania. Przebudowa tylko wtedy, gdy zmienił się
+     * zestaw kategorii - inaczej odświeżenie po dołączeniu drużyny kasowałoby
+     * zaznaczenia w trakcie wybierania.
+     */
     #fillCategories(categories) {
-        if (this.categorySelectTarget.options.length === categories.length) {
+        const slugs = categories.map((category) => category.slug).join(',');
+
+        if (this.categoryListTarget.dataset.slugs === slugs) {
             return;
         }
 
-        this.categorySelectTarget.replaceChildren(...categories.map((category) => {
-            const option = document.createElement('option');
-            option.value = category.slug;
-            option.textContent = `${category.name} (${category.items})`;
+        this.categoryListTarget.dataset.slugs = slugs;
+        this.categoryListTarget.replaceChildren(...categories.map((category) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'cat-chip';
+            chip.dataset.slug = category.slug;
+            chip.dataset.action = 'melodia-host#toggleCategory';
+            chip.setAttribute('aria-pressed', 'false');
 
-            return option;
+            const name = document.createElement('span');
+            name.textContent = category.name;
+
+            const count = document.createElement('span');
+            count.className = 'cat-chip-count';
+            count.textContent = category.items;
+
+            chip.append(name, count);
+
+            return chip;
         }));
     }
 
     #syncAudio(view) {
         if (!view.track) {
             this.audioTarget.removeAttribute('src');
+            this.#spinVinyl(false);
 
             return;
         }
@@ -158,6 +227,16 @@ export default class extends Controller {
             });
         } else {
             this.audioTarget.pause();
+        }
+
+        // Płyta kręci się dokładnie wtedy, gdy leci dźwięk. To jedyny sygnał,
+        // że muzyka gra - głośnik stoi obok telewizora, a nie w nim.
+        this.#spinVinyl('armed' === view.state);
+    }
+
+    #spinVinyl(playing) {
+        if (this.hasVinylTarget) {
+            this.vinylTarget.classList.toggle('playing', playing);
         }
     }
 
