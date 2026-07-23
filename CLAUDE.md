@@ -18,16 +18,17 @@ Rozmowa jest po polsku; komentarze w kodzie też.
 |---|---|
 | 1. Rdzeń pokoju | **gotowy** |
 | 2. Silnik gry | **gotowy** |
-| 3. „Jaka to melodia" | **gotowy**, grywalny |
+| 3. „Jaka to melodia" | **gotowy**, grywalny (dwa warianty: buzzer i 1 z 4) |
 | 4. PWA | **nie zaczęty** — patrz decyzje niżej |
 | 5. „Koło fortuny" | **gotowy**, grywalny |
 | 6. Kalambury | **gotowy**, grywalny |
 | 7. Przyciski fizyczne | **nie zaczęty** |
+| Państwa i miasta | **gotowa**, grywalna (poza planem §13) |
 | 8. Panel treści | **gotowy** (zamiast `app:deck:sync` z YAML) |
 
 Ponadto: panel administracyjny `/admin`, którego spec nie przewidywała.
 
-211 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
+283 testy, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
 
 ---
 
@@ -64,6 +65,9 @@ php bin/console doctrine:migrations:migrate --no-interaction
 php bin/console app:demo:seed                          # demo melodii + cały słownik haseł
 # sam słownik (kilkaset haseł do koła i kalambur), bez ruszania melodii:
 php bin/console app:slownik:seed
+
+# lista nagrań z pliku (tytuł [TAB] wykonawca [TAB] adres) jako linki zewnętrzne:
+php bin/console app:melodia:import lista.txt --kategoria="Ballady rockowe" --podglad
 
 # baza testowa
 php bin/console doctrine:database:create --env=test --if-not-exists
@@ -149,11 +153,14 @@ src/Core/Score/      tablo
 src/Core/Redis/      typowany odczyt z Redisa
 src/Core/Http/       wymuszenie JSON na trasach API
 src/Admin/           panel: dostęp, wgrywanie nagrań, zarządzanie treścią
-src/Content/         katalog mediów + wspólny słownik haseł (PhraseDeck, Slownik)
-src/Entity/          Category / Track / Phrase
-src/Game/Melodia/    moduł „Jaka to melodia"
+src/Content/         katalog mediów, wspólny słownik haseł i talia nagrań
+                     (PhraseDeck, Slownik, TrackDeck)
+src/Entity/          Category / Track / Phrase (Track: plik na dysku ALBO link)
+src/Game/Melodia/    moduł „Jaka to melodia" (buzzer)
+src/Game/MelodiaQuiz/ moduł „Jaka to melodia — 1 z 4"
 src/Game/Kolo/       moduł „Koło fortuny"
 src/Game/Kalambury/  moduł „Kalambury"
+src/Game/PanstwaMiasta/ moduł „Państwa i miasta"
 ```
 
 **Stan „live" (pokój, drużyny, punkty, stan gry) żyje wyłącznie w Redisie** z TTL
@@ -210,6 +217,37 @@ osiągalne pod **tą samą** nazwą/IP.
 i podpowiedzią dla graczy w kole. Dwa poziomy zmuszały osobę dodającą treści
 do rozstrzygania za każdym razem, co jest czym.
 
+**Nagranie może leżeć poza serwerem.** `Track` ma albo `path` (plik w katalogu
+mediów), albo `sourceUrl` (adres u kogoś innego) — nigdy oba. Przy linku
+`MediaController` odsyła przekierowaniem, więc przeglądarka hosta pobiera dźwięk
+prosto ze źródła, a my nie trzymamy ani bajta. `path` musi wtedy być **NULL-em**,
+nie pustym stringiem: unikalny indeks `(category_id, path)` przepuszcza wiele
+NULL-i, ale nie dwa puste stringi. **Konsekwencja:** utwór umiera, gdy źródło
+przeniesie plik albo zablokuje odtwarzanie z obcej strony — pliku nie mamy.
+
+**Wariant gry = osobny moduł, nie przełącznik w istniejącym.** „Jaka to melodia"
+ma dwa warianty i są to dwie klasy. W buzzerowym liczy się refleks jednej drużyny
+(arbiter blokuje resztę), w teście 1 z 4 wszyscy odpowiadają naraz i rozstrzyga
+zegar. Wciśnięte w jeden automat stanów dałyby maszynę, w której połowa przejść
+obowiązuje tylko w połowie przypadków. Treść dzielą przez `TrackDeck` — te same
+kategorie grają w obu, nikt nie wprowadza nagrań drugi raz.
+
+**Wybór kategorii to lista, nie jedna pozycja.** Obie melodie losują ze
+**wspólnej puli** wszystkich zaznaczonych kategorii, a nie „najpierw kategoria,
+potem utwór" — przy 920 nagraniach dance i 156 balladach ten drugi sposób dawałby
+ballady sześć razy częściej, niż wynika z ich udziału w puli. Moduły przyjmują
+nadal pojedyncze `category` obok `categories`: tak strzeli przycisk fizyczny
+(kamień 7) i tak wyglądają starsze zapisy w Redisie.
+
+**Państwa i miasta sprawdza wykaz, reszta rubryk człowiek** (`Wykaz`). Automat
+odrzuca to, co da się rozstrzygnąć bez słownika języka: złą pierwszą literę,
+jedną literę zamiast słowa i odpowiedź spoza wykazu państw albo miast. Przy
+roślinie czy zwierzęciu nie ocenia niczego. Odrzucenie z wykazu jest **miękkie** —
+komórka dostaje osobny status i żółty pytajnik zamiast przekreślenia, bo lista
+nigdy nie będzie pełna; jeden klik hosta ją zalicza. Wykaz siedzi w kodzie obok
+`Kolumny::PRESETS`: to materiał pomocniczy do rubryk, a nie treść do zgadywania,
+więc nie idzie przez panel.
+
 **Jeden słownik haseł zamiast tabeli na grę.** Koło miało `PuzzleWord`,
 kalambury `CharadeCard` — te same hasła, różne tylko pole poboczne, więc „Kot
 w butach" trzeba było wpisywać dwa razy. Teraz jest `Phrase`, a kategoria ma
@@ -220,6 +258,22 @@ pozycja w `ContentTypes::PHRASE_GAMES`, bez ruszania encji.
 Hasła leżą w bazie **tak, jak je wpisano** — wersaliki dokleja plansza koła
 (`Phrase::forBoard()`), bo aktor kalambur dostaje słowo na telefon i nie ma
 powodu na niego krzyczeć.
+
+**Animacje nie decydują o niczym.** Siła zamachu kołem (długość przytrzymania
+przycisku na telefonie) zmienia wyłącznie liczbę obrotów i czas dohamowania na
+telewizorze — sektor wybiera `Wheel::spin()` na serwerze i to on siedzi w kącie
+docelowym, a zamach dokłada tylko pełne obroty. Tak samo bęben z literą
+w państwach-miastach: przewijane litery są dekoracją, a wynik zapada dopiero
+w chwili, gdy host naciśnie STOP i poleci akcja `draw`. Gdyby było odwrotnie,
+o wyniku decydowałby telefon albo refleks — a litera leżałaby w odpowiedzi HTTP,
+zanim ktokolwiek zobaczy ją na ekranie.
+Wszystkie animacje wyłącza `prefers-reduced-motion`.
+
+**Koło ratunkowe w kalamburach odsłania jedną literę.** Pierwszą literę
+pierwszego wyrazu **dłuższego niż jedna litera** — jednoliterowy wyraz to spójnik
+albo przyimek, więc odsłonięcie go oddaje cały wyraz i nie mówi nic o haśle.
+Raz na kartę: druga podpowiedź zamieniłaby kalambury w zgadywankę z planszy.
+Punktacji nie zmienia, bo o podpowiedź i tak prosi ten, kto już utknął.
 
 **Tabler (Bootstrap 5) z CDN-u zamiast pełnej autonomii offline** (§15). Własny
 CSS wymagał ręcznego dopieszczania każdego breakpointu, a widok telefonu i tak
@@ -336,10 +390,10 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 
 1. **PWA (kamień 4)** — po decyzji o trybie LAN.
 2. **Przyciski fizyczne (kamień 7)**.
-3. **Państwa-Miasta** — kafelek „wkrótce" na ekranie hosta zamieni się
-   w grywalny sam, gdy moduł się wpnie (lista filtruje się po zarejestrowanych typach).
-   Treści ma gotowe: wystarczy dopisać typ do `ContentTypes::PHRASE_GAMES`
-   i zaznaczyć kategorie w panelu.
+3. ~~**Państwa-Miasta**~~ — **gotowe**. Kafelek „wkrótce" zniknął sam, bo lista
+   filtruje się po zarejestrowanych typach — moduł nie dotknął rdzenia ani
+   jednym wierszem. Rubryki (`Kolumny::PRESETS`) siedzą w kodzie, nie w słowniku:
+   to nagłówki tabeli, a nie treść do zgadywania.
 
 ### Znane braki i długi
 
@@ -349,10 +403,14 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 - **Limit wgrywania**: `post_max_size` bywa niższe niż `upload_max_filesize`
   i to ono decyduje. Panel pokazuje czytelny komunikat, ale limit trzeba podnieść
   w `php.ini` pod dłuższe nagrania.
-- **Punkty melodii (1 pkt) i koła (setki) trafiają na to samo tablo.** Odkąd
+- **Punkty melodii (1 pkt), państw-miast (dziesiątki) i koła (setki) trafiają
+  na to samo tablo.** Odkąd
   „Zmień grę" zostawia punkty, widać to na każdym wieczorze z dwiema grami:
   setki z koła przykrywają wszystko inne. Turniej z wielu gier wymagałby
   normalizacji.
+- **Rundę państw-miast kończy zegar ekranu hosta**, który po odliczeniu melduje
+  `finish` — serwer to weryfikuje, ale przy zamkniętym TV runda stoi w `ending`
+  do ręcznego zakończenia. Tak samo działają kalambury.
 - **Słownik nie zna trudności per gra.** `difficulty` opisuje, jak trudno hasło
   *pokazać* (kalambury); koło używa go tylko do sortowania. Hasło łatwe do
   pokazania bywa nudne na planszy i odwrotnie — jeśli zacznie przeszkadzać,
