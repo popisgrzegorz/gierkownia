@@ -1,0 +1,47 @@
+{# Sterownik państw i miast. Cała gra dzieje się tutaj: pola do wpisywania
+   i jeden duży STOP.
+
+   Stan początkowy renderuje serwer - trasa widoku gry jest dla hosta, więc
+   telefon nie ma jej skąd pobrać i dalej żyje wyłącznie z eventów. #}
+<p class="game-tab c-bg-panstwa">PAŃSTWA I MIASTA</p>
+
+<div class="panstwa-player"
+     data-controller="panstwa-player"
+     data-team-id="{{ team.id }}"
+     data-panstwa-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
+     data-panstwa-player-state-value="{{ game.state }}"
+     data-panstwa-player-letter-value="{{ game.letter ?? '' }}"
+     data-panstwa-player-stopped-value="{{ game.iStopped ? 'true' : 'false' }}">
+
+    <div class="pm-head">
+        <span class="pm-letter" data-panstwa-player-target="letter">{{ game.letter ?? '—' }}</span>
+        <div class="clock clock-phone" data-panstwa-player-target="clock" hidden>
+            <span class="clock-value" data-panstwa-player-target="clockValue">--</span>
+        </div>
+    </div>
+
+    {# Pola renderuje serwer, żeby telefon miał je od razu po dołączeniu
+       w trakcie rundy - także wtedy, gdy ktoś odświeżył stronę. #}
+    <div class="pm-fields" data-panstwa-player-target="fields">
+        {% for column in game.columns %}
+            <label class="pm-field">
+                <span class="pm-field-name">{{ column }}</span>
+                <input type="text"
+                       class="form-control pm-input"
+                       data-column="{{ column }}"
+                       data-action="input->panstwa-player#type"
+                       value="{{ game.answers[column] ?? '' }}"
+                       autocomplete="off" autocapitalize="words" spellcheck="false"
+                       maxlength="60"
+                       {{ game.canWrite ? '' : 'disabled' }}>
+            </label>
+        {% endfor %}
+    </div>
+
+    <button type="button" class="btn btn-stop" data-panstwa-player-target="stop"
+            data-action="panstwa-player#stop" {{ 'writing' == game.state ? '' : 'hidden' }}>
+        STOP
+    </button>
+
+    <p class="pm-note" data-panstwa-player-target="note"></p>
+</div>

@@ -1,0 +1,64 @@
+{# Panel państw i miast na ekranie hosta.
+
+   W trakcie pisania na telewizorze jest WYŁĄCZNIE litera i postęp drużyn -
+   treść odpowiedzi to cały sekret tej gry, a na ten ekran patrzy cały pokój.
+   Tabela wyników wychodzi dopiero po rundzie. #}
+<section class="game-panel panstwa-panel"
+         data-controller="panstwa-host"
+         data-panstwa-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-panstwa-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
+
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1 c-panstwa">PAŃSTWA</span>
+            <span class="game-name-2 c-panstwa">MIASTA</span>
+        </h2>
+
+        {# Litera jest tu największym elementem ekranu - to jedyna rzecz,
+           którą wszyscy muszą widzieć z kanapy przez całą rundę. #}
+        <div class="letter-box" data-panstwa-host-target="letterBox" hidden>
+            <span class="letter-value" data-panstwa-host-target="letter">?</span>
+        </div>
+
+        {# Odliczanie rusza dopiero po STOP-ie. #}
+        <div class="clock" data-panstwa-host-target="clock" hidden>
+            <span class="clock-value" data-panstwa-host-target="clockValue">--</span>
+        </div>
+
+        <p class="tip-card" data-panstwa-host-target="tip">
+            <strong>Wpisujecie na telefonach.</strong> Kto skończy pierwszy, naciska STOP.
+        </p>
+    </div>
+
+    <div class="game-main">
+        <p class="panel-eyebrow" data-panstwa-host-target="progressLine"></p>
+
+        {# Postęp drużyn: ile rubryk wypełnionych, bez treści. #}
+        <div class="pm-progress" data-panstwa-host-target="progress" hidden></div>
+
+        {# Wyniki rundy. Każda komórka jest przyciskiem: klik uznaje odpowiedź
+           albo ją odrzuca, a punkty przeliczają się od razu. #}
+        <div class="pm-results" data-panstwa-host-target="results" hidden></div>
+
+        <p class="banner-small" data-panstwa-host-target="event"></p>
+
+        <div class="panel-row" data-panstwa-host-target="setupRow">
+            <label for="pm-preset">Rubryki</label>
+            <select id="pm-preset" data-panstwa-host-target="preset" class="form-select select"></select>
+
+            <label for="pm-seconds">Czas po STOP</label>
+            <select id="pm-seconds" data-panstwa-host-target="seconds" class="form-select select">
+                <option value="15">15 s</option>
+                <option value="30" selected>30 s</option>
+                <option value="45">45 s</option>
+                <option value="60">60 s</option>
+            </select>
+        </div>
+
+        <div class="panel-row panel-controls" data-panstwa-host-target="controls"></div>
+
+        <p class="hint muted" data-panstwa-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot">10 punktów za odpowiedź, której nikt inny nie ma. 5, gdy ktoś wpadł na to samo.</p>
+</section>
