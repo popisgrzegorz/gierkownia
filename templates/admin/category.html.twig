@@ -12,7 +12,10 @@
                     </div>
                     <h2 class="page-title">{{ category.name }}</h2>
                     <div class="text-secondary mt-1">
-                        {{ gameName }} · <code>{{ category.slug }}</code>
+                        {{ kindLabel }} · <code>{{ category.slug }}</code>
+                        {% for game in category.games %}
+                            <span class="badge bg-purple-lt ms-1">{{ game }}</span>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
@@ -48,7 +51,7 @@
                     <h3 class="card-title">Dodaj {{ singular }}</h3>
                 </div>
                 <div class="card-body">
-                    {% if category.gameType == 'melodia' %}
+                    {% if category.kind == 'melodia' %}
                         {# enctype jest tu obowiązkowe - bez niego plik nie dojdzie,
                            a formularz wygląda, jakby zadziałał. #}
                         <form method="post" action="{{ path('admin_item_create', {id: category.id}) }}"
@@ -80,33 +83,22 @@
                             Formaty: {{ extensions|join(', ') }}. Limit pliku: {{ uploadLimit }}.
                         </p>
 
-                    {% elseif category.gameType == 'kolo' %}
+                    {% else %}
+                        {# Jeden formularz na całą resztę: hasło jest wspólne dla
+                           koła i kalambur, różnią się tylko pola poboczne. #}
                         <form method="post" action="{{ path('admin_item_create', {id: category.id}) }}">
                             <div class="mb-3">
                                 <label class="form-label" for="f-phrase">Hasło</label>
                                 <input id="f-phrase" name="phrase" class="form-control"
-                                       placeholder="np. Kasa kwiatowa" required>
+                                       placeholder="np. Kot w butach" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" for="f-hint">Podpowiedź</label>
+                                <label class="form-label" for="f-hint">Podpowiedź (koło fortuny)</label>
                                 <input id="f-hint" name="hint" class="form-control"
-                                       placeholder="np. związek frazeologiczny">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Dodaj</button>
-                        </form>
-                        <p class="text-secondary small mt-3 mb-0">
-                            Hasło zapisujemy wielkimi literami. Polskie znaki są osobnymi literami:
-                            „Ł” nie odsłania „L”.
-                        </p>
-
-                    {% else %}
-                        <form method="post" action="{{ path('admin_item_create', {id: category.id}) }}">
-                            <div class="mb-3">
-                                <label class="form-label" for="f-word">Hasło</label>
-                                <input id="f-word" name="word" class="form-control" placeholder="np. parasol" required>
+                                       placeholder="np. bajka dla dzieci">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" for="f-diff">Trudność</label>
+                                <label class="form-label" for="f-diff">Trudność (kalambury)</label>
                                 <select id="f-diff" name="difficulty" class="form-select">
                                     <option value="latwy">łatwy</option>
                                     <option value="sredni" selected>średni</option>
@@ -116,11 +108,34 @@
                             <button type="submit" class="btn btn-primary">Dodaj</button>
                         </form>
                         <p class="text-secondary small mt-3 mb-0">
-                            Moduł kalambur jeszcze nie powstał — karty czekają w bazie.
+                            Wpisuj naturalnie — koło fortuny samo zamienia hasło na wersaliki.
+                            Polskie znaki są tam osobnymi literami: „Ł” nie odsłania „L”.
                         </p>
                     {% endif %}
                 </div>
             </div>
+
+            {% if category.kind != 'melodia' %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h3 class="card-title">Kto korzysta z tej kategorii</h3>
+                    </div>
+                    <div class="card-body">
+                        {# Odznaczenie gry NIE kasuje haseł - kategoria znika tylko
+                           z jej listy wyboru u hosta. #}
+                        <form method="post" action="{{ path('admin_category_games', {id: category.id}) }}">
+                            {% for label, game in phraseGames %}
+                                <label class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="games[]" value="{{ game }}"
+                                           {{ game in category.games ? 'checked' : '' }}>
+                                    <span class="form-check-label">{{ label }}</span>
+                                </label>
+                            {% endfor %}
+                            <button type="submit" class="btn mt-3">Zapisz</button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
 
             <div class="card card-stacked mb-3">
                 <div class="card-status-top bg-danger"></div>
@@ -129,7 +144,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-secondary">
-                        Zniknie razem ze wszystkimi pozycjami{% if category.gameType == 'melodia' %} i wgranymi plikami{% endif %}.
+                        Zniknie razem ze wszystkimi pozycjami{% if category.kind == 'melodia' %} i wgranymi plikami{% endif %}.
                         Tego nie da się cofnąć.
                     </p>
                     <form method="post" action="{{ path('admin_category_delete', {id: category.id}) }}"
@@ -156,12 +171,10 @@
                         <table class="table table-vcenter card-table">
                             <thead>
                                 <tr>
-                                    {% if category.gameType == 'melodia' %}
+                                    {% if category.kind == 'melodia' %}
                                         <th>Tytuł</th><th>Wykonawca</th><th class="w-1">Start</th><th>Plik</th>
-                                    {% elseif category.gameType == 'kolo' %}
-                                        <th>Hasło</th><th>Podpowiedź</th>
                                     {% else %}
-                                        <th>Hasło</th><th class="w-1">Trudność</th>
+                                        <th>Hasło</th><th>Podpowiedź</th><th style="width: 8rem">Trudność</th>
                                     {% endif %}
                                     <th class="w-1"></th>
                                 </tr>
@@ -169,7 +182,7 @@
                             <tbody>
                                 {% for item in items %}
                                     <tr>
-                                        {% if category.gameType == 'melodia' %}
+                                        {% if category.kind == 'melodia' %}
                                             <td>
                                                 <input form="save-{{ item.id }}" name="title" value="{{ item.title }}"
                                                        class="form-control form-control-sm" aria-label="Tytuł">
@@ -187,7 +200,7 @@
                                                 title="{{ item.path }}">
                                                 {{ item.path|split('/')|last }}
                                             </td>
-                                        {% elseif category.gameType == 'kolo' %}
+                                        {% else %}
                                             <td>
                                                 <input form="save-{{ item.id }}" name="phrase" value="{{ item.phrase }}"
                                                        class="form-control form-control-sm" aria-label="Hasło">
@@ -196,11 +209,6 @@
                                                 <input form="save-{{ item.id }}" name="hint" value="{{ item.hint }}"
                                                        class="form-control form-control-sm" placeholder="podpowiedź"
                                                        aria-label="Podpowiedź">
-                                            </td>
-                                        {% else %}
-                                            <td>
-                                                <input form="save-{{ item.id }}" name="word" value="{{ item.word }}"
-                                                       class="form-control form-control-sm" aria-label="Hasło">
                                             </td>
                                             <td>
                                                 <select form="save-{{ item.id }}" name="difficulty" class="form-select form-select-sm">
@@ -227,9 +235,9 @@
 
                     {% for item in items %}
                         <form id="save-{{ item.id }}" method="post" class="d-none"
-                              action="{{ path('admin_item_update', {type: category.gameType, id: item.id}) }}"></form>
+                              action="{{ path('admin_item_update', {type: category.kind == 'melodia' ? 'melodia' : 'haslo', id: item.id}) }}"></form>
                         <form id="del-{{ item.id }}" method="post" class="d-none"
-                              action="{{ path('admin_item_delete', {type: category.gameType, id: item.id}) }}"
+                              action="{{ path('admin_item_delete', {type: category.kind == 'melodia' ? 'melodia' : 'haslo', id: item.id}) }}"
                               onsubmit="return confirm('Usunąć na pewno?')"></form>
                     {% endfor %}
                 {% endif %}

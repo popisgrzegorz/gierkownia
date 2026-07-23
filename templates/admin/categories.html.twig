@@ -7,8 +7,8 @@
         <div class="container-xl">
             <h2 class="page-title">Kategorie</h2>
             <div class="text-secondary mt-1">
-                Kategoria to zestaw, który host wybiera na starcie gry — np. „Piosenki na lato”.
-                W kole fortuny jej nazwa jest też podpowiedzią dla graczy.
+                Kategoria to zestaw, który host wybiera na starcie gry — np. „Polskie seriale”.
+                Hasła są wspólne: jedna kategoria może zasilać koło fortuny i kalambury naraz.
             </div>
         </div>
     </div>
@@ -24,27 +24,42 @@
                 <div class="col-12 col-md">
                     <label class="form-label" for="cat-name">Nazwa</label>
                     <input id="cat-name" name="name" class="form-control"
-                           placeholder="np. Piosenki na lato" required>
+                           placeholder="np. Polskie seriale" required>
                 </div>
                 <div class="col-12 col-md-auto">
-                    <label class="form-label" for="cat-game">Gra</label>
-                    <select id="cat-game" name="gameType" class="form-select">
-                        {% for type, label in games %}
-                            <option value="{{ type }}">{{ label }}</option>
+                    <label class="form-label" for="cat-kind">Rodzaj treści</label>
+                    <select id="cat-kind" name="kind" class="form-select">
+                        {% for label, kind in kinds %}
+                            <option value="{{ kind }}" {{ kind == 'hasla' ? 'selected' : '' }}>{{ label }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <label class="form-label">Gry (dotyczy słownika)</label>
+                    <div class="d-flex gap-3 pt-1">
+                        {% for label, game in phraseGames %}
+                            <label class="form-check form-check-inline mb-0">
+                                <input class="form-check-input" type="checkbox" name="games[]"
+                                       value="{{ game }}" checked>
+                                <span class="form-check-label">{{ label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
                 </div>
                 <div class="col-12 col-md-auto">
                     <button type="submit" class="btn btn-primary w-100">Utwórz</button>
                 </div>
             </form>
+            <p class="text-secondary small mt-3 mb-0">
+                Nagrania obsługuje tylko „Jaka to melodia” — przy tym rodzaju zaznaczone gry są pomijane.
+            </p>
         </div>
     </div>
 
-    {% for type, categories in byGame %}
+    {% for kind, categories in byKind %}
         <div class="card mb-3">
             <div class="card-header">
-                <h3 class="card-title">{{ games[type] }}</h3>
+                <h3 class="card-title">{{ kind == 'melodia' ? 'Nagrania' : 'Słownik haseł' }}</h3>
                 <span class="badge bg-secondary-lt ms-2">{{ categories|length }}</span>
             </div>
 
@@ -52,13 +67,18 @@
                 <div class="card-body text-secondary">Brak kategorii — utwórz pierwszą powyżej.</div>
             {% else %}
                 {# Lista, nie tabela: wierszem jest cała klikalna pozycja, a kolumn
-                   jest tylko trzy - tabela dodawałaby ramek więcej niż treści. #}
+                   jest tylko kilka - tabela dodawałaby ramek więcej niż treści. #}
                 <div class="list-group list-group-flush">
                     {% for category in categories %}
-                        <a class="list-group-item list-group-item-action d-flex align-items-center"
+                        <a class="list-group-item list-group-item-action d-flex align-items-center gap-2"
                            href="{{ path('admin_category', {id: category.id}) }}">
                             <span class="flex-fill">{{ category.name }}</span>
-                            <code class="text-secondary me-3">{{ category.slug }}</code>
+                            {# Które gry z niej korzystają - to najczęstsze pytanie
+                               przy przeglądaniu listy, więc widać je bez wchodzenia. #}
+                            {% for game in category.games %}
+                                <span class="badge bg-purple-lt">{{ game }}</span>
+                            {% endfor %}
+                            <code class="text-secondary">{{ category.slug }}</code>
                             <span class="badge bg-blue-lt">{{ category.countItems }} poz.</span>
                         </a>
                     {% endfor %}

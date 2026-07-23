@@ -19,15 +19,15 @@ Rozmowa jest po polsku; komentarze w kodzie też.
 | 1. Rdzeń pokoju | **gotowy** |
 | 2. Silnik gry | **gotowy** |
 | 3. „Jaka to melodia" | **gotowy**, grywalny |
-| 4. PWA | **nie zaczęty** — blokuje decyzja o HTTPS (niżej) |
+| 4. PWA | **nie zaczęty** — patrz decyzje niżej |
 | 5. „Koło fortuny" | **gotowy**, grywalny |
-| 6. Kalambury | **nie zaczęty** — treści już się zbiera w panelu |
+| 6. Kalambury | **gotowy**, grywalny |
 | 7. Przyciski fizyczne | **nie zaczęty** |
 | 8. Panel treści | **gotowy** (zamiast `app:deck:sync` z YAML) |
 
 Ponadto: panel administracyjny `/admin`, którego spec nie przewidywała.
 
-195 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
+211 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
 
 ---
 
@@ -61,7 +61,9 @@ echo 'ADMIN_PASSWORD=wybierz-haslo' >> .env.local
 
 php bin/console doctrine:database:create --if-not-exists
 php bin/console doctrine:migrations:migrate --no-interaction
-php bin/console app:demo:seed                          # przykładowe treści do 3 gier
+php bin/console app:demo:seed                          # demo melodii + cały słownik haseł
+# sam słownik (kilkaset haseł do koła i kalambur), bez ruszania melodii:
+php bin/console app:slownik:seed
 
 # baza testowa
 php bin/console doctrine:database:create --env=test --if-not-exists
@@ -147,10 +149,11 @@ src/Core/Score/      tablo
 src/Core/Redis/      typowany odczyt z Redisa
 src/Core/Http/       wymuszenie JSON na trasach API
 src/Admin/           panel: dostęp, wgrywanie nagrań, zarządzanie treścią
-src/Content/         katalog mediów (ścieżki, bezpieczeństwo)
-src/Entity/          Category / Track / PuzzleWord / CharadeCard
+src/Content/         katalog mediów + wspólny słownik haseł (PhraseDeck, Slownik)
+src/Entity/          Category / Track / Phrase
 src/Game/Melodia/    moduł „Jaka to melodia"
 src/Game/Kolo/       moduł „Koło fortuny"
+src/Game/Kalambury/  moduł „Kalambury"
 ```
 
 **Stan „live" (pokój, drużyny, punkty, stan gry) żyje wyłącznie w Redisie** z TTL
@@ -206,6 +209,17 @@ osiągalne pod **tą samą** nazwą/IP.
 „Piosenki na lato" jest jednocześnie zestawem wybieranym na starcie gry
 i podpowiedzią dla graczy w kole. Dwa poziomy zmuszały osobę dodającą treści
 do rozstrzygania za każdym razem, co jest czym.
+
+**Jeden słownik haseł zamiast tabeli na grę.** Koło miało `PuzzleWord`,
+kalambury `CharadeCard` — te same hasła, różne tylko pole poboczne, więc „Kot
+w butach" trzeba było wpisywać dwa razy. Teraz jest `Phrase`, a kategoria ma
+dwie osie: `kind` (co w środku: nagrania albo hasła) i `games` (kto może po nią
+sięgnąć). Dzięki temu „Bajki" zasilają koło i kalambury, a „Przysłowia" tylko
+koło — bo na migi ich nikt nie pokaże. Dopisanie kolejnej gry na słowa to jedna
+pozycja w `ContentTypes::PHRASE_GAMES`, bez ruszania encji.
+Hasła leżą w bazie **tak, jak je wpisano** — wersaliki dokleja plansza koła
+(`Phrase::forBoard()`), bo aktor kalambur dostaje słowo na telefon i nie ma
+powodu na niego krzyczeć.
 
 **Tabler (Bootstrap 5) z CDN-u zamiast pełnej autonomii offline** (§15). Własny
 CSS wymagał ręcznego dopieszczania każdego breakpointu, a widok telefonu i tak
@@ -312,22 +326,20 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
   odwrotne: czy gra ma nadal działać **bez internetu** w LAN — bo wtedy pod
   adresem IP HTTPS-a nie ma i PWA się nie zarejestruje. Tryb LAN jest wciąż
   wspierany konfiguracją (`APP_BIND=0.0.0.0`, `MERCURE_PUBLIC_PORT=3010`).
-- **Timer a rozjazd zegarów (§8).** Sam `deadline` w evencie skłamie na telefonie
-  z przestawionym zegarem. Propozycja: `{deadline, serverNow}`, klient liczy
-  offset. Do rozstrzygnięcia przy kalamburach.
+- ~~**Timer a rozjazd zegarów (§8).**~~ **Rozstrzygnięte przy kalamburach:**
+  event niesie parę `{deadline, serverNow}`, telefon liczy z niej offset zegara,
+  a o wygaśnięciu i tak decyduje serwer (`GameTimer::expired()`).
 - **Autoryzacja przycisków fizycznych (§10).** ESP32 strzela w ten sam endpoint,
   ale nie ma tokenu drużyny — potrzebny sekret per urządzenie.
 
 ### Następne kroki
 
-1. **Kalambury (kamień 6)** — najtańsze: `TurnManager` i `Scoreboard` gotowe,
-   karty w bazie i w panelu. Brakuje `GameTimer` (ostatni prymityw z §8)
-   i tajnego słowa dla aktora przez pod-topic `room/{kod}/team/{id}`
-   (mechanizm działa, jest na niego test).
-2. **PWA (kamień 4)** — po decyzji o HTTPS.
-3. **Przyciski fizyczne (kamień 7)**.
-4. **Państwa-Miasta** — kafelek „wkrótce" na ekranie hosta zamieni się
+1. **PWA (kamień 4)** — po decyzji o trybie LAN.
+2. **Przyciski fizyczne (kamień 7)**.
+3. **Państwa-Miasta** — kafelek „wkrótce" na ekranie hosta zamieni się
    w grywalny sam, gdy moduł się wpnie (lista filtruje się po zarejestrowanych typach).
+   Treści ma gotowe: wystarczy dopisać typ do `ContentTypes::PHRASE_GAMES`
+   i zaznaczyć kategorie w panelu.
 
 ### Znane braki i długi
 
@@ -337,9 +349,14 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 - **Limit wgrywania**: `post_max_size` bywa niższe niż `upload_max_filesize`
   i to ono decyduje. Panel pokazuje czytelny komunikat, ale limit trzeba podnieść
   w `php.ini` pod dłuższe nagrania.
-- **Punkty melodii (1 pkt) i koła (setki) trafiają na to samo tablo.** W obrębie
-  jednej gry to bez znaczenia, reset między grami czyści wynik — ale gdyby ktoś
-  chciał turniej z wielu gier, potrzebna byłaby normalizacja.
+- **Punkty melodii (1 pkt) i koła (setki) trafiają na to samo tablo.** Odkąd
+  „Zmień grę" zostawia punkty, widać to na każdym wieczorze z dwiema grami:
+  setki z koła przykrywają wszystko inne. Turniej z wielu gier wymagałby
+  normalizacji.
+- **Słownik nie zna trudności per gra.** `difficulty` opisuje, jak trudno hasło
+  *pokazać* (kalambury); koło używa go tylko do sortowania. Hasło łatwe do
+  pokazania bywa nudne na planszy i odwrotnie — jeśli zacznie przeszkadzać,
+  trzeba drugiego pola albo tagów.
 - **Brak testów funkcjonalnych HTTP** (WebTestCase). Ścieżki przez kontrolery
   sprawdzałem ręcznie curl-em; logika ma testy jednostkowe i integracyjne.
 - **Kategorie nie mają zmiany kolejności pozycji w panelu** — `position` istnieje

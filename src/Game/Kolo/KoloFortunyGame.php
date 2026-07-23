@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Game\Kolo;
 
+use App\Content\PhraseDeck;
 use App\Core\Game\AbstractGame;
 use App\Core\Game\Actor;
 use App\Core\Game\Fsm\GameFsm;
@@ -38,7 +39,7 @@ final class KoloFortunyGame extends AbstractGame
         private readonly TurnManager $turns,
         private readonly Scoreboard $scoreboard,
         private readonly RoomManager $rooms,
-        private readonly KoloPuzzles $puzzles,
+        private readonly PhraseDeck $deck,
     ) {
         parent::__construct($fsm, $gameState);
     }
@@ -102,7 +103,7 @@ final class KoloFortunyGame extends AbstractGame
         // zanim serwer ja oceni. Ten widok nie trafia na telefony (spec 7).
         return $this->publicView($room) + [
             'phrase' => $ctx['_phrase'] ?? null,
-            'categories' => $this->puzzles->availableCategories(),
+            'categories' => $this->deck->categoriesFor(self::type()),
         ];
     }
 
@@ -125,22 +126,22 @@ final class KoloFortunyGame extends AbstractGame
 
         $slug = $payload['category'] ?? null;
 
-        if (!\is_string($slug) || !$this->puzzles->categoryExists($slug)) {
+        if (!\is_string($slug) || !$this->deck->hasCategory(self::type(), $slug)) {
             throw new IllegalActionException('Nie ma takiej kategorii.');
         }
 
         $this->patchCtx($room, [
             'category' => $slug,
-            'categoryName' => $this->puzzles->categoryName($slug),
-            'puzzleTotal' => $this->puzzles->countPuzzles($slug),
+            'categoryName' => $this->deck->categoryName(self::type(), $slug),
+            'puzzleTotal' => $this->deck->countPhrases(self::type(), $slug),
             'puzzleNumber' => 0,
             '_played' => [],
             '_phrase' => null,
         ]);
 
         return [Message::broadcast(new Event('category_picked', [
-            'categoryName' => $this->puzzles->categoryName($slug),
-            'items' => $this->puzzles->countPuzzles($slug),
+            'categoryName' => $this->deck->categoryName(self::type(), $slug),
+            'items' => $this->deck->countPhrases(self::type(), $slug),
         ]))];
     }
 
@@ -165,7 +166,7 @@ final class KoloFortunyGame extends AbstractGame
         }
 
         $played = $this->intList($ctx['_played'] ?? null);
-        $puzzle = $this->puzzles->drawNext($category, $played);
+        $puzzle = $this->deck->drawNext(self::type(), $category, $played);
 
         if (null === $puzzle) {
             throw new IllegalActionException('Kategoria sie skonczyla - wybierz inna albo zrestartuj gre.');
@@ -187,14 +188,14 @@ final class KoloFortunyGame extends AbstractGame
 
         $this->patchCtx($room, [
             '_puzzleId' => $puzzle->getId(),
-            '_phrase' => $puzzle->getPhrase(),
+            '_phrase' => $puzzle->forBoard(),
             '_played' => $played,
             'puzzleNumber' => \count($played),
             'hint' => $puzzle->getHint(),
             // Uwaga: "category" trzyma slug wybranej kategorii i nie wolno go tu
             // nadpisac nazwa - to po nim losujemy kolejne hasla. Nazwa do pokazania
             // siedzi w "categoryName" i ustawia ja pickCategory().
-            'mask' => PuzzleBoard::mask($puzzle->getPhrase(), []),
+            'mask' => PuzzleBoard::mask($puzzle->forBoard(), []),
             'guessed' => [],
             'wheel' => null,
             'bank' => [],
@@ -205,7 +206,7 @@ final class KoloFortunyGame extends AbstractGame
         return [Message::broadcast(new Event('puzzle_ready', [
             'number' => \count($played),
             'total' => $ctx['puzzleTotal'] ?? 0,
-            'mask' => PuzzleBoard::mask($puzzle->getPhrase(), []),
+            'mask' => PuzzleBoard::mask($puzzle->forBoard(), []),
             'hint' => $puzzle->getHint(),
             'categoryName' => $puzzle->getCategory()->getName(),
             'turn' => $starter,

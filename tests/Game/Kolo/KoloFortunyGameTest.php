@@ -20,12 +20,12 @@ use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
 use App\Core\Turn\TurnManager;
 use App\Entity\Category;
-use App\Entity\PuzzleWord;
+use App\Content\PhraseDeck;
+use App\Entity\Phrase;
 use App\Game\Kolo\KoloFortunyGame;
-use App\Game\Kolo\KoloPuzzles;
 use App\Game\Kolo\Wheel;
 use App\Repository\CategoryRepository;
-use App\Repository\PuzzleWordRepository;
+use App\Repository\PhraseRepository;
 use App\Tests\DoctrineTestCase;
 use App\Tests\RedisConnection;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
@@ -91,9 +91,9 @@ final class KoloFortunyGameTest extends DoctrineTestCase
             $this->turns,
             $this->scoreboard,
             $this->rooms,
-            new KoloPuzzles(
+            new PhraseDeck(
                 self::getContainer()->get(CategoryRepository::class),
-                self::getContainer()->get(PuzzleWordRepository::class),
+                self::getContainer()->get(PhraseRepository::class),
             ),
         );
 
@@ -110,10 +110,10 @@ final class KoloFortunyGameTest extends DoctrineTestCase
 
     private function seedCategory(): void
     {
-        $category = new Category('testowa', 'Kategoria testowa', 'kolo');
+        $category = new Category('testowa', 'Kategoria testowa', Category::KIND_HASLA, ['kolo']);
         $this->entityManager->persist($category);
 
-        $puzzle = new PuzzleWord($category, self::PHRASE);
+        $puzzle = new Phrase($category, self::PHRASE);
         $puzzle->setHint('zwiazek frazeologiczny');
         $this->entityManager->persist($puzzle);
         $this->entityManager->flush();
@@ -306,7 +306,7 @@ final class KoloFortunyGameTest extends DoctrineTestCase
         $category = self::getContainer()->get(CategoryRepository::class)->findOneBySlug('testowa');
         self::assertNotNull($category);
 
-        $this->entityManager->persist(new PuzzleWord($category, 'DRUGIE HASLO'));
+        $this->entityManager->persist(new Phrase($category, 'DRUGIE HASLO'));
         $this->entityManager->flush();
     }
 

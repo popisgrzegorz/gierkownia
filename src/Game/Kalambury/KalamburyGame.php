@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Game\Kalambury;
 
+use App\Content\PhraseDeck;
 use App\Core\Game\AbstractGame;
 use App\Core\Game\Actor;
 use App\Core\Game\Fsm\GameFsm;
@@ -46,7 +47,7 @@ final class KalamburyGame extends AbstractGame
     public function __construct(
         GameFsm $fsm,
         GameState $gameState,
-        private readonly CharadeDeck $deck,
+        private readonly PhraseDeck $deck,
         private readonly TurnManager $turns,
         private readonly Scoreboard $scoreboard,
         private readonly GameTimer $timer,
@@ -110,7 +111,7 @@ final class KalamburyGame extends AbstractGame
 
         $slug = \is_string($payload['category'] ?? null) ? $payload['category'] : '';
 
-        if ('' === $slug || null === $this->deck->categoryName($slug)) {
+        if ('' === $slug || null === $this->deck->categoryName(self::type(), $slug)) {
             throw new IllegalActionException('Nie ma takiej kategorii kalambur.');
         }
 
@@ -118,8 +119,8 @@ final class KalamburyGame extends AbstractGame
 
         $this->patchCtx($room, [
             'category' => $slug,
-            'categoryName' => $this->deck->categoryName($slug),
-            'cardTotal' => $this->deck->countCards($slug),
+            'categoryName' => $this->deck->categoryName(self::type(), $slug),
+            'cardTotal' => $this->deck->countPhrases(self::type(), $slug),
             'cardNumber' => 0,
             '_played' => [],
             '_word' => null,
@@ -129,7 +130,7 @@ final class KalamburyGame extends AbstractGame
 
         return [Message::broadcast(new Event('category_picked', [
             'category' => $slug,
-            'categoryName' => $this->deck->categoryName($slug),
+            'categoryName' => $this->deck->categoryName(self::type(), $slug),
             'turn' => $this->turns->current($room->code),
         ]))];
     }
@@ -148,7 +149,7 @@ final class KalamburyGame extends AbstractGame
 
         /** @var list<int> $played */
         $played = \is_array($ctx['_played'] ?? null) ? array_values(array_filter($ctx['_played'], '\is_int')) : [];
-        $card = $this->deck->drawNext($slug, $played);
+        $card = $this->deck->drawNext(self::type(), $slug, $played);
 
         if (null === $card) {
             throw new IllegalActionException('Karty w tej kategorii sie skonczyly.');
@@ -156,7 +157,7 @@ final class KalamburyGame extends AbstractGame
 
         $this->transition($room, 'draw');
 
-        $word = $card->getWord();
+        $word = $card->getPhrase();
         $played[] = (int) $card->getId();
 
         // Maska bez odslonietych liter: telewizor pokazuje ksztalt hasla,
@@ -313,7 +314,7 @@ final class KalamburyGame extends AbstractGame
         // dlatego szablon pokazuje je dopiero po zakonczeniu rundy.
         return $this->publicView($room) + [
             'word' => $ctx['_word'] ?? null,
-            'categories' => $this->deck->availableCategories(),
+            'categories' => $this->deck->categoriesFor(self::type()),
             'teams' => array_map(
                 static fn (Team $team): array => ['id' => $team->id, 'name' => $team->name],
                 $this->rooms->teams($room->code),

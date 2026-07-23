@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Content\DictionarySeeder;
 use App\Content\MediaLibrary;
-use App\Entity\CharadeCard;
 use App\Entity\Category;
-use App\Entity\PuzzleWord;
 use App\Entity\Track;
 use App\Repository\CategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,12 +17,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Wypelnia swieza instalacje trescia demonstracyjna.
+ * Wypelnia swieza instalacje trescia na start.
  *
  * Tresci zarzadza sie panelem, ale pusta baza po instalacji nie pozwala nawet
- * sprawdzic, czy gra dziala. Ta komenda tworzy po jednej kategorii na gre
- * i generuje do melodii proste dzwieki, zeby dalo sie zagrac bez wgrywania
- * czyjejkolwiek muzyki.
+ * sprawdzic, czy gra dziala. Ta komenda generuje do melodii proste dzwieki,
+ * zeby dalo sie zagrac bez wgrywania czyjejkolwiek muzyki, a hasla do kola
+ * i kalambur bierze ze slownika (app:slownik:seed - to samo, jednym wywolaniem).
  *
  * Jest idempotentna: kategorie, ktore juz istnieja, zostawia w spokoju.
  */
@@ -44,34 +43,11 @@ final class DemoSeedCommand extends Command
         'zielona-lodka' => ['Zielona łódka', [[659, 300], [587, 300], [523, 300], [587, 300], [659, 300], [659, 600]]],
     ];
 
-    /** Haslo => podpowiedz. */
-    private const PUZZLES = [
-        'Kasa kwiatowa' => 'związek frazeologiczny',
-        'Bułka z masłem' => 'coś bardzo łatwego',
-        'Rzucać grochem o ścianę' => 'mówić bez skutku',
-        'Szczotka do zębów' => 'znajdziesz ją w łazience',
-        'Żółty parasol' => 'przydaje się w deszczu',
-        'Wielki Wóz' => 'gwiazdozbiór',
-        'Burza z piorunami' => 'zjawisko pogodowe',
-        'Poziomka leśna' => 'rośnie w lesie',
-    ];
-
-    /** Haslo => trudnosc. */
-    private const CHARADES = [
-        'kot' => 'latwy',
-        'parasol' => 'latwy',
-        'rower' => 'latwy',
-        'zamiatanie' => 'sredni',
-        'lodowisko' => 'sredni',
-        'żarówka' => 'sredni',
-        'grawitacja' => 'trudny',
-        'nostalgia' => 'trudny',
-    ];
-
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly CategoryRepository $categories,
         private readonly MediaLibrary $media,
+        private readonly DictionarySeeder $dictionary,
     ) {
         parent::__construct();
     }
@@ -82,13 +58,14 @@ final class DemoSeedCommand extends Command
         $rows = [];
 
         $rows[] = $this->seedMelodia($io);
-        $rows[] = $this->seedKolo();
-        $rows[] = $this->seedKalambury();
-
         $this->entityManager->flush();
 
-        $io->table(['kategoria', 'gra', 'pozycji'], $rows);
-        $io->success('Gotowe. Resztą treści zarządzasz w panelu (/admin).');
+        foreach ($this->dictionary->seed() as $seeded) {
+            $rows[] = [$seeded['name'], $seeded['games'], (string) $seeded['added']];
+        }
+
+        $io->table(['kategoria', 'gry', 'dodano'], $rows);
+        $io->success('Gotowe. Resztą treści zarządzasz w panelu (/panel).');
 
         return Command::SUCCESS;
     }
@@ -102,7 +79,7 @@ final class DemoSeedCommand extends Command
             return ['demo-melodia', 'melodia', 'juz istnieje'];
         }
 
-        $category = new Category('demo-melodia', 'Piosenki z dzieciństwa (demo)', 'melodia');
+        $category = new Category('demo-melodia', 'Piosenki z dzieciństwa (demo)', Category::KIND_MELODIA);
         $this->entityManager->persist($category);
 
         $dir = $this->media->directory().'/demo';
@@ -126,50 +103,6 @@ final class DemoSeedCommand extends Command
         }
 
         return ['demo-melodia', 'melodia', (string) \count(self::TUNES)];
-    }
-
-    /** @return array{string, string, string} */
-    private function seedKolo(): array
-    {
-        if (null !== $this->categories->findOneBySlug('demo-kolo')) {
-            return ['demo-kolo', 'kolo', 'juz istnieje'];
-        }
-
-        $category = new Category('demo-kolo', 'Powiedzenia i przedmioty', 'kolo');
-        $this->entityManager->persist($category);
-
-        $position = 0;
-        foreach (self::PUZZLES as $phrase => $hint) {
-            // Wielkie litery od razu: plansza i tak pokazuje wersalikami,
-            // a porownanie liter przy zgadywaniu ma byc trywialne.
-            $puzzle = new PuzzleWord($category, mb_strtoupper($phrase));
-            $puzzle->setHint($hint);
-            $puzzle->setPosition($position++);
-            $this->entityManager->persist($puzzle);
-        }
-
-        return ['demo-kolo', 'kolo', (string) \count(self::PUZZLES)];
-    }
-
-    /** @return array{string, string, string} */
-    private function seedKalambury(): array
-    {
-        if (null !== $this->categories->findOneBySlug('demo-kalambury')) {
-            return ['demo-kalambury', 'kalambury', 'juz istnieje'];
-        }
-
-        $category = new Category('demo-kalambury', 'Na rozgrzewkę', 'kalambury');
-        $this->entityManager->persist($category);
-
-        $position = 0;
-        foreach (self::CHARADES as $word => $difficulty) {
-            $card = new CharadeCard($category, $word);
-            $card->setDifficulty($difficulty);
-            $card->setPosition($position++);
-            $this->entityManager->persist($card);
-        }
-
-        return ['demo-kalambury', 'kalambury', (string) \count(self::CHARADES)];
     }
 
     /** @param list<array{int, int}> $notes */

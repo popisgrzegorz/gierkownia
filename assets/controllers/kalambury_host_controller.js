@@ -198,7 +198,7 @@ export default class extends Controller {
         this.categorySelectTarget.replaceChildren(...categories.map((category) => {
             const option = document.createElement('option');
             option.value = category.slug;
-            option.textContent = `${category.name} (${category.count})`;
+            option.textContent = `${category.name} (${category.items})`;
 
             return option;
         }));

@@ -17,6 +17,15 @@ use Doctrine\ORM\Mapping as ORM;
  * poziomach osoba dodajaca tresci musialaby za kazdym razem rozstrzygac, co jest
  * talia, a co tagiem - a w praktyce zawsze chodzi o to samo.
  *
+ * Kategoria ma dwie osie, bo to dwa rozne pytania:
+ *
+ *  - `kind` - CO w niej lezy: nagrania (melodia) albo hasla (slownik).
+ *    Tego nie da sie mieszac: gra o odgadywanie tytulu potrzebuje pliku audio,
+ *    a nie napisu.
+ *  - `games` - KTORE gry moga z niej skorzystac. Jedno haslo "Kot w butach"
+ *    nadaje sie i do kola, i do kalambur, ale "Kto rano wstaje, temu Pan Bog
+ *    daje" tylko do kola - na migi tego nikt nie pokaze.
+ *
  * W kole fortuny nazwa kategorii sluzy dodatkowo za podpowiedz na planszy.
  */
 #[ORM\Entity(repositoryClass: CategoryRepository::class)]
@@ -24,6 +33,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_category_slug', columns: ['slug'])]
 class Category
 {
+    /** Kategoria z nagraniami - obsluguje ja wylacznie "Jaka to melodia". */
+    public const KIND_MELODIA = 'melodia';
+
+    /** Kategoria slownikowa - hasla do kola, kalambur i kolejnych gier na slowa. */
+    public const KIND_HASLA = 'hasla';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -35,33 +50,38 @@ class Category
     #[ORM\Column(length: 128)]
     private string $name;
 
-    /** Gra, dla ktorej kategoria jest przeznaczona: melodia, kolo, kalambury. */
+    /** Rodzaj tresci w srodku: melodia (nagrania) albo hasla (slownik). */
     #[ORM\Column(length: 32)]
-    private string $gameType;
+    private string $kind;
+
+    /**
+     * Typy gier, ktore moga siegnac po te kategorie.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $games = [];
 
     /** @var Collection<int, Track> */
     #[ORM\OneToMany(targetEntity: Track::class, mappedBy: 'category', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['position' => 'ASC', 'id' => 'ASC'])]
     private Collection $tracks;
 
-    /** @var Collection<int, PuzzleWord> */
-    #[ORM\OneToMany(targetEntity: PuzzleWord::class, mappedBy: 'category', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, Phrase> */
+    #[ORM\OneToMany(targetEntity: Phrase::class, mappedBy: 'category', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['position' => 'ASC', 'id' => 'ASC'])]
-    private Collection $puzzles;
+    private Collection $phrases;
 
-    /** @var Collection<int, CharadeCard> */
-    #[ORM\OneToMany(targetEntity: CharadeCard::class, mappedBy: 'category', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['position' => 'ASC', 'id' => 'ASC'])]
-    private Collection $charades;
-
-    public function __construct(string $slug, string $name, string $gameType)
+    /** @param list<string> $games */
+    public function __construct(string $slug, string $name, string $kind, array $games = [])
     {
         $this->slug = $slug;
         $this->name = $name;
-        $this->gameType = $gameType;
+        $this->kind = $kind;
         $this->tracks = new ArrayCollection();
-        $this->puzzles = new ArrayCollection();
-        $this->charades = new ArrayCollection();
+        $this->phrases = new ArrayCollection();
+
+        $this->setGames([] === $games && self::KIND_MELODIA === $kind ? [self::KIND_MELODIA] : $games);
     }
 
     public function getId(): ?int
@@ -89,14 +109,35 @@ class Category
         $this->name = $name;
     }
 
-    public function getGameType(): string
+    public function getKind(): string
     {
-        return $this->gameType;
+        return $this->kind;
     }
 
-    public function setGameType(string $gameType): void
+    public function setKind(string $kind): void
     {
-        $this->gameType = $gameType;
+        $this->kind = $kind;
+    }
+
+    /** @return list<string> */
+    public function getGames(): array
+    {
+        return $this->games;
+    }
+
+    /**
+     * @param list<string> $games
+     */
+    public function setGames(array $games): void
+    {
+        // Duplikaty biora sie z pola wielokrotnego wyboru w panelu, a lista gier
+        // trafia wprost do JSON-a - wolimy ja miec czysta juz w encji.
+        $this->games = array_values(array_unique(array_filter($games, static fn (string $g): bool => '' !== $g)));
+    }
+
+    public function usableIn(string $gameType): bool
+    {
+        return \in_array($gameType, $this->games, true);
     }
 
     /** @return Collection<int, Track> */
@@ -117,46 +158,28 @@ class Category
         $this->tracks->removeElement($track);
     }
 
-    /** @return Collection<int, PuzzleWord> */
-    public function getPuzzles(): Collection
+    /** @return Collection<int, Phrase> */
+    public function getPhrases(): Collection
     {
-        return $this->puzzles;
+        return $this->phrases;
     }
 
-    public function addPuzzle(PuzzleWord $puzzle): void
+    public function addPhrase(Phrase $phrase): void
     {
-        if (!$this->puzzles->contains($puzzle)) {
-            $this->puzzles->add($puzzle);
+        if (!$this->phrases->contains($phrase)) {
+            $this->phrases->add($phrase);
         }
     }
 
-    public function removePuzzle(PuzzleWord $puzzle): void
+    public function removePhrase(Phrase $phrase): void
     {
-        $this->puzzles->removeElement($puzzle);
+        $this->phrases->removeElement($phrase);
     }
 
-    /** @return Collection<int, CharadeCard> */
-    public function getCharades(): Collection
-    {
-        return $this->charades;
-    }
-
-    public function addCharade(CharadeCard $card): void
-    {
-        if (!$this->charades->contains($card)) {
-            $this->charades->add($card);
-        }
-    }
-
-    public function removeCharade(CharadeCard $card): void
-    {
-        $this->charades->removeElement($card);
-    }
-
-    /** Liczba pozycji niezaleznie od gry - do listy kategorii w panelu i u hosta. */
+    /** Liczba pozycji niezaleznie od rodzaju - do listy kategorii w panelu i u hosta. */
     public function countItems(): int
     {
-        return $this->tracks->count() + $this->puzzles->count() + $this->charades->count();
+        return $this->tracks->count() + $this->phrases->count();
     }
 
     /**

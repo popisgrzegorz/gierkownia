@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Admin\ContentTypes;
 use App\Entity\Category;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,19 +27,26 @@ class CategoryCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Kategorię')
             ->setEntityLabelInPlural('Kategorie')
-            ->setDefaultSort(['gameType' => 'ASC', 'name' => 'ASC'])
-            ->setHelp('index', 'Kategoria to zestaw, który host wybiera na starcie gry. W kole fortuny jej nazwa jest też podpowiedzią dla graczy.');
+            ->setDefaultSort(['kind' => 'ASC', 'name' => 'ASC'])
+            ->setHelp('index', 'Kategoria to zestaw, który host wybiera na starcie gry. Hasła są wspólne — jedna kategoria może zasilać koło fortuny i kalambury naraz. W kole jej nazwa jest też podpowiedzią dla graczy.');
     }
 
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('name', 'Nazwa');
 
-        yield ChoiceField::new('gameType', 'Gra')
-            ->setChoices(['Jaka to melodia' => 'melodia', 'Koło fortuny' => 'kolo', 'Kalambury' => 'kalambury'])
-            // Zmiana gry pod istniejacymi pozycjami zrobilaby kategorie
-            // z utworami, ktora udaje zestaw hasel - pozycje zostalyby sierotami.
+        yield ChoiceField::new('kind', 'Rodzaj treści')
+            ->setChoices(ContentTypes::kindChoices())
+            // Zmiana rodzaju pod istniejacymi pozycjami zrobilaby kategorie
+            // z nagraniami, ktora udaje slownik - pozycje zostalyby sierotami.
             ->setFormTypeOption('disabled', Crud::PAGE_EDIT === $pageName);
+
+        // Ktore gry moga po nia siegnac. Melodia ma dokladnie jednego odbiorce,
+        // wiec przy nagraniach to pole nic nie zmienia - pilnuje tego encja.
+        yield ChoiceField::new('games', 'Gry')
+            ->setChoices(ContentTypes::phraseGameChoices())
+            ->allowMultipleChoices()
+            ->renderExpanded();
 
         // Slug jest kluczem naturalnym: siedzi w sciezkach wgranych plikow
         // i w stanie trwajacej rozgrywki. Pokazujemy go, ale nikt go nie edytuje.
@@ -52,7 +60,7 @@ class CategoryCrudController extends AbstractCrudController
      */
     public function createEntity(string $entityFqcn): Category
     {
-        return new Category('', '', 'melodia');
+        return new Category('', '', Category::KIND_HASLA, ContentTypes::phraseGames());
     }
 
     /**

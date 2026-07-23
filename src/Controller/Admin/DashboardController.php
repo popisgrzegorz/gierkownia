@@ -54,8 +54,8 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::section('Treści');
         yield MenuItem::linkTo(CategoryCrudController::class, 'Kategorie', 'fa fa-folder');
         yield MenuItem::linkTo(TrackCrudController::class, 'Nagrania', 'fa fa-music');
-        yield MenuItem::linkTo(PuzzleWordCrudController::class, 'Hasła do koła', 'fa fa-font');
-        yield MenuItem::linkTo(CharadeCardCrudController::class, 'Karty kalambur', 'fa fa-masks-theater');
+        // Jeden slownik na wszystkie gry na slowa - patrz App\Entity\Phrase.
+        yield MenuItem::linkTo(PhraseCrudController::class, 'Słownik haseł', 'fa fa-font');
 
         yield MenuItem::section('Poza panelem');
         // Wgrywanie plikow zostalo w starym panelu - patrz komentarz klasy.

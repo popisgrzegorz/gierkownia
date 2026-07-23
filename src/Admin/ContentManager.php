@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin;
 
 use App\Entity\Category;
-use App\Entity\CharadeCard;
-use App\Entity\PuzzleWord;
+use App\Entity\Phrase;
 use App\Entity\Track;
 use App\Repository\CategoryRepository;
+use App\Repository\PhraseRepository;
 use App\Repository\TrackRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -26,27 +26,31 @@ final readonly class ContentManager
         private EntityManagerInterface $entityManager,
         private CategoryRepository $categories,
         private TrackRepository $tracks,
+        private PhraseRepository $phrases,
         private AudioUploader $uploader,
     ) {
     }
 
     /**
-     * Kategorie pogrupowane po grze - w takiej postaci pokazuje je panel.
+     * Kategorie pogrupowane po rodzaju tresci - w takiej postaci pokazuje je panel.
      *
      * @return array<string, list<Category>>
      */
-    public function byGame(): array
+    public function byKind(): array
     {
-        $grouped = array_fill_keys(ContentTypes::all(), []);
+        $grouped = array_fill_keys(ContentTypes::kinds(), []);
 
         foreach ($this->categories->findAllOrdered() as $category) {
-            $grouped[$category->getGameType()][] = $category;
+            $grouped[$category->getKind()][] = $category;
         }
 
         return $grouped;
     }
 
-    public function createCategory(string $name, string $gameType): Category
+    /**
+     * @param list<string> $games gry, ktore moga korzystac z kategorii
+     */
+    public function createCategory(string $name, string $kind, array $games = []): Category
     {
         $name = trim($name);
 
@@ -54,11 +58,11 @@ final readonly class ContentManager
             throw new ContentError('Podaj nazwę kategorii.');
         }
 
-        if (!ContentTypes::exists($gameType)) {
-            throw new ContentError('Nie znam takiej gry.');
+        if (!ContentTypes::exists($kind)) {
+            throw new ContentError('Nie znam takiego rodzaju treści.');
         }
 
-        $category = new Category($this->uniqueSlug($name), $name, $gameType);
+        $category = new Category($this->uniqueSlug($name), $name, $kind, $this->cleanGames($kind, $games));
         $this->entityManager->persist($category);
         $this->entityManager->flush();
 
@@ -79,6 +83,27 @@ final readonly class ContentManager
         $this->entityManager->flush();
     }
 
+    /**
+     * Ustawia, ktore gry moga siegac po te kategorie.
+     *
+     * Odebranie gry nie kasuje ani jednego hasla - kategoria po prostu znika
+     * z jej listy wyboru. Dzieki temu "Przyslowia" da sie w kazdej chwili
+     * wypuscic do kalambur i tak samo latwo cofnac.
+     *
+     * @param list<string> $games
+     */
+    public function setGames(Category $category, array $games): void
+    {
+        $clean = $this->cleanGames($category->getKind(), $games);
+
+        if ([] === $clean) {
+            throw new ContentError('Wybierz przynajmniej jedną grę - inaczej nikt tej kategorii nie zobaczy.');
+        }
+
+        $category->setGames($clean);
+        $this->entityManager->flush();
+    }
+
     /** Kasuje kategorie razem z pozycjami; pliki nagran znikaja z dysku. */
     public function deleteCategory(Category $category): void
     {
@@ -91,35 +116,33 @@ final readonly class ContentManager
     }
 
     /**
-     * Dodaje pozycje odpowiednia dla gry, do ktorej nalezy kategoria.
+     * Dodaje pozycje odpowiednia dla rodzaju kategorii.
      *
      * @param array<string, mixed> $data
      */
     public function addItem(Category $category, array $data, ?UploadedFile $file = null): void
     {
-        match ($category->getGameType()) {
-            'melodia' => $this->addTrack($category, $data, $file),
-            'kolo' => $this->addPuzzle($category, $data),
-            'kalambury' => $this->addCharade($category, $data),
-            default => throw new ContentError('Nie znam takiej gry.'),
+        match ($category->getKind()) {
+            Category::KIND_MELODIA => $this->addTrack($category, $data, $file),
+            Category::KIND_HASLA => $this->addPhrase($category, $data),
+            default => throw new ContentError('Nie znam takiego rodzaju treści.'),
         };
 
         $this->entityManager->flush();
     }
 
     /** @param array<string, mixed> $data */
-    public function updateItem(Track|PuzzleWord|CharadeCard $item, array $data): void
+    public function updateItem(Track|Phrase $item, array $data): void
     {
         match (true) {
             $item instanceof Track => $this->fillTrack($item, $data),
-            $item instanceof PuzzleWord => $this->fillPuzzle($item, $data),
-            default => $this->fillCharade($item, $data),
+            default => $this->fillPhrase($item, $data),
         };
 
         $this->entityManager->flush();
     }
 
-    public function deleteItem(Track|PuzzleWord|CharadeCard $item): void
+    public function deleteItem(Track|Phrase $item): void
     {
         if ($item instanceof Track) {
             $this->deleteAudioIfUnused($item);
@@ -159,63 +182,55 @@ final readonly class ContentManager
     }
 
     /** @param array<string, mixed> $data */
-    private function addPuzzle(Category $category, array $data): void
+    private function addPhrase(Category $category, array $data): void
     {
-        $phrase = $this->text($data, 'phrase') ?? throw new ContentError('Podaj hasło.');
-        $phrase = mb_strtoupper($phrase);
+        $text = $this->text($data, 'phrase') ?? throw new ContentError('Podaj hasło.');
 
-        if (!preg_match('/\p{L}/u', $phrase)) {
+        if (!preg_match('/\p{L}/u', $text)) {
             throw new ContentError('Hasło musi zawierać choć jedną literę.');
         }
 
-        foreach ($category->getPuzzles() as $existing) {
-            if ($existing->getPhrase() === $phrase) {
-                throw new ContentError('To hasło już jest w tej kategorii.');
-            }
+        // Porownanie bez wzgledu na rejestr: haslo trafia i do kola (wersaliki
+        // na planszy), i do kalambur (naturalny zapis dla aktora) - "Kot"
+        // i "KOT" to jedna i ta sama pozycja slownika.
+        if ($this->phrases->existsIn($category, $text)) {
+            throw new ContentError('To hasło już jest w tej kategorii.');
         }
 
-        $puzzle = new PuzzleWord($category, $phrase);
-        $puzzle->setHint($this->text($data, 'hint'));
-        $puzzle->setPosition($category->getPuzzles()->count());
+        $phrase = new Phrase($category, $text);
+        $phrase->setHint($this->text($data, 'hint'));
+        $phrase->setDifficulty($this->text($data, 'difficulty') ?? 'sredni');
+        $phrase->setPosition($category->getPhrases()->count());
 
-        $this->entityManager->persist($puzzle);
+        $this->entityManager->persist($phrase);
     }
 
     /** @param array<string, mixed> $data */
-    private function fillPuzzle(PuzzleWord $puzzle, array $data): void
+    private function fillPhrase(Phrase $phrase, array $data): void
     {
-        $phrase = $this->text($data, 'phrase');
-
-        if (null !== $phrase) {
-            $puzzle->setPhrase(mb_strtoupper($phrase));
-        }
-
-        $puzzle->setHint($this->text($data, 'hint'));
+        $phrase->setPhrase($this->text($data, 'phrase') ?? $phrase->getPhrase());
+        $phrase->setHint($this->text($data, 'hint'));
+        $phrase->setDifficulty($this->text($data, 'difficulty') ?? $phrase->getDifficulty());
     }
 
-    /** @param array<string, mixed> $data */
-    private function addCharade(Category $category, array $data): void
+    /**
+     * Odsiewa gry, ktore nie pasuja do rodzaju tresci.
+     *
+     * Kategoria z nagraniami nie ma czego szukac w kalamburach - a gdyby tam
+     * trafila, host wybralby zestaw, z ktorego nie da sie wylosowac hasla.
+     *
+     * @param list<string> $games
+     *
+     * @return list<string>
+     */
+    private function cleanGames(string $kind, array $games): array
     {
-        $word = $this->text($data, 'word') ?? throw new ContentError('Podaj hasło do pokazania.');
+        $allowed = ContentTypes::gamesForKind($kind);
+        $clean = array_values(array_intersect($games, $allowed));
 
-        foreach ($category->getCharades() as $existing) {
-            if (0 === strcasecmp($existing->getWord(), $word)) {
-                throw new ContentError('Ta karta już jest w tej kategorii.');
-            }
-        }
-
-        $card = new CharadeCard($category, $word);
-        $card->setDifficulty($this->text($data, 'difficulty') ?? 'sredni');
-        $card->setPosition($category->getCharades()->count());
-
-        $this->entityManager->persist($card);
-    }
-
-    /** @param array<string, mixed> $data */
-    private function fillCharade(CharadeCard $card, array $data): void
-    {
-        $card->setWord($this->text($data, 'word') ?? $card->getWord());
-        $card->setDifficulty($this->text($data, 'difficulty') ?? $card->getDifficulty());
+        // Kategoria z nagraniami ma dokladnie jednego odbiorce - nie ma o czym
+        // decydowac, wiec panel o to nie pyta.
+        return Category::KIND_MELODIA === $kind ? ['melodia'] : $clean;
     }
 
     /**

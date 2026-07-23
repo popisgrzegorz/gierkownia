@@ -29,16 +29,16 @@ final class ContentManagerTest extends DoctrineTestCase
 
     public function testCreatingACategoryBuildsASlugFromTheName(): void
     {
-        $category = $this->content->createCategory('Piosenki na lato', 'melodia');
+        $category = $this->content->createCategory('Piosenki na lato', Category::KIND_MELODIA);
 
         self::assertSame('piosenki-na-lato', $category->getSlug());
         self::assertSame('Piosenki na lato', $category->getName());
-        self::assertSame('melodia', $category->getGameType());
+        self::assertSame(Category::KIND_MELODIA, $category->getKind());
     }
 
     public function testPolishCharactersSurviveInTheSlug(): void
     {
-        $category = $this->content->createCategory('Zażółć gęślą jaźń', 'kolo');
+        $category = $this->content->createCategory('Zażółć gęślą jaźń', Category::KIND_HASLA, ['kolo']);
 
         self::assertSame('zazolc-gesla-jazn', $category->getSlug());
     }
@@ -46,8 +46,8 @@ final class ContentManagerTest extends DoctrineTestCase
     /** Dwie kategorie o tej samej nazwie to normalna sytuacja, kolizja slugow nie. */
     public function testSecondCategoryWithTheSameNameGetsItsOwnSlug(): void
     {
-        $first = $this->content->createCategory('Na lato', 'melodia');
-        $second = $this->content->createCategory('Na lato', 'kolo');
+        $first = $this->content->createCategory('Na lato', Category::KIND_MELODIA);
+        $second = $this->content->createCategory('Na lato', Category::KIND_HASLA, ['kolo']);
 
         self::assertNotSame($first->getSlug(), $second->getSlug());
         self::assertSame('na-lato-2', $second->getSlug());
@@ -58,14 +58,65 @@ final class ContentManagerTest extends DoctrineTestCase
         $this->expectException(ContentError::class);
         $this->expectExceptionMessage('Podaj nazwę kategorii.');
 
-        $this->content->createCategory('   ', 'melodia');
+        $this->content->createCategory('   ', Category::KIND_MELODIA);
     }
 
-    public function testUnknownGameIsRefused(): void
+    public function testUnknownKindIsRefused(): void
     {
         $this->expectException(ContentError::class);
 
         $this->content->createCategory('Cokolwiek', 'szachy');
+    }
+
+    /**
+     * Sedno wspolnego slownika: jedna kategoria obsluguje kilka gier.
+     * Gdyby to przestalo dzialac, hasla znow trzeba by wpisywac dwa razy.
+     */
+    public function testOneCategoryCanServeSeveralGames(): void
+    {
+        $category = $this->content->createCategory('Bajki', Category::KIND_HASLA, ['kolo', 'kalambury']);
+
+        self::assertTrue($category->usableIn('kolo'));
+        self::assertTrue($category->usableIn('kalambury'));
+        self::assertContains($category->getSlug(), array_map(
+            static fn (Category $c): string => $c->getSlug(),
+            $this->categories->findForGame('kolo'),
+        ));
+        self::assertContains($category->getSlug(), array_map(
+            static fn (Category $c): string => $c->getSlug(),
+            $this->categories->findForGame('kalambury'),
+        ));
+    }
+
+    /** Gra, ktora nie pasuje do rodzaju tresci, nie ma prawa sie przykleic. */
+    public function testRecordingCategoryIgnoresPhraseGames(): void
+    {
+        $category = $this->content->createCategory('Na lato', Category::KIND_MELODIA, ['kolo', 'kalambury']);
+
+        self::assertSame(['melodia'], $category->getGames());
+        self::assertFalse($category->usableIn('kolo'));
+    }
+
+    /** Odebranie gry to decyzja o widocznosci, nie o kasowaniu tresci. */
+    public function testTakingAGameAwayKeepsThePhrases(): void
+    {
+        $category = $this->content->createCategory('Bajki', Category::KIND_HASLA, ['kolo', 'kalambury']);
+        $this->content->addItem($category, ['phrase' => 'Kot w butach']);
+
+        $this->content->setGames($category, ['kolo']);
+
+        self::assertFalse($category->usableIn('kalambury'));
+        self::assertCount(1, $category->getPhrases());
+    }
+
+    public function testCategoryWithoutAnyGameIsRefused(): void
+    {
+        $category = $this->content->createCategory('Bajki', Category::KIND_HASLA, ['kolo']);
+
+        $this->expectException(ContentError::class);
+        $this->expectExceptionMessage('przynajmniej jedną grę');
+
+        $this->content->setGames($category, []);
     }
 
     /**
@@ -74,7 +125,7 @@ final class ContentManagerTest extends DoctrineTestCase
      */
     public function testRenamingKeepsTheSlug(): void
     {
-        $category = $this->content->createCategory('Na lato', 'melodia');
+        $category = $this->content->createCategory('Na lato', Category::KIND_MELODIA);
 
         $this->content->renameCategory($category, 'Letnie przeboje');
 
@@ -82,21 +133,26 @@ final class ContentManagerTest extends DoctrineTestCase
         self::assertSame('na-lato', $category->getSlug());
     }
 
-    public function testPuzzlesAreStoredInUppercase(): void
+    /**
+     * Haslo zostaje tak, jak je wpisano - aktor kalambur dostaje je na telefon
+     * i "KOT W BUTACH" krzyczalby bez powodu. Wersaliki dokleja plansza kola.
+     */
+    public function testPhraseIsStoredAsTyped(): void
     {
-        $category = $this->content->createCategory('Powiedzenia', 'kolo');
+        $category = $this->content->createCategory('Powiedzenia', Category::KIND_HASLA, ['kolo']);
 
         $this->content->addItem($category, ['phrase' => 'Kasa kwiatowa', 'hint' => 'związek frazeologiczny']);
 
-        $puzzle = $category->getPuzzles()->first();
-        self::assertNotFalse($puzzle);
-        self::assertSame('KASA KWIATOWA', $puzzle->getPhrase());
-        self::assertSame('związek frazeologiczny', $puzzle->getHint());
+        $phrase = $category->getPhrases()->first();
+        self::assertNotFalse($phrase);
+        self::assertSame('Kasa kwiatowa', $phrase->getPhrase());
+        self::assertSame('KASA KWIATOWA', $phrase->forBoard());
+        self::assertSame('związek frazeologiczny', $phrase->getHint());
     }
 
-    public function testTheSamePuzzleCannotBeAddedTwice(): void
+    public function testTheSamePhraseCannotBeAddedTwice(): void
     {
-        $category = $this->content->createCategory('Powiedzenia', 'kolo');
+        $category = $this->content->createCategory('Powiedzenia', Category::KIND_HASLA, ['kolo']);
         $this->content->addItem($category, ['phrase' => 'Kasa kwiatowa']);
 
         $this->expectException(ContentError::class);
@@ -105,9 +161,9 @@ final class ContentManagerTest extends DoctrineTestCase
         $this->content->addItem($category, ['phrase' => 'kasa KWIATOWA']);
     }
 
-    public function testPuzzleWithoutLettersIsRefused(): void
+    public function testPhraseWithoutLettersIsRefused(): void
     {
-        $category = $this->content->createCategory('Powiedzenia', 'kolo');
+        $category = $this->content->createCategory('Powiedzenia', Category::KIND_HASLA, ['kolo']);
 
         $this->expectException(ContentError::class);
         $this->expectExceptionMessage('choć jedną literę');
@@ -115,33 +171,33 @@ final class ContentManagerTest extends DoctrineTestCase
         $this->content->addItem($category, ['phrase' => '123 !!!']);
     }
 
-    public function testCharadeCardKeepsItsDifficulty(): void
+    public function testPhraseKeepsItsDifficulty(): void
     {
-        $category = $this->content->createCategory('Na rozgrzewkę', 'kalambury');
+        $category = $this->content->createCategory('Na rozgrzewkę', Category::KIND_HASLA, ['kalambury']);
 
-        $this->content->addItem($category, ['word' => 'parasol', 'difficulty' => 'latwy']);
+        $this->content->addItem($category, ['phrase' => 'parasol', 'difficulty' => 'latwy']);
 
-        $card = $category->getCharades()->first();
-        self::assertNotFalse($card);
-        self::assertSame('parasol', $card->getWord());
-        self::assertSame('latwy', $card->getDifficulty());
+        $phrase = $category->getPhrases()->first();
+        self::assertNotFalse($phrase);
+        self::assertSame('parasol', $phrase->getPhrase());
+        self::assertSame('latwy', $phrase->getDifficulty());
     }
 
     /** Nieznany poziom trudnosci ma wpasc na bezpieczna wartosc, a nie do bazy. */
     public function testUnknownDifficultyFallsBackToMedium(): void
     {
-        $category = $this->content->createCategory('Na rozgrzewkę', 'kalambury');
+        $category = $this->content->createCategory('Na rozgrzewkę', Category::KIND_HASLA, ['kalambury']);
 
-        $this->content->addItem($category, ['word' => 'parasol', 'difficulty' => 'niemozliwy']);
+        $this->content->addItem($category, ['phrase' => 'parasol', 'difficulty' => 'niemozliwy']);
 
-        $card = $category->getCharades()->first();
-        self::assertNotFalse($card);
-        self::assertSame('sredni', $card->getDifficulty());
+        $phrase = $category->getPhrases()->first();
+        self::assertNotFalse($phrase);
+        self::assertSame('sredni', $phrase->getDifficulty());
     }
 
     public function testTrackWithoutAFileIsRefused(): void
     {
-        $category = $this->content->createCategory('Na lato', 'melodia');
+        $category = $this->content->createCategory('Na lato', Category::KIND_MELODIA);
 
         $this->expectException(ContentError::class);
         $this->expectExceptionMessage('Wybierz plik');
@@ -151,20 +207,20 @@ final class ContentManagerTest extends DoctrineTestCase
 
     public function testEditingAnItemChangesOnlyWhatWasSent(): void
     {
-        $category = $this->content->createCategory('Powiedzenia', 'kolo');
+        $category = $this->content->createCategory('Powiedzenia', Category::KIND_HASLA, ['kolo']);
         $this->content->addItem($category, ['phrase' => 'Kasa kwiatowa', 'hint' => 'stara podpowiedź']);
-        $puzzle = $category->getPuzzles()->first();
-        self::assertNotFalse($puzzle);
+        $phrase = $category->getPhrases()->first();
+        self::assertNotFalse($phrase);
 
-        $this->content->updateItem($puzzle, ['phrase' => 'Bułka z masłem', 'hint' => 'coś łatwego']);
+        $this->content->updateItem($phrase, ['phrase' => 'Bułka z masłem', 'hint' => 'coś łatwego']);
 
-        self::assertSame('BUŁKA Z MASŁEM', $puzzle->getPhrase());
-        self::assertSame('coś łatwego', $puzzle->getHint());
+        self::assertSame('Bułka z masłem', $phrase->getPhrase());
+        self::assertSame('coś łatwego', $phrase->getHint());
     }
 
     public function testDeletingACategoryTakesItsItemsWithIt(): void
     {
-        $category = $this->content->createCategory('Powiedzenia', 'kolo');
+        $category = $this->content->createCategory('Powiedzenia', Category::KIND_HASLA, ['kolo']);
         $this->content->addItem($category, ['phrase' => 'Kasa kwiatowa']);
         $slug = $category->getSlug();
 
@@ -173,19 +229,17 @@ final class ContentManagerTest extends DoctrineTestCase
         self::assertNull($this->categories->findOneBySlug($slug));
     }
 
-    public function testCategoriesAreGroupedByGame(): void
+    public function testCategoriesAreGroupedByKind(): void
     {
-        $this->content->createCategory('Na lato', 'melodia');
-        $this->content->createCategory('Powiedzenia', 'kolo');
+        $this->content->createCategory('Na lato', Category::KIND_MELODIA);
+        $this->content->createCategory('Powiedzenia', Category::KIND_HASLA, ['kolo']);
 
-        $grouped = $this->content->byGame();
+        $grouped = $this->content->byKind();
 
-        self::assertArrayHasKey('melodia', $grouped);
-        self::assertArrayHasKey('kolo', $grouped);
-        // Kalambury nie maja jeszcze modulu gry, ale tresci zbiera sie wczesniej.
-        self::assertArrayHasKey('kalambury', $grouped);
+        self::assertArrayHasKey(Category::KIND_MELODIA, $grouped);
+        self::assertArrayHasKey(Category::KIND_HASLA, $grouped);
         self::assertCount(1, array_filter(
-            $grouped['melodia'],
+            $grouped[Category::KIND_MELODIA],
             static fn (Category $c): bool => 'Na lato' === $c->getName(),
         ));
     }

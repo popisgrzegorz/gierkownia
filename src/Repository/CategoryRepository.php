@@ -22,26 +22,47 @@ class CategoryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Kategorie danej gry - do listy wyboru u hosta i w panelu.
+     * Kategorie, po ktore moze siegnac dana gra - do listy wyboru u hosta.
+     *
+     * Filtr idzie w PHP, a nie w SQL, bo lista gier siedzi w kolumnie JSON,
+     * a pytanie o zawieranie w JSON-ie wyglada inaczej w kazdym silniku bazy.
+     * Kategorii sa dziesiatki, nie miliony - a kod zostaje przenosny.
      *
      * @return list<Category>
      */
     public function findForGame(string $gameType): array
     {
-        return $this->createQueryBuilder('c')
-            ->andWhere('c.gameType = :type')
-            ->setParameter('type', $gameType)
-            ->orderBy('c.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        return array_values(array_filter(
+            $this->findAllOrdered(),
+            static fn (Category $category): bool => $category->usableIn($gameType),
+        ));
+    }
+
+    /** Kategoria po slugu, ale tylko jesli ta gra ma do niej prawo. */
+    public function findOneForGame(string $gameType, string $slug): ?Category
+    {
+        $category = $this->findOneBySlug($slug);
+
+        return null !== $category && $category->usableIn($gameType) ? $category : null;
     }
 
     /** @return list<Category> */
     public function findAllOrdered(): array
     {
         return $this->createQueryBuilder('c')
-            ->orderBy('c.gameType', 'ASC')
+            ->orderBy('c.kind', 'ASC')
             ->addOrderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** @return list<Category> */
+    public function findByKind(string $kind): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.kind = :kind')
+            ->setParameter('kind', $kind)
+            ->orderBy('c.name', 'ASC')
             ->getQuery()
             ->getResult();
     }

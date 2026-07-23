@@ -11,12 +11,10 @@ use App\Admin\ContentManager;
 use App\Admin\ContentTypes;
 use App\Admin\UploadFailed;
 use App\Entity\Category;
-use App\Entity\CharadeCard;
-use App\Entity\PuzzleWord;
+use App\Entity\Phrase;
 use App\Entity\Track;
 use App\Repository\CategoryRepository;
-use App\Repository\CharadeCardRepository;
-use App\Repository\PuzzleWordRepository;
+use App\Repository\PhraseRepository;
 use App\Repository\TrackRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -40,8 +38,7 @@ final class AdminController extends AbstractController
         private readonly ContentManager $content,
         private readonly CategoryRepository $categories,
         private readonly TrackRepository $tracks,
-        private readonly PuzzleWordRepository $puzzles,
-        private readonly CharadeCardRepository $charades,
+        private readonly PhraseRepository $phrases,
         private readonly AudioUploader $uploader,
     ) {
     }
@@ -84,8 +81,9 @@ final class AdminController extends AbstractController
         }
 
         return $this->render('admin/categories.html.twig', [
-            'byGame' => $this->content->byGame(),
-            'games' => ContentTypes::choices(),
+            'byKind' => $this->content->byKind(),
+            'kinds' => ContentTypes::kindChoices(),
+            'phraseGames' => ContentTypes::phraseGameChoices(),
         ]);
     }
 
@@ -99,7 +97,8 @@ final class AdminController extends AbstractController
         try {
             $category = $this->content->createCategory(
                 (string) $request->request->get('name', ''),
-                (string) $request->request->get('gameType', ''),
+                (string) $request->request->get('kind', ''),
+                $this->games($request),
             );
         } catch (ContentError $e) {
             $this->addFlash('error', $e->getMessage());
@@ -122,9 +121,10 @@ final class AdminController extends AbstractController
         return $this->render('admin/category.html.twig', [
             'category' => $category,
             'items' => $this->itemsOf($category),
-            'plural' => ContentTypes::plural($category->getGameType()),
-            'singular' => ContentTypes::singular($category->getGameType()),
-            'gameName' => ContentTypes::gameName($category->getGameType()),
+            'plural' => ContentTypes::plural($category->getKind()),
+            'singular' => ContentTypes::singular($category->getKind()),
+            'kindLabel' => ContentTypes::label($category->getKind()),
+            'phraseGames' => ContentTypes::phraseGameChoices(),
             'extensions' => $this->uploader->allowedExtensions(),
             'uploadLimit' => ini_get('upload_max_filesize') ?: '?',
         ]);
@@ -142,6 +142,23 @@ final class AdminController extends AbstractController
         try {
             $this->content->renameCategory($category, (string) $request->request->get('name', ''));
             $this->addFlash('success', 'Nazwa zmieniona.');
+        } catch (ContentError $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('admin_category', ['id' => $id]);
+    }
+
+    #[Route('/kategoria/{id}/gry', name: 'admin_category_games', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function categoryGames(Request $request, int $id): Response
+    {
+        if ($guard = $this->guard($request)) {
+            return $guard;
+        }
+
+        try {
+            $this->content->setGames($this->category404($id), $this->games($request));
+            $this->addFlash('success', 'Zapisano, które gry korzystają z tej kategorii.');
         } catch (ContentError $e) {
             $this->addFlash('error', $e->getMessage());
         }
@@ -243,19 +260,18 @@ final class AdminController extends AbstractController
         return $this->categories->find($id) ?? throw new NotFoundHttpException('Nie ma takiej kategorii.');
     }
 
-    private function item404(string $type, int $id): Track|PuzzleWord|CharadeCard
+    private function item404(string $type, int $id): Track|Phrase
     {
         $item = match ($type) {
             'melodia' => $this->tracks->find($id),
-            'kolo' => $this->puzzles->find($id),
-            'kalambury' => $this->charades->find($id),
+            'haslo' => $this->phrases->find($id),
             default => null,
         };
 
         return $item ?? throw new NotFoundHttpException('Nie ma takiej pozycji.');
     }
 
-    private function categoryIdOf(Track|PuzzleWord|CharadeCard $item): int
+    private function categoryIdOf(Track|Phrase $item): int
     {
         return $item->getCategory()->getId() ?? 0;
     }
@@ -274,14 +290,26 @@ final class AdminController extends AbstractController
         return $data;
     }
 
-    /** @return list<Track|PuzzleWord|CharadeCard> */
+    /** @return list<Track|Phrase> */
     private function itemsOf(Category $category): array
     {
-        return match ($category->getGameType()) {
-            'melodia' => array_values($category->getTracks()->toArray()),
-            'kolo' => array_values($category->getPuzzles()->toArray()),
-            'kalambury' => array_values($category->getCharades()->toArray()),
+        return match ($category->getKind()) {
+            Category::KIND_MELODIA => array_values($category->getTracks()->toArray()),
+            Category::KIND_HASLA => array_values($category->getPhrases()->toArray()),
             default => [],
         };
+    }
+
+    /**
+     * Zaznaczone gry z formularza - pole wielokrotnego wyboru przychodzi
+     * jako tablica, a moze nie przyjsc wcale.
+     *
+     * @return list<string>
+     */
+    private function games(Request $request): array
+    {
+        $raw = $request->request->all()['games'] ?? [];
+
+        return \is_array($raw) ? array_values(array_filter($raw, '\is_string')) : [];
     }
 }
