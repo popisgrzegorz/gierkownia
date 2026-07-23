@@ -58,8 +58,17 @@
                               enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label class="form-label" for="f-file">Plik</label>
-                                <input id="f-file" type="file" name="file" accept="audio/*"
-                                       class="form-control" required>
+                                <input id="f-file" type="file" name="file" accept="audio/*" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                {# Albo plik, albo link - nagranie spod adresu nie ląduje
+                                   na dysku, przeglądarka hosta pobiera je sama. #}
+                                <label class="form-label" for="f-link">…albo link zewnętrzny</label>
+                                <input id="f-link" name="sourceUrl" class="form-control" type="url"
+                                       placeholder="https://serwer.pl/nagranie.mp3">
+                                <small class="form-hint">
+                                    Wypełnij jedno z dwóch. Link musi zaczynać się od https://
+                                </small>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="f-title">Tytuł</label>
@@ -81,6 +90,7 @@
                         </form>
                         <p class="text-secondary small mt-3 mb-0">
                             Formaty: {{ extensions|join(', ') }}. Limit pliku: {{ uploadLimit }}.
+                            Listę linków hurtem wsypie <code>app:melodia:import</code>.
                         </p>
 
                     {% else %}
@@ -172,7 +182,7 @@
                             <thead>
                                 <tr>
                                     {% if category.kind == 'melodia' %}
-                                        <th>Tytuł</th><th>Wykonawca</th><th class="w-1">Start</th><th>Plik</th>
+                                        <th>Tytuł</th><th>Wykonawca</th><th class="w-1">Start</th><th>Plik lub link</th>
                                     {% else %}
                                         <th>Hasło</th><th>Podpowiedź</th><th style="width: 8rem">Trudność</th>
                                     {% endif %}
@@ -196,9 +206,19 @@
                                                        value="{{ item.startAt }}" class="form-control form-control-sm"
                                                        aria-label="Start w sekundach">
                                             </td>
-                                            <td class="text-secondary text-truncate" style="max-width: 12rem"
-                                                title="{{ item.path }}">
-                                                {{ item.path|split('/')|last }}
+                                            <td class="text-truncate" style="max-width: 16rem">
+                                                {% if item.isExternal %}
+                                                    {# Link da się poprawić w miejscu - źródło potrafi
+                                                       przenieść nagranie pod inny adres. #}
+                                                    <input form="save-{{ item.id }}" name="sourceUrl" type="url"
+                                                           value="{{ item.sourceUrl }}"
+                                                           class="form-control form-control-sm"
+                                                           aria-label="Link do nagrania">
+                                                {% else %}
+                                                    <span class="text-secondary" title="{{ item.path }}">
+                                                        {{ item.path|split('/')|last }}
+                                                    </span>
+                                                {% endif %}
                                             </td>
                                         {% else %}
                                             <td>

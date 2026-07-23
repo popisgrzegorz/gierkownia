@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Entity\Category;
 use App\Entity\Track;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -13,14 +14,16 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\UrlField;
 
 /**
- * Metryczka nagrania: tytul, wykonawca, sekunda startu.
+ * Metryczka nagrania: tytul, wykonawca, sekunda startu, zrodlo dzwieku.
  *
- * Bez dodawania - plik audio musi trafic na dysk pod slugiem kategorii, a tym
- * zajmuje sie AudioUploader w starym panelu (/admin). Tutaj mozna poprawiac
- * opisy i kasowac, ale nowe nagranie wgrywa sie tam, gdzie dziala kompletny
- * potok zapisu pliku.
+ * Zrodlem jest albo plik na dysku, albo adres zewnetrzny - nigdy oba naraz.
+ *
+ * Bez dodawania: plik audio musi trafic na dysk pod slugiem kategorii, a tym
+ * zajmuje sie AudioUploader w starym panelu (/admin). Nagranie z odnosnikiem
+ * dodaje ten sam panel albo komenda `app:melodia:import`.
  *
  * @extends AbstractCrudController<Track>
  */
@@ -50,7 +53,9 @@ class TrackCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield AssociationField::new('category', 'Kategoria')
-            ->setQueryBuilder(static fn (QueryBuilder $qb): QueryBuilder => $qb->andWhere('entity.gameType = :t')->setParameter('t', 'melodia'));
+            ->setQueryBuilder(static fn (QueryBuilder $qb): QueryBuilder => $qb
+                ->andWhere('entity.kind = :kind')
+                ->setParameter('kind', Category::KIND_MELODIA));
 
         yield TextField::new('title', 'Tytuł');
         yield TextField::new('artist', 'Wykonawca');
@@ -60,6 +65,10 @@ class TrackCrudController extends AbstractCrudController
         yield IntegerField::new('startAt', 'Start (s)');
 
         yield TextField::new('path', 'Plik')->onlyOnIndex();
+
+        // Adres da sie poprawic, gdy zrodlo przeniesie nagranie pod inny link -
+        // inaczej jedyna droga byloby skasowanie i ponowny import.
+        yield UrlField::new('sourceUrl', 'Link zewnętrzny')->setRequired(false);
         yield IntegerField::new('position', 'Kolejność')->onlyOnForms();
     }
 }

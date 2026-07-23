@@ -18,3 +18,6 @@
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+# Listy nagrań wyciągnięte parserem - dane cudzego katalogu, nie nasz kod.
+/*.txt

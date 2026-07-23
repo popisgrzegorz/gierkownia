@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Game\Melodia;
 
 use App\Core\Buzzer\BuzzerArbiter;
+use App\Content\TrackDeck;
 use App\Core\Game\AbstractGame;
 use App\Core\Game\Actor;
 use App\Core\Game\GameDefinition;
@@ -32,7 +33,7 @@ final class MelodiaGame extends AbstractGame
         GameState $gameState,
         private readonly BuzzerArbiter $buzzer,
         private readonly Scoreboard $scoreboard,
-        private readonly MelodiaPlaylist $playlist,
+        private readonly TrackDeck $playlist,
     ) {
         parent::__construct($fsm, $gameState);
     }
@@ -106,7 +107,9 @@ final class MelodiaGame extends AbstractGame
             // wylacznie na tej podstawie: 'track' nizej niesie tytul zawsze
             // (host go potrzebuje do oceny), ale telewizor oglada caly pokoj.
             'revealed' => $ctx['revealed'] ?? null,
-            'category' => $ctx['category'] ?? null,
+            // Zaznaczone kategorie - po nich ekran hosta poznaje, czy jest już
+            // co losować. Lista, bo wybór bywa mieszany.
+            'picked' => $this->picked($room),
             'categoryName' => $ctx['categoryName'] ?? null,
             'categories' => $this->playlist->availableCategories(),
             'trackNumber' => $ctx['trackNumber'] ?? 0,
@@ -137,7 +140,10 @@ final class MelodiaGame extends AbstractGame
     }
 
     /**
-     * Wybor kategorii. Zeruje liste zagranych utworow - nowa kategoria to nowa gra.
+     * Wybor kategorii. Zeruje liste zagranych utworow - nowy wybor to nowa gra.
+     *
+     * Kategorii moze byc kilka: host miesza "Hity" z "Dance", zeby wieczor nie
+     * brzmial jednostajnie. Nagrania losuja sie wtedy ze wspolnej puli.
      *
      * @param array<string, mixed> $payload
      *
@@ -147,16 +153,16 @@ final class MelodiaGame extends AbstractGame
     {
         $actor->requireHost();
 
-        $slug = $payload['category'] ?? null;
+        $slugs = $this->playlist->known($this->slugs($payload));
 
-        if (!\is_string($slug) || !$this->playlist->categoryExists($slug)) {
+        if ([] === $slugs) {
             throw new IllegalActionException('Nie ma takiej kategorii.');
         }
 
         $this->patchCtx($room, [
-            'category' => $slug,
-            'categoryName' => $this->playlist->categoryName($slug),
-            'trackTotal' => $this->playlist->countTracks($slug),
+            'categories' => $slugs,
+            'categoryName' => $this->playlist->name($slugs),
+            'trackTotal' => $this->playlist->countTracks($slugs),
             'trackNumber' => 0,
             '_trackId' => null,
             '_played' => [],
@@ -164,9 +170,36 @@ final class MelodiaGame extends AbstractGame
         ]);
 
         return [Message::broadcast(new Event('category_picked', [
-            'categoryName' => $this->playlist->categoryName($slug),
-            'tracks' => $this->playlist->countTracks($slug),
+            'categoryName' => $this->playlist->name($slugs),
+            'tracks' => $this->playlist->countTracks($slugs),
         ]))];
+    }
+
+    /**
+     * Wybor kategorii z zadania. Pojedynczy `category` zostaje obslugiwany:
+     * tak strzela przycisk fizyczny i tak wygladaja starsze zapisy w Redisie.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return list<string>
+     */
+    private function slugs(array $payload): array
+    {
+        $raw = $payload['categories'] ?? $payload['category'] ?? null;
+
+        if (\is_string($raw)) {
+            return '' === $raw ? [] : [$raw];
+        }
+
+        return \is_array($raw) ? array_values(array_filter($raw, '\is_string')) : [];
+    }
+
+    /** @return list<string> */
+    private function picked(Room $room): array
+    {
+        $slugs = $this->ctx($room)['categories'] ?? null;
+
+        return \is_array($slugs) ? array_values(array_filter($slugs, '\is_string')) : [];
     }
 
     /**
@@ -180,14 +213,14 @@ final class MelodiaGame extends AbstractGame
         $actor->requireHost();
 
         $ctx = $this->ctx($room);
-        $category = $ctx['category'] ?? null;
+        $picked = $this->picked($room);
 
-        if (!\is_string($category)) {
+        if ([] === $picked) {
             throw new IllegalActionException('Najpierw wybierz kategorie.');
         }
 
         $played = \is_array($ctx['_played'] ?? null) ? array_values(array_filter($ctx['_played'], \is_int(...))) : [];
-        $track = $this->playlist->drawNext($category, $played);
+        $track = $this->playlist->drawNext($picked, $played);
 
         if (null === $track) {
             throw new IllegalActionException('Kategoria sie skonczyla - wybierz inna albo zrestartuj gre.');
@@ -304,11 +337,16 @@ final class MelodiaGame extends AbstractGame
             $this->scoreboard->add($room->code, $buzz['teamId'], $points);
         }
 
-        return [Message::broadcast(new Event('judged', [
+        $messages = [Message::broadcast(new Event('judged', [
             'teamId' => $buzz['teamId'],
             'teamName' => $buzz['teamName'] ?? null,
             'correct' => $correct,
         ]))];
+
+        // Trafiona odpowiedz konczy zagadke, wiec tytul moze wyjsc na ekran
+        // od razu - i tak wszyscy go wlasnie uslyszeli. Przy zlej odpowiedzi
+        // nie odslaniamy niczego: utwor wraca dla pozostalych druzyn (rearm).
+        return $correct ? [...$messages, ...$this->reveal($room)] : $messages;
     }
 
     /**

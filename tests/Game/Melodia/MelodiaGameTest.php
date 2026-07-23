@@ -22,7 +22,7 @@ use App\Core\Score\Scoreboard;
 use App\Entity\Category;
 use App\Entity\Track;
 use App\Game\Melodia\MelodiaGame;
-use App\Game\Melodia\MelodiaPlaylist;
+use App\Content\TrackDeck;
 use App\Repository\CategoryRepository;
 use App\Repository\TrackRepository;
 use App\Tests\DoctrineTestCase;
@@ -86,7 +86,7 @@ final class MelodiaGameTest extends DoctrineTestCase
         $categories = self::getContainer()->get(CategoryRepository::class);
         $tracks = self::getContainer()->get(TrackRepository::class);
 
-        $melodia = new MelodiaGame($fsm, $this->gameState, $this->buzzer, $this->scoreboard, new MelodiaPlaylist($categories, $tracks));
+        $melodia = new MelodiaGame($fsm, $this->gameState, $this->buzzer, $this->scoreboard, new TrackDeck($categories, $tracks));
 
         $this->engine = new GameEngine(
             new GameRegistry([$melodia]),
@@ -260,6 +260,48 @@ final class MelodiaGameTest extends DoctrineTestCase
         self::assertGreaterThan($firstRound, $this->buzzer->currentRound($this->room->code));
     }
 
+    /**
+     * Zagadka rozwiazana - tytul idzie na ekran od razu, bez czekania
+     * na zamkniecie rundy. Wczesniej host widzial pusty ekran i musial
+     * powiedziec na glos, co to bylo.
+     */
+    public function testCorrectAnswerRevealsArtistAndTitle(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        // Ktory z dwoch utworow padl, decyduje losowanie - porownujemy
+        // z tym, co host ma w widoku, a nie ze sztywnym tytulem.
+        $track = $this->engine->hostView($this->room)['track'];
+
+        self::assertIsArray($track);
+
+        $mark = \count($this->published);
+        $this->host('judge', ['correct' => true]);
+
+        $revealed = $this->engine->hostView($this->room)['revealed'];
+
+        self::assertIsArray($revealed);
+        self::assertSame($track['title'], $revealed['title']);
+        self::assertSame($track['artist'], $revealed['artist']);
+
+        // Telefony tez maja prawo wiedziec, co leciało.
+        self::assertSame($track['title'], $this->eventSince($mark, 'track_revealed')['title']);
+    }
+
+    /**
+     * Zla odpowiedz nie odslania niczego - utwor wraca dla pozostalych druzyn,
+     * a odslonietego tytulu nie dalo by sie juz schowac.
+     */
+    public function testWrongAnswerKeepsTheTitleHidden(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+
+        self::assertNull($this->engine->hostView($this->room)['revealed']);
+    }
+
     /** Nikt nie zabuzzowal - bez tego pokoj zostalby uzbrojony na zawsze. */
     public function testHostCanAbortARoundNobodyAnswered(): void
     {
@@ -363,6 +405,25 @@ final class MelodiaGameTest extends DoctrineTestCase
     private function team(Team $team, string $action, array $payload = []): void
     {
         $this->engine->handle($this->room, $action, $payload, Actor::team($team));
+    }
+
+    /**
+     * Event danego typu wsrod opublikowanych po znaczniku. Rdzen doklada
+     * wlasny event zmiany fazy, wiec nasz nie jest jedyny.
+     *
+     * @return array<string, mixed>
+     */
+    private function eventSince(int $mark, string $type): array
+    {
+        foreach (\array_slice($this->published, $mark) as $update) {
+            $payload = $this->decode($update->getData());
+
+            if (($payload['type'] ?? null) === $type) {
+                return $payload;
+            }
+        }
+
+        self::fail(sprintf('Nie znalazlem eventu "%s".', $type));
     }
 
     private function onlyUpdateSince(int $mark): Update

@@ -152,25 +152,56 @@ final readonly class ContentManager
         $this->entityManager->flush();
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * Dodaje nagranie: albo wgrany plik, albo odnosnik do cudzego serwera.
+     *
+     * @param array<string, mixed> $data
+     */
     private function addTrack(Category $category, array $data, ?UploadedFile $file): void
     {
-        if (null === $file) {
-            throw new ContentError('Wybierz plik z nagraniem.');
+        $link = $this->text($data, 'sourceUrl');
+
+        if (null === $file && null === $link) {
+            throw new ContentError('Wybierz plik z nagraniem albo podaj link.');
         }
 
-        $path = $this->uploader->store($file, $category);
+        if (null !== $file) {
+            $path = $this->uploader->store($file, $category);
 
-        $track = new Track(
-            $category,
-            $path,
-            $this->text($data, 'title') ?? pathinfo($path, \PATHINFO_FILENAME),
-            $this->text($data, 'artist') ?? 'Nieznany',
-        );
+            $track = new Track(
+                $category,
+                $path,
+                $this->text($data, 'title') ?? pathinfo($path, \PATHINFO_FILENAME),
+                $this->text($data, 'artist') ?? 'Nieznany',
+            );
+        } else {
+            $track = Track::fromUrl(
+                $category,
+                $this->url($link),
+                $this->text($data, 'title') ?? 'Nagranie',
+                $this->text($data, 'artist') ?? 'Nieznany',
+            );
+        }
+
         $track->setStartAt($this->int($data, 'startAt'));
         $track->setPosition($category->getTracks()->count());
 
         $this->entityManager->persist($track);
+    }
+
+    /**
+     * Odnosnik do nagrania. Wpisany bez schematu ("www.cos.pl/x.mp3") trafilby
+     * do atrybutu src jako sciezka wzgledna naszej strony i nic by nie zagral.
+     */
+    private function url(string $value): string
+    {
+        $value = trim($value);
+
+        if (!preg_match('#^https?://#i', $value) || false === filter_var($value, \FILTER_VALIDATE_URL)) {
+            throw new ContentError('Link do nagrania musi zaczynać się od http:// albo https://');
+        }
+
+        return $value;
     }
 
     /** @param array<string, mixed> $data */
@@ -179,6 +210,14 @@ final readonly class ContentManager
         $track->setTitle($this->text($data, 'title') ?? $track->getTitle());
         $track->setArtist($this->text($data, 'artist') ?? $track->getArtist());
         $track->setStartAt($this->int($data, 'startAt'));
+
+        // Odnosnik podmieniamy tylko utworom, ktore juz nim stoja - wpisanie go
+        // przy nagraniu z dysku dalo by utwor z dwoma zrodlami dzwieku.
+        $link = $this->text($data, 'sourceUrl');
+
+        if (null !== $link && $track->isExternal()) {
+            $track->setSourceUrl($this->url($link));
+        }
     }
 
     /** @param array<string, mixed> $data */
@@ -240,8 +279,15 @@ final readonly class ContentManager
      */
     private function deleteAudioIfUnused(Track $track): void
     {
-        if (1 >= $this->tracks->countByPath($track->getPath())) {
-            $this->uploader->delete($track->getPath());
+        $path = $track->getPath();
+
+        // Nagranie z sieci nie ma naszego pliku - nie ma czego kasowac.
+        if (null === $path) {
+            return;
+        }
+
+        if (1 >= $this->tracks->countByPath($path)) {
+            $this->uploader->delete($path);
         }
     }
 
