@@ -9,7 +9,7 @@ import { Controller } from '@hotwired/stimulus';
  */
 export default class extends Controller {
     static targets = ['categoryPicker', 'categorySelect', 'progress', 'board', 'turn',
-        'answer', 'event', 'controls', 'hint', 'clock', 'clockValue', 'timeRow', 'seconds'];
+        'answer', 'event', 'controls', 'hint', 'clock', 'clockValue', 'timeRow', 'seconds', 'mime'];
     static values = { actionUrl: String, viewUrl: String };
 
     connect() {
@@ -63,7 +63,7 @@ export default class extends Controller {
         }
 
         if (['phase', 'timer', 'card_drawn', 'card_skipped', 'round_over', 'turn',
-            'category_picked', 'team_joined', 'reset'].includes(event.type)) {
+            'hint', 'category_picked', 'team_joined', 'reset'].includes(event.type)) {
             if ('team_joined' === event.type) {
                 this.teams.set(event.team.id, event.team.name);
             }
@@ -92,29 +92,82 @@ export default class extends Controller {
             : '';
 
         this.timeRowTarget.hidden = 'drawn' !== view.state;
+
+        // Ludzik macha tylko w trakcie pokazywania - poza rundą stoi.
+        if (this.hasMimeTarget) {
+            this.mimeTarget.classList.toggle('acting', 'acting' === view.state);
+        }
         this.#syncClock(view);
         this.#renderControls(view);
     }
 
+    /**
+     * Kształt hasła: ile wyrazów i ile znaków. Kafelek ma dwie strony, tak jak
+     * w kole - zakrytą i literę na odwrocie. W kalamburach odwraca się tylko
+     * jedna, po kole ratunkowym, i wtedy ten obrót ma być widoczny.
+     *
+     * Dlatego plansza przebudowuje się wyłącznie przy nowym haśle: pełna
+     * przebudowa po podpowiedzi wstawiłaby literę bez ruchu.
+     */
     #renderBoard(mask) {
         if (!mask) {
             this.boardTarget.replaceChildren();
+            this.mask = '';
 
             return;
         }
 
-        this.boardTarget.replaceChildren(...[...mask].map((char) => {
-            const cell = document.createElement('span');
-            cell.className = 'puzzle-cell';
+        if (this.mask?.length !== mask.length) {
+            this.mask = mask;
+            this.boardTarget.replaceChildren(...[...mask].map((char) => this.#cell(char)));
 
-            if (' ' === char) {
-                cell.classList.add('puzzle-space');
-            } else {
-                cell.classList.add('puzzle-hidden');
+            return;
+        }
+
+        [...mask].forEach((char, index) => {
+            if (char === this.mask[index]) {
+                return;
             }
 
+            const inner = this.boardTarget.children[index]?.querySelector('.cell-inner');
+
+            if (inner) {
+                inner.querySelector('.cell-front').textContent = char;
+                inner.classList.add('revealed');
+            }
+        });
+
+        this.mask = mask;
+    }
+
+    #cell(char) {
+        const cell = document.createElement('span');
+        cell.className = 'puzzle-cell';
+
+        if (' ' === char) {
+            cell.classList.add('puzzle-space');
+
             return cell;
-        }));
+        }
+
+        const inner = document.createElement('span');
+        inner.className = 'cell-inner';
+
+        const back = document.createElement('span');
+        back.className = 'cell-face cell-back';
+
+        const front = document.createElement('span');
+        front.className = 'cell-face cell-front';
+
+        if ('_' !== char) {
+            front.textContent = char;
+            inner.classList.add('revealed');
+        }
+
+        inner.append(back, front);
+        cell.append(inner);
+
+        return cell;
     }
 
     #syncClock(view) {
@@ -167,6 +220,17 @@ export default class extends Controller {
             return button;
         });
 
+        // Koło ratunkowe: jedna litera na rundę, więc przycisk znika po użyciu.
+        if (['drawn', 'acting'].includes(view.state) && !view.hintUsed) {
+            const lifeline = document.createElement('button');
+            lifeline.type = 'button';
+            lifeline.className = 'btn btn-lg btn-lifeline';
+            lifeline.textContent = '🛟 Koło ratunkowe';
+            lifeline.dataset.kalamburyAction = 'hint';
+            lifeline.dataset.action = 'kalambury-host#act';
+            nodes.push(lifeline);
+        }
+
         // W trakcie pokazywania host klika drużynę, która odgadła - punkt
         // dostają zgadujący i pokazujący, więc wskazanie musi być jawne.
         if ('acting' === view.state) {
@@ -188,7 +252,9 @@ export default class extends Controller {
         this.hintTarget.textContent = {
             idle: view.category ? 'Wylosuj hasło dla pokazującej drużyny.' : 'Wybierz kategorię.',
             drawn: 'Hasło poszło na telefon aktora. Ustaw czas i startuj.',
-            acting: 'Kliknij drużynę, która odgadła.',
+            acting: view.hintUsed
+                ? 'Kliknij drużynę, która odgadła.'
+                : 'Kliknij drużynę, która odgadła. Utknęli? Koło ratunkowe odsłoni pierwszą literę.',
             guessed: 'Odgadnięte.',
             timeout: 'Czas minął — nikt nie odgadł.',
         }[view.state] ?? '';

@@ -91,6 +91,7 @@ final class KalamburyGame extends AbstractGame
         return match ($action) {
             'pick_category' => $this->pickCategory($room, $payload, $actor),
             'next_card' => $this->nextCard($room, $actor),
+            'hint' => $this->hint($room, $actor),
             'start' => $this->start($room, $payload, $actor),
             'guessed' => $this->guessed($room, $payload, $actor),
             'timeout' => $this->timeout($room, $actor),
@@ -125,6 +126,7 @@ final class KalamburyGame extends AbstractGame
             '_played' => [],
             '_word' => null,
             'mask' => null,
+            'hintUsed' => false,
             'seconds' => self::DEFAULT_SECONDS,
         ]);
 
@@ -168,6 +170,8 @@ final class KalamburyGame extends AbstractGame
             '_word' => $word,
             '_played' => $played,
             'mask' => $mask,
+            // Kolo ratunkowe wraca z kazda nowa karta.
+            'hintUsed' => false,
             'difficulty' => $card->getDifficulty(),
             'cardNumber' => \count($played),
         ]);
@@ -188,6 +192,112 @@ final class KalamburyGame extends AbstractGame
         }
 
         return $messages;
+    }
+
+    /**
+     * Kolo ratunkowe: odslania pierwsza litere hasla.
+     *
+     * Raz na runde i tylko ta jedna litera - druga podpowiedz zamienilaby
+     * kalambury w zgadywanke z plansza, a caly sens jest w pokazywaniu.
+     * Punktacja zostaje bez zmian: przy stole i tak o podpowiedz prosi ten,
+     * kto juz utknal, a odejmowanie punktow tylko przedluza spor.
+     *
+     * @return list<Message>
+     */
+    private function hint(Room $room, Actor $actor): array
+    {
+        $actor->requireHost();
+
+        if (!\in_array($this->state($room), ['drawn', 'acting'], true)) {
+            throw new IllegalActionException('Koło ratunkowe działa tylko przy odgadywanym haśle.');
+        }
+
+        $ctx = $this->ctx($room);
+
+        if (true === ($ctx['hintUsed'] ?? false)) {
+            throw new IllegalActionException('Koło ratunkowe zostało już użyte w tej rundzie.');
+        }
+
+        $word = $ctx['_word'] ?? null;
+        $mask = $ctx['mask'] ?? null;
+
+        if (!\is_string($word) || !\is_string($mask)) {
+            throw new IllegalActionException('Najpierw wylosuj hasło.');
+        }
+
+        $revealed = $this->firstLetterRevealed($word, $mask);
+
+        $this->patchCtx($room, ['mask' => $revealed, 'hintUsed' => true]);
+
+        return [Message::broadcast(new Event('hint', ['mask' => $revealed]))];
+    }
+
+    /**
+     * Odslania w masce pierwsza litere hasla - tylko ja, nie wszystkie jej
+     * wystapienia. W kole podana litera wychodzi wszedzie, bo tam ktos ja
+     * zgadl; tu jest to podpowiedz, a nie trafienie.
+     *
+     * Maska ma dokladnie tyle znakow, co haslo (PuzzleBoard przepisuje spacje
+     * i interpunkcje jeden do jednego), wiec pozycje sa wspolne.
+     */
+    private function firstLetterRevealed(string $word, string $mask): string
+    {
+        $letters = mb_str_split(mb_strtoupper($word));
+        $chars = mb_str_split($mask);
+        $position = $this->firstHintPosition($chars);
+
+        if (null !== $position) {
+            $chars[$position] = $letters[$position] ?? $chars[$position];
+        }
+
+        return implode('', $chars);
+    }
+
+    /**
+     * Pozycja litery do odsloniecia: pierwsza w pierwszym wyrazie **dluzszym
+     * niz jedna litera**.
+     *
+     * Jednoliterowy wyraz to spojnik albo przyimek ("w", "i", "z"). Odslonienie
+     * go oddaje calutki wyraz i nie mowi nic o hasle - a to jedyna podpowiedz,
+     * jaka druzyna dostaje w calej rundzie.
+     *
+     * @param list<string> $chars
+     */
+    private function firstHintPosition(array $chars): ?int
+    {
+        $fallback = null;
+        $wordStart = null;
+        $wordLength = 0;
+
+        // Wyraz konczy sie na spacji albo na koncu hasla - stad dodatkowy
+        // obieg petli po ostatnim znaku.
+        for ($i = 0, $n = \count($chars); $i <= $n; ++$i) {
+            $char = $chars[$i] ?? ' ';
+
+            if (' ' !== $char) {
+                ++$wordLength;
+
+                if (null === $wordStart && '_' === $char) {
+                    $wordStart = $i;
+                }
+
+                continue;
+            }
+
+            if (null !== $wordStart) {
+                $fallback ??= $wordStart;
+
+                if (1 < $wordLength) {
+                    return $wordStart;
+                }
+            }
+
+            $wordStart = null;
+            $wordLength = 0;
+        }
+
+        // Same jednoliterowe wyrazy - lepiej odslonic cokolwiek niz nic.
+        return $fallback;
     }
 
     /**
@@ -348,6 +458,7 @@ final class KalamburyGame extends AbstractGame
             'cardNumber' => $ctx['cardNumber'] ?? 0,
             'cardTotal' => $ctx['cardTotal'] ?? 0,
             'mask' => $ctx['mask'] ?? null,
+            'hintUsed' => true === ($ctx['hintUsed'] ?? false),
             'difficulty' => $ctx['difficulty'] ?? null,
             'seconds' => $ctx['seconds'] ?? self::DEFAULT_SECONDS,
             'turn' => $this->turns->current($room->code),

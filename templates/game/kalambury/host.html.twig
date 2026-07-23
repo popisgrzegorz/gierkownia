@@ -18,6 +18,26 @@
             <span class="clock-value" data-kalambury-host-target="clockValue">--</span>
         </div>
 
+        {# Ludzik pokazuje na migi przez cały czas rundy - macha rękami
+           i podskakuje. Ożywa dopiero po starcie, żeby ruch na ekranie znaczył
+           "gramy", a nie "strona się wczytała". #}
+        <div class="mime" data-kalambury-host-target="mime" aria-hidden="true">
+            <svg viewBox="0 0 120 160">
+                <circle class="mime-head" cx="60" cy="26" r="16" fill="none"
+                        stroke="currentColor" stroke-width="5"/>
+                <path class="mime-body" d="M60 42 V96" stroke="currentColor" stroke-width="5"
+                      stroke-linecap="round"/>
+                <path class="mime-arm-l" d="M60 56 L28 40" stroke="currentColor" stroke-width="5"
+                      stroke-linecap="round"/>
+                <path class="mime-arm-r" d="M60 56 L92 40" stroke="currentColor" stroke-width="5"
+                      stroke-linecap="round"/>
+                <path class="mime-leg-l" d="M60 96 L40 138" stroke="currentColor" stroke-width="5"
+                      stroke-linecap="round"/>
+                <path class="mime-leg-r" d="M60 96 L80 138" stroke="currentColor" stroke-width="5"
+                      stroke-linecap="round"/>
+            </svg>
+        </div>
+
         <p class="tip-card">
             <strong>Pokazuj bez słów.</strong> Hasło widzi tylko telefon aktora.
         </p>
