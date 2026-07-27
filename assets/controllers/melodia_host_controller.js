@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { sfx } from '../audio/sfx.js';
 
 /**
  * Panel "Jaka to melodia" na ekranie hosta.
@@ -73,6 +74,20 @@ export default class extends Controller {
         // rozstrzyga serwer i to jego wiadomość jest tu jedyną prawdą.
         if ('buzz' === event.type) {
             this.audioTarget.pause();
+        }
+
+        if ('judged' === event.type) {
+            // Oklaski wchodzą po dzwonku, a nie razem z nim - inaczej pierwsza
+            // nuta ginie w szumie i trafienie brzmi jak pomyłka.
+            sfx.play(event.correct ? 'correct' : 'wrong');
+
+            if (event.correct) {
+                sfx.play('applause', { delay: 0.55 });
+            }
+        }
+
+        if ('track_revealed' === event.type) {
+            sfx.play('reveal');
         }
 
         if (['phase', 'buzz', 'judged', 'track_ready', 'category_picked', 'reset'].includes(event.type)) {

@@ -21,6 +21,10 @@ export default class extends Controller {
     connect() {
         this.offset = 0;
         this.timers = new Map();
+        // Kolejka wysyłek per rubryka: zmiany tej samej rubryki lecą po kolei,
+        // żeby krótszy (wcześniejszy) wpis nie nadpisał na serwerze dłuższego,
+        // gdyby dwa żądania minęły się w drodze.
+        this.sending = new Map();
 
         this.onEvent = (event) => this.#handle(event.detail);
         window.addEventListener('gierki:event', this.onEvent);
@@ -40,9 +44,19 @@ export default class extends Controller {
         const column = input.dataset.column;
 
         clearTimeout(this.timers.get(column));
-        this.timers.set(column, setTimeout(() => {
-            this.#send('answer', { column, text: input.value });
-        }, this.constructor.DEBOUNCE));
+
+        // Po STOP-ie liczy się każda sekunda: debounce zjadłby ostatnią literę
+        // wpisaną tuż przed twardym końcem rundy, więc wtedy wysyłamy od razu.
+        // Dopóki nikt nie nacisnął STOP, czasu jest dość - grupujemy zmiany
+        // debounce'em, żeby nie słać osobnego żądania na każdy znak.
+        if ('ending' === this.stateValue) {
+            this.timers.delete(column);
+            this.#queueAnswer(column, input.value);
+        } else {
+            this.timers.set(column, setTimeout(() => {
+                this.#queueAnswer(column, input.value);
+            }, this.constructor.DEBOUNCE));
+        }
 
         // Stan przycisku od razu, bez czekania na wysyłkę - inaczej STOP
         // odblokowywałby się pół sekundy po dopisaniu ostatniego słowa.
@@ -197,7 +211,24 @@ export default class extends Controller {
 
         await Promise.all(this.#inputs()
             .filter((input) => '' !== input.value.trim())
-            .map((input) => this.#send('answer', { column: input.dataset.column, text: input.value })));
+            .map((input) => this.#queueAnswer(input.dataset.column, input.value)));
+    }
+
+    /**
+     * Wysyła jedną rubrykę, ale ustawia wysyłki tej samej rubryki w ogonek:
+     * następna rusza dopiero, gdy poprzednia wróci. Bez tego dwa żądania z tego
+     * samego pola mogłyby dotrzeć w odwrotnej kolejności i krótszy wpis
+     * nadpisałby dłuższy - znów zniknęłaby ostatnia litera.
+     */
+    #queueAnswer(column, text) {
+        const previous = this.sending.get(column) ?? Promise.resolve();
+        const next = previous
+            .catch(() => {})
+            .then(() => this.#send('answer', { column, text }));
+
+        this.sending.set(column, next);
+
+        return next;
     }
 
     #startClock(deadline, serverNow) {
@@ -214,6 +245,9 @@ export default class extends Controller {
 
             if (0 === left) {
                 clearInterval(this.ticker);
+                // Dogoń wszystko, co jeszcze wisi w kolejce, zanim zamkniemy
+                // kartkę - ostatnie słowo nie może przepaść przez własny debounce.
+                this.#flushPending();
                 // Blokada pól jest tylko uprzejmością wobec gracza - o tym,
                 // co wejdzie, i tak rozstrzyga serwer.
                 this.stateValue = 'scoring';

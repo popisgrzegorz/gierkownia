@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { sfx } from '../audio/sfx.js';
 
 /**
  * Panel kalambur na ekranie hosta.
@@ -60,6 +61,21 @@ export default class extends Controller {
             this.#flash('guessed' === event.reason
                 ? `${event.teamName} odgaduje!`
                 : 'Czas minął');
+
+            // Przy wyczerpanym czasie nic tu nie gramy: rundę kończy zegar,
+            // a ten zdążył już zatrąbić końcem odliczania.
+            if ('guessed' === event.reason) {
+                sfx.play('correct');
+                sfx.play('applause', { delay: 0.55 });
+            }
+        }
+
+        if ('card_drawn' === event.type) {
+            sfx.play('whoosh');
+        }
+
+        if ('hint' === event.type) {
+            sfx.play('sparkle');
         }
 
         if (['phase', 'timer', 'card_drawn', 'card_skipped', 'round_over', 'turn',

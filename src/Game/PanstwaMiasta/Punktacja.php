@@ -74,23 +74,21 @@ final class Punktacja
         }
 
         foreach ($columns as $column) {
-            // Najpierw zliczamy, co w tej kolumnie w ogole sie liczy - bez tego
-            // nie da sie odroznic odpowiedzi unikalnej od powtorzonej.
+            // Klucz "to samo slowo" dla kazdej punktujacej odpowiedzi. Literowki
+            // tego samego panstwa dostaja ten sam klucz, wiec licza sie jak jedna
+            // odpowiedz - a to wlasnie rozstrzyga o 10 (unikat) kontra 5 (powtorka).
+            $keys = self::canonicalKeys($letter, $column, $answers, $overrides);
+
             $counts = [];
 
-            foreach ($answers as $teamId => $row) {
-                $text = $row[$column] ?? '';
-
-                if (null === self::problem($letter, $column, $text, $overrides[$teamId][$column] ?? null)) {
-                    $key = self::normalize($text);
-                    $counts[$key] = ($counts[$key] ?? 0) + 1;
-                }
+            foreach ($keys as $key) {
+                $counts[$key] = ($counts[$key] ?? 0) + 1;
             }
 
             foreach ($answers as $teamId => $row) {
                 $text = trim($row[$column] ?? '');
                 $override = $overrides[$teamId][$column] ?? null;
-                $cells[$teamId][$column] = self::cell($letter, $column, $text, $override, $counts);
+                $cells[$teamId][$column] = self::cell($letter, $column, $text, $override, $keys[$teamId] ?? null, $counts);
                 $totals[$teamId] += $cells[$teamId][$column]['points'];
             }
         }
@@ -99,11 +97,73 @@ final class Punktacja
     }
 
     /**
+     * Klucz porownania dla kazdej punktujacej odpowiedzi w kolumnie: teamId => klucz.
+     *
+     * Odpowiedzi, ktore nie punktuja (puste, zla litera, odrzucone), klucza nie
+     * dostaja - nie moga byc ani unikatem, ani powtorka.
+     *
+     * Sedno mechanizmu literowek: dwa zapisy tego samego slowa dostaja ten sam
+     * klucz. W rubrykach z wykazem (panstwo, miasto) prostujemy literowke do
+     * wpisu z wykazu - "Kanadaa" i "Kanda" obie zjezdzaja na "kanada". Tam, gdzie
+     * wykazu nie ma, laczymy zapisy miedzy druzynami: pierwsza zapisana forma
+     * staje sie wzorcem, a bliskie jej literowki podpinaja sie pod nia.
+     *
+     * @param array<string, array<string, string>> $answers   teamId => kolumna => tresc
+     * @param array<string, array<string, bool>>   $overrides teamId => kolumna => uznana?
+     *
+     * @return array<string, string>
+     */
+    private static function canonicalKeys(string $letter, string $column, array $answers, array $overrides): array
+    {
+        $covered = Wykaz::covers($column);
+        $keys = [];
+        $reps = [];
+
+        foreach ($answers as $teamId => $row) {
+            $text = $row[$column] ?? '';
+
+            if (null !== self::problem($letter, $column, $text, $overrides[$teamId][$column] ?? null)) {
+                continue;
+            }
+
+            $norm = self::normalize($text);
+
+            if ($covered) {
+                // Wpis z wykazu prostuje literowke; odpowiedz spoza wykazu (uznana
+                // recznie przez hosta) zostaje soba.
+                $keys[$teamId] = Wykaz::resolve($column, $text) ?? $norm;
+
+                continue;
+            }
+
+            // Bez wykazu nie ma do czego prostowac, wiec pierwszy zapis staje sie
+            // wzorcem, a jego literowki lgna do niego.
+            $match = $norm;
+
+            foreach ($reps as $rep) {
+                if (self::sameWord($rep, $norm)) {
+                    $match = $rep;
+
+                    break;
+                }
+            }
+
+            if ($match === $norm) {
+                $reps[] = $norm;
+            }
+
+            $keys[$teamId] = $match;
+        }
+
+        return $keys;
+    }
+
+    /**
      * @param array<string, int> $counts
      *
      * @return array{text: string, points: int, status: string, forced: bool}
      */
-    private static function cell(string $letter, string $column, string $text, ?bool $override, array $counts): array
+    private static function cell(string $letter, string $column, string $text, ?bool $override, ?string $key, array $counts): array
     {
         $problem = self::problem($letter, $column, $text, $override);
 
@@ -116,7 +176,7 @@ final class Punktacja
             ];
         }
 
-        $shared = ($counts[self::normalize($text)] ?? 0) > 1;
+        $shared = null !== $key && ($counts[$key] ?? 0) > 1;
 
         return [
             'text' => $text,
@@ -187,5 +247,44 @@ final class Punktacja
         ]);
 
         return (string) preg_replace('/\s+/u', ' ', $text);
+    }
+
+    /**
+     * Czy dwa (znormalizowane) zapisy to to samo slowo z dokladnoscia do literowki.
+     *
+     * Prog rosnie z dlugoscia: przy krotkim slowie jedna zmiana to zwykle inne
+     * slowo ("kot"/"kat", "chiny"/"chile"), przy dluzszym - niemal na pewno
+     * literowka ("luksemburg"/"luxemburg"). Dlatego slowa do czterech liter
+     * musza zgadzac sie znak w znak.
+     *
+     * Porownujemy postac znormalizowana, wiec bez ogonkow i wielkosci liter -
+     * a ta jest juz czystym ASCII, na ktorym bajtowy `levenshtein` liczy znaki.
+     */
+    public static function sameWord(string $a, string $b): bool
+    {
+        if ($a === $b) {
+            return true;
+        }
+
+        $la = \strlen($a);
+        $lb = \strlen($b);
+
+        // Roznica dlugosci wieksza niz prog to od razu inne slowo - i przy okazji
+        // odsiewamy pary, ktorych nie warto liczyc znak po znaku.
+        if (abs($la - $lb) > 2) {
+            return false;
+        }
+
+        return levenshtein($a, $b) <= self::typoTolerance(max($la, $lb));
+    }
+
+    /** Ile przekreconych znakow wciaz uznajemy za to samo slowo. */
+    private static function typoTolerance(int $length): int
+    {
+        return match (true) {
+            $length <= 4 => 0,
+            $length <= 7 => 1,
+            default => 2,
+        };
     }
 }

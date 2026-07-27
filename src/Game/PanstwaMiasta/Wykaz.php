@@ -117,15 +117,63 @@ final class Wykaz
     }
 
     /**
-     * Czy odpowiedz jest na liscie. Porownujemy w postaci znormalizowanej -
-     * "Lodz", "Łódź" i "łódz" to jedno miasto, tak samo jak przy zliczaniu
-     * powtorzen miedzy druzynami.
+     * Czy odpowiedz jest na liscie - dokladnie albo w granicach literowki.
+     * "Kanadaa" wciaz jest Kanada, wiec host nie musi jej klikac.
      */
     public static function knows(string $column, string $text): bool
     {
+        return null !== self::resolve($column, $text);
+    }
+
+    /**
+     * Prostuje odpowiedz do wpisu z wykazu - dokladnego albo najblizszego
+     * w granicach literowki. Zwraca znormalizowana nazwe ("kanada" dla
+     * "Kanadaa") albo null, gdy nic w wykazie nie jest dostatecznie podobne.
+     *
+     * Dzieki temu dwie rozne literowki tego samego panstwa zjezdzaja na te sama
+     * nazwe i licza sie jak jedna odpowiedz - a nie dwa osobne unikaty.
+     *
+     * Porownujemy postac znormalizowana ("Lodz", "Łódź" i "łódz" to jedno
+     * miasto), tak samo jak przy zliczaniu powtorzen miedzy druzynami.
+     */
+    public static function resolve(string $column, string $text): ?string
+    {
         $list = self::index()[$column] ?? null;
 
-        return null !== $list && \in_array(Punktacja::normalize($text), $list, true);
+        if (null === $list) {
+            return null;
+        }
+
+        $norm = Punktacja::normalize($text);
+
+        if ('' === $norm) {
+            return null;
+        }
+
+        if (\in_array($norm, $list, true)) {
+            return $norm;
+        }
+
+        // Najblizszy wpis, ale tylko gdy miesci sie w granicy literowki. Bez tego
+        // warunku "Kongo" prostowaloby sie do czegokolwiek, bo cos zawsze jest
+        // najblizej.
+        $best = null;
+        $bestDistance = \PHP_INT_MAX;
+
+        foreach ($list as $entry) {
+            if (abs(\strlen($entry) - \strlen($norm)) > 2) {
+                continue;
+            }
+
+            $distance = levenshtein($norm, $entry);
+
+            if ($distance < $bestDistance) {
+                $bestDistance = $distance;
+                $best = $entry;
+            }
+        }
+
+        return (null !== $best && Punktacja::sameWord($norm, $best)) ? $best : null;
     }
 
     /** @return array<string, list<string>> */

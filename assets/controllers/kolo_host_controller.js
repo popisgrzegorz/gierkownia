@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { sfx } from '../audio/sfx.js';
 
 /* Ile trwa dohamowanie przy zerowym i pełnym zamachu. Nawet lekkie stuknięcie
    ma dać widowisko, a pełny zamach nie może nudzić czekaniem. */
@@ -81,18 +82,34 @@ export default class extends Controller {
                 this.#flash(0 === event.count
                     ? `Litery ${event.letter} nie ma`
                     : `${event.letter} × ${event.count}`);
+
+                if (0 === event.count) {
+                    sfx.play('wrong');
+                } else {
+                    // Klik za każdy kafelek gra przy jego obrocie (#turn),
+                    // a nagroda dopiero za ostatnim - inaczej wchodziłaby
+                    // w środek liczenia „ile ich jest".
+                    sfx.play('point', { delay: event.count * 0.14 });
+                }
                 break;
 
             case 'penalty':
                 this.#flash('bankrut' === event.kind ? 'BANKRUT!' : 'STOP — koniec tury');
+                sfx.play('bankrut' === event.kind ? 'bankrupt' : 'wrong');
                 break;
 
             case 'solve_failed':
                 this.#flash('pudło');
+                sfx.play('wrong');
                 break;
 
             case 'puzzle_solved':
                 this.#flash(`${event.teamName} rozwiązuje! +${event.won}`);
+                sfx.play('victory');
+                break;
+
+            case 'puzzle_ready':
+                sfx.play('whoosh');
                 break;
         }
 
@@ -141,6 +158,8 @@ export default class extends Controller {
             return;
         }
 
+        // Rozpędzenie tarczy - potem prowadzi już klekot kołków (wheelTick).
+        sfx.play('spin');
         this.#spinTo(index, power).then(() => this.#send('land'));
     }
 
@@ -242,6 +261,10 @@ export default class extends Controller {
 
         inner.querySelector('.cell-front').textContent = char;
         setTimeout(() => inner.classList.add('revealed'), delay);
+        // Dźwięk planujemy z tym samym opóźnieniem, ale w zegarze karty
+        // dźwiękowej - setTimeout potrafi się spóźnić o kilkanaście
+        // milisekund i klik odkleiłby się od obrotu kafelka.
+        sfx.play('flip', { delay: delay / 1000 });
     }
 
     #renderControls(view) {
@@ -331,6 +354,11 @@ export default class extends Controller {
 
         return new Promise((resolve) => {
             const start = performance.now();
+            // Klapka o kołki: klik pada dokładnie wtedy, gdy pod wskaźnikiem
+            // zmienia się sektor. Liczymy to z bieżącego kąta zamiast rozstawiać
+            // kliki z góry - dzięki temu ratchet zwalnia razem z tarczą sam,
+            // bez powtarzania tu wzoru na wyhamowanie.
+            let passed = Math.floor((-Math.PI / 2 - from) / sector);
 
             const step = (now) => {
                 const t = Math.min(1, (now - start) / duration);
@@ -338,6 +366,15 @@ export default class extends Controller {
                 // prawdziwe koło i to ono buduje napięcie przy stole.
                 this.angle = from + (to - from) * (1 - (1 - t) ** 4);
                 this.#drawWheel();
+
+                const crossed = Math.floor((-Math.PI / 2 - this.angle) / sector);
+
+                if (crossed !== passed) {
+                    // Przy pełnym zamachu tarcza przelatuje ponad sektor na
+                    // klatkę - gramy jeden klik, a nie serię naraz.
+                    passed = crossed;
+                    sfx.play('wheelTick');
+                }
 
                 if (t < 1) {
                     this.frame = requestAnimationFrame(step);

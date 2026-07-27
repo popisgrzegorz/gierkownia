@@ -11,8 +11,11 @@
        z boku. Kod QR nie zajmuje ekranu na stałe - wysuwa się na żądanie, bo
        potrzebny jest tylko w momencie dołączania, a gra potrzebuje miejsca
        przez cały czas. #}
+    {# Dźwięk siedzi na tym samym elemencie: efekty należą do telewizora, a nie
+       do telefonów - jedna sala gra jednym głośnikiem, a dziesięć telefonów
+       brzęczących z własnym opóźnieniem to hałas, nie efekt. #}
     <main class="tv"
-          data-controller="room-board"
+          data-controller="room-board sfx"
           data-room-board-hub-value="{{ hubUrl }}"
           data-room-board-code-value="{{ room.code }}"
           data-room-board-score-url-value="{{ path('game_score', {code: room.code}) }}">
@@ -64,6 +67,12 @@
                       onsubmit="return confirm('Zerować punkty i stan gry? Drużyny zostają w pokoju.')">
                     <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
                 </form>
+
+                {# Wyciszenie zapamiętuje się w przeglądarce telewizora: kto raz
+                   ucisza grę na czas rozmowy, nie chce jej włączać po każdym
+                   przeładowaniu ekranu. #}
+                <button type="button" class="btn btn-ghost btn-reset"
+                        data-sfx-target="button" data-action="sfx#toggle">🔊 Dźwięk</button>
 
                 {# Cała scena na ekran: chowa ten pasek i punktację po lewej. #}
                 <button type="button" class="btn btn-ghost btn-reset"

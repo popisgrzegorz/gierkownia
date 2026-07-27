@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { sfx } from '../audio/sfx.js';
 
 /**
  * Panel państw i miast na ekranie hosta.
@@ -120,10 +121,12 @@ export default class extends Controller {
 
         if ('stopped' === event.type) {
             this.#flash(`STOP: ${event.teamName}`);
+            sfx.play('whistle');
         }
 
         if ('awarded' === event.type) {
             this.#flash('Punkty poszły na tablo');
+            sfx.play('victory');
         }
 
         if (['phase', 'timer', 'letter_drawn', 'stopped', 'results', 'awarded',
@@ -417,6 +420,15 @@ export default class extends Controller {
      * ekran, a dopiero rosnące odstępy dają "jeszcze... jeszcze... stoi".
      */
     #rollStep() {
+        // Na pełnym biegu litery lecą co 45 ms i klik z każdej zlewa się
+        // w brzęczenie - stąd co drugi krok. Przy hamowaniu odstępy rosną
+        // same, więc tam gra już każdy: bęben zwalnia i w oku, i w uchu.
+        this.rollBeat = (this.rollBeat ?? 0) + 1;
+
+        if (null !== this.landing || 0 === this.rollBeat % 2) {
+            sfx.play('drum');
+        }
+
         if (null === this.landing) {
             this.letterTarget.textContent = ROLL[Math.floor(Math.random() * ROLL.length)];
             this.rollTimer = setTimeout(() => this.#rollStep(), 45);
@@ -430,6 +442,9 @@ export default class extends Controller {
             this.#stopRolling();
             this.letterTarget.textContent = this.landing;
             this.letterBoxTarget.classList.add('landed');
+            // Litera zapadła - pieczątka i dzwonek. Nie w #stopRolling(), bo
+            // tamto woła też odmowa serwera, a wtedy nic nie wylosowano.
+            sfx.play('stamp');
             setTimeout(() => this.letterBoxTarget.classList.remove('landed'), 600);
             this.refresh();
 

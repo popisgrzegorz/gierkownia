@@ -146,17 +146,88 @@ final class PunktacjaTest extends TestCase
         self::assertSame(Punktacja::UNIQUE, $result['cells']['a']['Rzecz']['points']);
     }
 
-    /** Panstwo spoza wykazu nie punktuje - to zbior zamkniety. */
+    /**
+     * Slowo, ktore z zadnym panstwem nie ma nic wspolnego, zostaje spoza wykazu -
+     * do decyzji hosta. Wykaz to zbior zamkniety, a "Kwadrat" nie jest panstwem
+     * ani jego literowka.
+     */
     public function testAMadeUpCountryIsRefused(): void
     {
         $result = Punktacja::score('K', ['Państwo'], [
             'a' => ['Państwo' => 'Kanada'],
-            'b' => ['Państwo' => 'Kanadia'],
+            'b' => ['Państwo' => 'Kwadrat'],
         ], []);
 
         self::assertSame(Punktacja::UNIQUE, $result['cells']['a']['Państwo']['points']);
         self::assertSame(0, $result['cells']['b']['Państwo']['points']);
         self::assertSame(Punktacja::STATUS_UNKNOWN, $result['cells']['b']['Państwo']['status']);
+    }
+
+    /**
+     * Literowka w panstwie liczy sie sama, bez klikania hosta: "Kanadaa" to
+     * wciaz Kanada. Wykaz prostuje ja do wpisu, wiec komorka jest zwyklym
+     * unikatem, a nie zoltym pytajnikiem.
+     */
+    public function testATypoOfAKnownCountryScoresWithoutTheHost(): void
+    {
+        $result = Punktacja::score('K', ['Państwo'], [
+            'a' => ['Państwo' => 'Kanadaa'],
+        ], []);
+
+        self::assertSame(Punktacja::UNIQUE, $result['cells']['a']['Państwo']['points']);
+        self::assertSame(Punktacja::STATUS_UNIQUE, $result['cells']['a']['Państwo']['status']);
+        self::assertFalse($result['cells']['a']['Państwo']['forced']);
+    }
+
+    /**
+     * Sedno mechanizmu literowek: dwie druzyny wpisaly to samo panstwo, kazda
+     * z innym przekrecleniem ("Kanadaa" i "Kanda"). To jedna i ta sama Kanada,
+     * wiec licza sie jak powtorka - po piec punktow, a nie dwa osobne unikaty.
+     */
+    public function testDifferentTyposOfTheSameCountryCountAsShared(): void
+    {
+        $result = Punktacja::score('K', ['Państwo'], [
+            'a' => ['Państwo' => 'Kanadaa'],
+            'b' => ['Państwo' => 'Kanda'],
+        ], []);
+
+        self::assertSame(Punktacja::SHARED, $result['cells']['a']['Państwo']['points']);
+        self::assertSame(Punktacja::SHARED, $result['cells']['b']['Państwo']['points']);
+        self::assertSame(Punktacja::STATUS_SHARED, $result['cells']['a']['Państwo']['status']);
+    }
+
+    /**
+     * Prostowanie literowek nie moze sklejac dwoch roznych, ale podobnych
+     * panstw: "Chiny" i "Chile" to dwa panstwa, wiec kazde dostaje swoje 10.
+     */
+    public function testTwoDifferentCountriesStayDistinct(): void
+    {
+        $result = Punktacja::score('C', ['Państwo'], [
+            'a' => ['Państwo' => 'Chiny'],
+            'b' => ['Państwo' => 'Chile'],
+        ], []);
+
+        self::assertSame(Punktacja::UNIQUE, $result['cells']['a']['Państwo']['points']);
+        self::assertSame(Punktacja::UNIQUE, $result['cells']['b']['Państwo']['points']);
+    }
+
+    /**
+     * W rubryce bez wykazu (zwierze, roslina, rzecz) nie ma do czego prostowac,
+     * ale zgodne literowki miedzy druzynami wciaz sa tym samym slowem: "Pies"
+     * i "Piess" to jeden pies - po piec punktow.
+     */
+    public function testTyposInOpenColumnsCountAsTheSameWord(): void
+    {
+        $result = Punktacja::score('P', ['Zwierzę'], [
+            'a' => ['Zwierzę' => 'Pies'],
+            'b' => ['Zwierzę' => 'Piess'],
+            'c' => ['Zwierzę' => 'Papuga'],
+        ], []);
+
+        self::assertSame(Punktacja::SHARED, $result['cells']['a']['Zwierzę']['points']);
+        self::assertSame(Punktacja::SHARED, $result['cells']['b']['Zwierzę']['points']);
+        // Papuga to zupelnie inne slowo - zostaje unikatem.
+        self::assertSame(Punktacja::UNIQUE, $result['cells']['c']['Zwierzę']['points']);
     }
 
     /**

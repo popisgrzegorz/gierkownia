@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { sfx } from '../audio/sfx.js';
 
 /* Obrys kasety ma pathLength="100", więc odliczanie liczy się w procentach
    długości - bez wyliczania obwodu zaokrąglonego prostokąta. */
@@ -70,6 +71,27 @@ export default class extends Controller {
     }
 
     #onServerEvent(event) {
+        switch (event.type) {
+            case 'question_ready':
+            case 'again':
+                sfx.play('whoosh');
+                break;
+
+            // Sam fakt, że ktoś zdążył - bez podpowiadania, co wybrał.
+            case 'answered':
+                sfx.play('answer');
+                break;
+
+            case 'results':
+                // Nikt nie trafił: buczenie zamiast oklasków dla nikogo.
+                sfx.play(0 < (event.winners?.length ?? 0) ? 'correct' : 'wrong');
+
+                if (0 < (event.winners?.length ?? 0)) {
+                    sfx.play('applause', { delay: 0.55 });
+                }
+                break;
+        }
+
         if (['phase', 'timer', 'question_ready', 'answered', 'results', 'again',
             'round_reset', 'category_picked', 'team_joined', 'reset'].includes(event.type)) {
             this.refresh();
