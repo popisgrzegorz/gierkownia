@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { sfx } from '../audio/sfx.js';
+import { popIn, celebrate, shake } from '../anim.js';
 
 /**
  * Panel "Jaka to melodia" na ekranie hosta.
@@ -91,7 +92,14 @@ export default class extends Controller {
         }
 
         if (['phase', 'buzz', 'judged', 'track_ready', 'category_picked', 'reset'].includes(event.type)) {
-            this.refresh();
+            const done = this.refresh();
+
+            // Baner „ma głos!" wskakuje z impetem, trafienie świętuje, pudło potrząsa.
+            if ('buzz' === event.type) {
+                done.then(() => popIn(this.bannerTarget, { rotation: -6 }));
+            } else if ('judged' === event.type) {
+                done.then(() => (event.correct ? celebrate(this.vinylTarget) : shake(this.vinylTarget)));
+            }
         }
     }
 

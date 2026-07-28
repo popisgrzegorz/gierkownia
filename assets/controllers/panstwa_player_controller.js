@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import gsap from 'gsap';
 
 /**
  * Sterownik państw i miast na telefonie.
@@ -18,6 +19,14 @@ export default class extends Controller {
     /** Na tyle długo, żeby nie wysyłać co literę, i na tyle krótko, by nie zgubić słowa. */
     static DEBOUNCE = 400;
 
+    /**
+     * Ile telefon czeka z pokazaniem litery po jej wylosowaniu. Bęben na
+     * telewizorze hamuje ~1,4 s (BRAKE_MS hosta) - telefon odsłania literę
+     * odrobinę później, żeby nikt nie odczytał jej z ekranu, zanim spadnie
+     * ostatnia klapka na TV.
+     */
+    static LETTER_DELAY = 1600;
+
     connect() {
         this.offset = 0;
         this.timers = new Map();
@@ -35,6 +44,7 @@ export default class extends Controller {
     disconnect() {
         window.removeEventListener('gierki:event', this.onEvent);
         clearInterval(this.ticker);
+        clearTimeout(this.letterTimer);
         this.timers.forEach((timer) => clearTimeout(timer));
     }
 
@@ -75,10 +85,14 @@ export default class extends Controller {
     #handle(event) {
         switch (event.type) {
             case 'letter_drawn':
-                this.letterValue = event.letter;
+                // Litera dopiero po tym, jak wyląduje na telewizorze: pola się
+                // budują, ale litera jest zakryta i wpisywanie zablokowane,
+                // dopóki bęben na TV nie stanie. Inaczej gracz z telefonem
+                // w ręku miałby literę sekundę przed resztą stołu.
                 this.stateValue = 'writing';
                 this.stoppedValue = false;
                 this.#rebuildFields(event.columns);
+                this.#revealLetterSoon(event.letter);
                 break;
 
             case 'timer':
@@ -98,7 +112,7 @@ export default class extends Controller {
 
             case 'round_reset':
                 this.stateValue = 'idle';
-                this.letterValue = '';
+                this.#hideLetter();
                 this.stoppedValue = false;
                 this.#clearFields();
                 break;
@@ -109,7 +123,7 @@ export default class extends Controller {
 
             case 'reset':
                 this.stateValue = 'idle';
-                this.letterValue = '';
+                this.#hideLetter();
                 this.#clearFields();
                 break;
         }
@@ -118,12 +132,15 @@ export default class extends Controller {
     }
 
     #render() {
-        // Po własnym STOP-ie kartka jest zamknięta, choć runda jeszcze trwa.
-        const writing = 'writing' === this.stateValue
-            || ('ending' === this.stateValue && !this.stoppedValue);
+        // Litera jeszcze spada na telewizorze - u nas kartka zakryta.
+        const waiting = Boolean(this.letterHidden);
 
-        this.letterTarget.textContent = this.letterValue || '—';
-        this.stopTarget.hidden = 'writing' !== this.stateValue;
+        // Po własnym STOP-ie kartka jest zamknięta, choć runda jeszcze trwa.
+        const writing = !waiting && ('writing' === this.stateValue
+            || ('ending' === this.stateValue && !this.stoppedValue));
+
+        this.letterTarget.textContent = waiting ? '…' : (this.letterValue || '—');
+        this.stopTarget.hidden = 'writing' !== this.stateValue || waiting;
 
         if ('writing' === this.stateValue) {
             // STOP dopiero z kompletną kartką - serwer i tak to sprawdzi,
@@ -135,6 +152,12 @@ export default class extends Controller {
             input.disabled = !writing;
         });
 
+        if (waiting) {
+            this.noteTarget.textContent = 'Za chwilę litera — patrzcie na telewizor!';
+
+            return;
+        }
+
         this.noteTarget.textContent = {
             idle: 'Czekaj na literę…',
             writing: this.#allFilled()
@@ -145,6 +168,51 @@ export default class extends Controller {
                 : 'Ktoś nacisnął STOP — kończ, zanim minie czas.',
             scoring: 'Runda skończona. Wyniki na telewizorze.',
         }[this.stateValue] ?? '';
+    }
+
+    /**
+     * Zakrywa literę i odsłania ją dopiero po chwili - tyle, ile bęben na
+     * telewizorze hamuje. Do tego czasu pola są zablokowane (patrz #render).
+     */
+    #revealLetterSoon(letter) {
+        clearTimeout(this.letterTimer);
+        this.letterHidden = true;
+        this.pendingLetter = letter;
+        this.letterValue = '';
+
+        this.letterTimer = setTimeout(() => {
+            this.letterHidden = false;
+            this.letterValue = this.pendingLetter;
+            this.#render();
+            this.#revealLetter();
+        }, this.constructor.LETTER_DELAY);
+    }
+
+    /** Sprząta zakrycie - przy resecie rundy litera znika bez czekania. */
+    #hideLetter() {
+        clearTimeout(this.letterTimer);
+        this.letterHidden = false;
+        this.pendingLetter = null;
+        this.letterValue = '';
+    }
+
+    /** Litera opada klapką, tak samo jak na telewizorze. */
+    #revealLetter() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+
+        gsap.fromTo(
+            this.letterTarget,
+            { rotationX: -92 },
+            {
+                rotationX: 0,
+                duration: 0.5,
+                transformOrigin: '50% 0%',
+                transformPerspective: 500,
+                ease: 'back.out(1.5)',
+            },
+        );
     }
 
     /** Nowa runda: te same rubryki, ale puste - i znów aktywne. */

@@ -24,11 +24,12 @@ Rozmowa jest po polsku; komentarze w kodzie też.
 | 6. Kalambury | **gotowy**, grywalny |
 | 7. Przyciski fizyczne | **nie zaczęty** |
 | Państwa i miasta | **gotowa**, grywalna (poza planem §13) |
+| Dutch (Cabo) | **backend gotowy i przetestowany**, frontend niesprawdzony na żywo (poza planem §13) |
 | 8. Panel treści | **gotowy** (zamiast `app:deck:sync` z YAML) |
 
 Ponadto: panel administracyjny `/admin`, którego spec nie przewidywała.
 
-283 testy, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
+309 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
 
 ---
 
@@ -161,6 +162,7 @@ src/Game/MelodiaQuiz/ moduł „Jaka to melodia — 1 z 4"
 src/Game/Kolo/       moduł „Koło fortuny"
 src/Game/Kalambury/  moduł „Kalambury"
 src/Game/PanstwaMiasta/ moduł „Państwa i miasta"
+src/Game/Dutch/      moduł „Dutch" (gra karciana; Karty, Punktacja)
 ```
 
 **Stan „live" (pokój, drużyny, punkty, stan gry) żyje wyłącznie w Redisie** z TTL
@@ -259,6 +261,54 @@ Hasła leżą w bazie **tak, jak je wpisano** — wersaliki dokleja plansza koł
 (`Phrase::forBoard()`), bo aktor kalambur dostaje słowo na telefon i nie ma
 powodu na niego krzyczeć.
 
+**Dutch: jeden telefon = jeden gracz, a nie drużyna.** Cała gra to indywidualna
+pamięć własnych czterech kart, więc „drużyna" dzieląca rękę nie ma sensu.
+Rotację graczy trzymamy we własnej kolejce w kontekście (`order`/`turn`),
+nie w `TurnManagerze`: on rozgłasza `turn` przy każdym `INCR`, a tu potrzebne
+były runda końcowa z licznikiem i wołanie „Dutch" kończące turę natychmiast.
+
+**Dutch liczy własny ranking, nie dotyka wspólnego tabla.** `Core/Score` sumuje
+„więcej = lepiej" przez cały wieczór; Dutch to „najniższa suma wygrywa", liczone
+per runda. Zmieszanie obu psułoby jedno i drugie, więc `totals` Dutcha siedzą
+w jego kontekście, a `Scoreboard` zostaje nietknięty (moduł nie wstrzykuje go
+w ogóle). Konsekwencja: wynik Dutcha nie przechodzi na turniej wielu gier.
+
+**Dutch: uczciwa pamięć zamiast ściągi.** `playerView` oddaje podejrzane karty
+**tylko w fazie `peek`**; gdy runda rusza, znikają — telefon nie pamięta ich za
+gracza. Na telefonie podgląd działa na przytrzymanie (jak podniesienie
+prawdziwej karty). Sedno gry to pamięć; apka, która trzyma znane karty na
+ekranie, zamieniłaby ją w samą arytmetykę.
+
+**Dutch: moce kart wg zasad domowych użytkownika** (`Karty::power()`):
+**dama — podgląd WŁASNEJ karty**, **walet — wskazujesz DWÓCH graczy, a serwer
+LOSOWO zamienia im po jednej karcie** (w ciemno). Reszta (7–10, as, król) jest
+bez mocy. To NIE jest standardowe Cabo (tam podglądają 7–10, a J/Q zamieniają
+WYBRANE karty, nie losowe) ani wariant z artykułu 8gates — to konkretny wybór
+przy stole, więc nie zmieniaj go „na standard" bez pytania. Moc gracz odpala,
+zrzucając kartę zamiast podmiany: `usePower` ustawia `_power` (`peek_own`/`swap`),
+a `power_peek` (własna karta) / `power_swap` (`{a,b}` = dwaj gracze) domykają
+akcję. Podgląd trafia wyłącznie do gracza (`Message::toTeam`, jest test na brak
+wycieku); zamiana rozgłasza tylko, czyje pola się przełożyły — nie wartości.
+Tura po użyciu mocy się kończy.
+
+**Dutch: dorzucanie pasującej karty („snap") w refleksie.** KAŻDY, w każdej
+chwili gry (nie tylko w swojej turze), może dorzucić na stos kartę o tej samej
+**figurze** co wierzch stosu (kolor bez znaczenia) — akcja `snap`. Trafienie
+ujmuje kartę z ręki (mniej kart = mniej punktów). Pudło jest podwójnie karane:
+kartę, którą chciał wyrzucić, **widzą wszyscy przez 3 sekundy** (kara pamięciowa —
+`snap_failed` niesie jej wartość, host pokazuje ją na środku) ORAZ dochodzi karna
+karta z talii. Serwer rozstrzyga wg wierzchu stosu w chwili żądania — Redis
+szereguje, więc dwa dorzucenia się nie pobiją. **Konsekwencja: ręka nie jest
+stała.** Puste pole po dorzuceniu trzymamy jako wartownik `EMPTY = -1` (a nie
+skracamy listy), żeby pamięć o pozycjach nie rozjechała się przy każdym ubytku;
+karna dokłada nowe pole na końcu. `handShapes()` oddaje ekranom same kształty
+(gdzie karta, gdzie luka), nigdy wartości. Punktacja i odsłonięcie pomijają `-1`.
+
+**Dutch w wariancie startowym.** Bez jokerów i króla z mocą. Kara za błędny
+„Dutch" to stałe +5 (`Punktacja::score`), a trafny call wymaga **samodzielnie**
+najniższej sumy (remis liczy się przeciw wołającemu). Punktacja prosta: as=1,
+2–10 wprost, figury=10 (wariant czerwony-król-0 pominięty).
+
 **Animacje nie decydują o niczym.** Siła zamachu kołem (długość przytrzymania
 przycisku na telefonie) zmienia wyłącznie liczbę obrotów i czas dohamowania na
 telewizorze — sektor wybiera `Wheel::spin()` na serwerze i to on siedzi w kącie
@@ -268,6 +318,15 @@ w chwili, gdy host naciśnie STOP i poleci akcja `draw`. Gdyby było odwrotnie,
 o wyniku decydowałby telefon albo refleks — a litera leżałaby w odpowiedzi HTTP,
 zanim ktokolwiek zobaczy ją na ekranie.
 Wszystkie animacje wyłącza `prefers-reduced-motion`.
+
+**Dutch animuje ruch kart na GSAP.** Rozdanie (kaskada z talii), dobieranie
+(rewers leci do gracza), lot na stos (dorzucenie/podmiana/wyrzucenie), obroty
+przy podglądzie i odsłonięciu — wszystko na `gsap`, dodanym przez
+`importmap:require gsap` (wersja w `importmap.php`, plik wektorowany lokalnie do
+`assets/vendor/` jak Stimulus/Turbo — `importmap:install` pobiera go na świeżym
+klonie). To nadal sama dekoracja: stan gry i tak zapada na serwerze. Karty leczą
+w osobnej warstwie nad panelem (`.dutch-fly`, `position: fixed`), więc
+odświeżenie stołu ich nie zabiera; pozycje mierzymy z DOM-u sprzed odświeżenia.
 
 **Koło ratunkowe w kalamburach odsłania jedną literę.** Pierwszą literę
 pierwszego wyrazu **dłuższego niż jedna litera** — jednoliterowy wyraz to spójnik
@@ -397,6 +456,12 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 
 ### Znane braki i długi
 
+- **Frontend Dutcha nie był puszczony na żywo w przeglądarce.** Backend przechodzi
+  26 testów przez prawdziwy silnik i Redis (tajność rąk, tury, punktacja, kara,
+  odsłonięcie, narastanie rankingu), a kontrolery/szablony trzymają się wzorca
+  pozostałych gier i przechodzą lint + rejestrację AssetMappera — ale pętli tur
+  na dwóch telefonach + TV jeszcze nikt nie przeklikał. To pierwsza rzecz do
+  sprawdzenia. Poza wariantem świadomie: jokery i moc króla (czerwony-0/czarny-13).
 - **Widok telefonu nie był oglądany na prawdziwym urządzeniu** — tylko w headless
   Chrome, który kłamie o `vw`. Przy pierwszym teście z gośćmi to pierwsza rzecz
   do sprawdzenia.

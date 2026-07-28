@@ -1,14 +1,16 @@
 import { Controller } from '@hotwired/stimulus';
+import gsap from 'gsap';
 import { sfx } from '../audio/sfx.js';
+import { celebrate, shake, popIn } from '../anim.js';
 
-/* Ile trwa dohamowanie przy zerowym i pełnym zamachu. Nawet lekkie stuknięcie
-   ma dać widowisko, a pełny zamach nie może nudzić czekaniem. */
-const SPIN_MS_MIN = 2200;
-const SPIN_MS_MAX = 5200;
+/* Ile trwa dohamowanie przy zerowym i pełnym zamachu. Wolniej = więcej napięcia:
+   nawet lekkie stuknięcie kręci długo, a pełny zamach to spore widowisko. */
+const SPIN_MS_MIN = 3800;
+const SPIN_MS_MAX = 8500;
 
 /* Pełne obroty ponad dojazd do sektora - też skalowane siłą zamachu. */
-const TURNS_MIN = 2;
-const TURNS_MAX = 8;
+const TURNS_MIN = 4;
+const TURNS_MAX = 10;
 
 /**
  * Panel koła fortuny na ekranie hosta.
@@ -115,7 +117,17 @@ export default class extends Controller {
 
         if (['phase', 'letter_revealed', 'penalty', 'puzzle_solved', 'puzzle_ready',
             'category_picked', 'turn', 'solve_failed', 'reset'].includes(event.type)) {
-            this.refresh();
+            const done = this.refresh();
+
+            // Rozwiązane hasło świętuje, bankrut potrząsa kołem, nowe hasło
+            // wskakuje z powiększenia.
+            if ('puzzle_solved' === event.type) {
+                done.then(() => celebrate(this.boardTarget));
+            } else if ('penalty' === event.type && 'bankrut' === event.kind) {
+                done.then(() => shake(this.wheelTarget));
+            } else if ('puzzle_ready' === event.type) {
+                done.then(() => popIn(this.boardTarget));
+            }
         }
     }
 
@@ -158,9 +170,16 @@ export default class extends Controller {
             return;
         }
 
+        this.landedIndex = null;
         // Rozpędzenie tarczy - potem prowadzi już klekot kołków (wheelTick).
         sfx.play('spin');
-        this.#spinTo(index, power).then(() => this.#send('land'));
+        this.#spinTo(index, power).then(() => {
+            this.landedIndex = index;
+            this.#drawWheel();
+            // Wylosowane pole powiększa się na cały ekran - widać, co padło.
+            this.#showSector(index);
+            this.#send('land');
+        });
     }
 
     /**
@@ -190,6 +209,7 @@ export default class extends Controller {
     #renderBoard(mask) {
         if (!mask) {
             this.boardTarget.replaceChildren();
+            this.cells = [];
             this.mask = '';
 
             return;
@@ -197,7 +217,7 @@ export default class extends Controller {
 
         if (this.mask?.length !== mask.length) {
             this.mask = mask;
-            this.boardTarget.replaceChildren(...[...mask].map((char) => this.#cell(char)));
+            this.#buildBoard(mask);
 
             return;
         }
@@ -212,11 +232,47 @@ export default class extends Controller {
                 return;
             }
 
-            this.#turn(this.boardTarget.children[index], char, delay);
+            this.#turn(this.cells[index], char, delay);
             delay += 140;
         });
 
         this.mask = mask;
+    }
+
+    /**
+     * Buduje planszę słowo po słowie: litery jednego wyrazu siedzą we wspólnym,
+     * nierozrywalnym kontenerze (.puzzle-word), więc wyraz nigdy nie przechodzi
+     * w połowie do następnego wiersza - plansza łamie się tylko między wyrazami.
+     *
+     * this.cells trzyma płaskie odwzorowanie „pozycja w haśle -> kafelek" (null
+     * dla spacji), żeby odkrywanie liter po indeksie nie zależało od tego, jak
+     * kafelki są pogrupowane w drzewie.
+     */
+    #buildBoard(mask) {
+        this.cells = [];
+        const words = [];
+        let word = null;
+
+        [...mask].forEach((char) => {
+            if (' ' === char) {
+                word = null;
+                this.cells.push(null);
+
+                return;
+            }
+
+            if (!word) {
+                word = document.createElement('span');
+                word.className = 'puzzle-word';
+                words.push(word);
+            }
+
+            const cell = this.#cell(char);
+            word.append(cell);
+            this.cells.push(cell);
+        });
+
+        this.boardTarget.replaceChildren(...words);
     }
 
     #cell(char) {
@@ -348,43 +404,39 @@ export default class extends Controller {
         // koło i tak stanie tam, gdzie zapadła decyzja.
         const strength = Math.min(1, Math.max(0, (Number(power) || 50) / 100));
         const turns = Math.round(TURNS_MIN + (TURNS_MAX - TURNS_MIN) * strength);
-        const duration = SPIN_MS_MIN + (SPIN_MS_MAX - SPIN_MS_MIN) * strength;
+        const duration = (SPIN_MS_MIN + (SPIN_MS_MAX - SPIN_MS_MIN) * strength) / 1000;
 
         const to = from - remaining - turns * turn;
 
         return new Promise((resolve) => {
-            const start = performance.now();
             // Klapka o kołki: klik pada dokładnie wtedy, gdy pod wskaźnikiem
             // zmienia się sektor. Liczymy to z bieżącego kąta zamiast rozstawiać
-            // kliki z góry - dzięki temu ratchet zwalnia razem z tarczą sam,
-            // bez powtarzania tu wzoru na wyhamowanie.
+            // kliki z góry - dzięki temu ratchet zwalnia razem z tarczą sam.
             let passed = Math.floor((-Math.PI / 2 - from) / sector);
+            const proxy = { a: from };
 
-            const step = (now) => {
-                const t = Math.min(1, (now - start) / duration);
-                // easeOutQuart: szybki start, długie dohamowanie - tak zwalnia
-                // prawdziwe koło i to ono buduje napięcie przy stole.
-                this.angle = from + (to - from) * (1 - (1 - t) ** 4);
-                this.#drawWheel();
+            // GSAP power4.out: długie, aksamitne dohamowanie - buduje napięcie
+            // i wygląda płynniej niż ręczna pętla rAF.
+            gsap.to(proxy, {
+                a: to,
+                duration,
+                ease: 'power4.out',
+                onUpdate: () => {
+                    this.angle = proxy.a;
+                    this.#drawWheel();
 
-                const crossed = Math.floor((-Math.PI / 2 - this.angle) / sector);
+                    const crossed = Math.floor((-Math.PI / 2 - this.angle) / sector);
 
-                if (crossed !== passed) {
-                    // Przy pełnym zamachu tarcza przelatuje ponad sektor na
-                    // klatkę - gramy jeden klik, a nie serię naraz.
-                    passed = crossed;
-                    sfx.play('wheelTick');
-                }
-
-                if (t < 1) {
-                    this.frame = requestAnimationFrame(step);
-                } else {
+                    if (crossed !== passed) {
+                        passed = crossed;
+                        sfx.play('wheelTick');
+                    }
+                },
+                onComplete: () => {
                     this.spinning = false;
                     resolve();
-                }
-            };
-
-            this.frame = requestAnimationFrame(step);
+                },
+            });
         });
     }
 
@@ -401,8 +453,20 @@ export default class extends Controller {
 
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        const r = Math.min(cx, cy) - 14;
+        // Większy margines: mieści duży wskaźnik nad tarczą i jej cień.
+        const r = Math.min(cx, cy) - canvas.width * 0.08;
         const sector = (2 * Math.PI) / count;
+
+        // Cień pod całą tarczą - odrywa ją od tła.
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+        ctx.shadowBlur = r * 0.09;
+        ctx.shadowOffsetY = r * 0.04;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+        ctx.fillStyle = '#0b0d17';
+        ctx.fill();
+        ctx.restore();
 
         this.sectors.forEach((value, i) => {
             const start = this.angle + i * sector;
@@ -414,25 +478,115 @@ export default class extends Controller {
             ctx.fillStyle = this.#sectorColor(value, i);
             ctx.fill();
 
+            // Rozdzielacz między polami - tarcza wygląda schludniej.
+            ctx.lineWidth = r * 0.008;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.stroke();
+
+            // Duży, czytelny napis wzdłuż promienia.
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(start + sector / 2);
             ctx.fillStyle = 'bankrut' === value ? '#fff' : '#10121f';
-            ctx.font = '600 18px system-ui, sans-serif';
+            ctx.font = `800 ${Math.round(r * 0.115)}px system-ui, sans-serif`;
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillText(String(value).toUpperCase(), r - 14, 0);
+            ctx.fillText(String(value).toUpperCase(), r - r * 0.07, 0);
             ctx.restore();
         });
 
-        // Wskaźnik u góry - punkt odniesienia dla wyniku.
+        // Podświetlenie wylosowanego pola - jasna obwódka, gdy tarcza stanęła.
+        if (null != this.landedIndex && !this.spinning) {
+            const start = this.angle + this.landedIndex * sector;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, r, start, start + sector);
+            ctx.closePath();
+            ctx.lineWidth = r * 0.022;
+            ctx.strokeStyle = '#f5f6fb';
+            ctx.stroke();
+        }
+
+        // Głębia: przyciemnienie przy krawędzi daje wrażenie wypukłej kopuły.
+        const depth = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+        depth.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        depth.addColorStop(0.8, 'rgba(0, 0, 0, 0)');
+        depth.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+        ctx.fillStyle = depth;
         ctx.beginPath();
-        ctx.moveTo(cx - 14, 2);
-        ctx.lineTo(cx + 14, 2);
-        ctx.lineTo(cx, 30);
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Gloss: rozświetlenie u góry.
+        const gloss = ctx.createRadialGradient(cx, cy - r * 0.5, r * 0.1, cx, cy, r);
+        gloss.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
+        gloss.addColorStop(0.55, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = gloss;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Obręcz: ciemna z gorącym, złotym rantem.
+        ctx.lineWidth = r * 0.05;
+        ctx.strokeStyle = '#0b0d17';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + r * 0.025, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.lineWidth = r * 0.022;
+        ctx.strokeStyle = '#f5a524';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + r * 0.004, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Piasta z gwiazdką w środku.
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.15, 0, 2 * Math.PI);
+        ctx.fillStyle = '#151829';
+        ctx.fill();
+        ctx.lineWidth = r * 0.016;
+        ctx.strokeStyle = '#f5a524';
+        ctx.stroke();
+        ctx.fillStyle = '#f5a524';
+        ctx.font = `700 ${Math.round(r * 0.17)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('★', cx, cy + r * 0.005);
+
+        // Duży wskaźnik nad tarczą, z cieniem i czerwonym gwoździem.
+        const wheelTop = cy - r;
+        const pw = r * 0.12;
+        const tip = wheelTop + r * 0.06;
+        const baseY = wheelTop - r * 0.13;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = r * 0.04;
+        ctx.shadowOffsetY = r * 0.015;
+        ctx.beginPath();
+        ctx.moveTo(cx - pw, baseY);
+        ctx.lineTo(cx + pw, baseY);
+        ctx.lineTo(cx, tip);
         ctx.closePath();
         ctx.fillStyle = '#f5f6fb';
         ctx.fill();
+        ctx.restore();
+
+        ctx.lineWidth = r * 0.012;
+        ctx.strokeStyle = '#0b0d17';
+        ctx.beginPath();
+        ctx.moveTo(cx - pw, baseY);
+        ctx.lineTo(cx + pw, baseY);
+        ctx.lineTo(cx, tip);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, baseY + pw * 0.3, pw * 0.5, 0, 2 * Math.PI);
+        ctx.fillStyle = '#e5484d';
+        ctx.fill();
+        ctx.lineWidth = r * 0.008;
+        ctx.strokeStyle = '#0b0d17';
+        ctx.stroke();
     }
 
     #sectorColor(value, index) {
@@ -444,6 +598,44 @@ export default class extends Controller {
         }
 
         return index % 2 ? '#f5a524' : '#ffd27d';
+    }
+
+    /**
+     * Wylosowane pole powiększa się na cały ekran, żeby było jasne, co padło.
+     * Radość dla wygranej, przy bankrut/stop smutek dosyła event kary z serwera.
+     */
+    #showSector(index) {
+        const value = this.sectors[index];
+        const bankrut = 'bankrut' === value;
+        const stop = 'stop' === value;
+
+        const wrap = document.createElement('div');
+        wrap.className = `kolo-result ${bankrut ? 'is-bankrut' : (stop ? 'is-stop' : 'is-win')}`;
+
+        const label = document.createElement('span');
+        label.className = 'kolo-result-value';
+        label.textContent = String(value).toUpperCase();
+        wrap.append(label);
+        document.body.append(wrap);
+
+        if (!bankrut && !stop) {
+            sfx.play('correct');
+            sfx.play('sparkle', { delay: 0.2 });
+        }
+
+        if (this.#reduced()) {
+            setTimeout(() => wrap.remove(), 1800);
+
+            return;
+        }
+
+        gsap.fromTo(label, { scale: 0.2, opacity: 0, rotation: -8 },
+            { duration: 0.5, scale: 1, opacity: 1, rotation: 0, ease: 'back.out(1.8)' });
+        gsap.to(wrap, { duration: 0.4, scale: 0.7, opacity: 0, delay: 1.7, ease: 'power2.in', onComplete: () => wrap.remove() });
+    }
+
+    #reduced() {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
 
     #flash(text) {

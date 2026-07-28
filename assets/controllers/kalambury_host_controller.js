@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { sfx } from '../audio/sfx.js';
+import { popIn, celebrate } from '../anim.js';
 
 /**
  * Panel kalambur na ekranie hosta.
@@ -84,7 +85,14 @@ export default class extends Controller {
                 this.teams.set(event.team.id, event.team.name);
             }
 
-            this.refresh();
+            const done = this.refresh();
+
+            // Nowe hasło wskakuje planszą, odgadnięcie świętuje hasłem.
+            if ('card_drawn' === event.type) {
+                done.then(() => popIn(this.boardTarget));
+            } else if ('round_over' === event.type && 'guessed' === event.reason) {
+                done.then(() => celebrate(this.boardTarget));
+            }
         }
     }
 
@@ -128,6 +136,7 @@ export default class extends Controller {
     #renderBoard(mask) {
         if (!mask) {
             this.boardTarget.replaceChildren();
+            this.cells = [];
             this.mask = '';
 
             return;
@@ -135,7 +144,7 @@ export default class extends Controller {
 
         if (this.mask?.length !== mask.length) {
             this.mask = mask;
-            this.boardTarget.replaceChildren(...[...mask].map((char) => this.#cell(char)));
+            this.#buildBoard(mask);
 
             return;
         }
@@ -145,7 +154,7 @@ export default class extends Controller {
                 return;
             }
 
-            const inner = this.boardTarget.children[index]?.querySelector('.cell-inner');
+            const inner = this.cells[index]?.querySelector('.cell-inner');
 
             if (inner) {
                 inner.querySelector('.cell-front').textContent = char;
@@ -154,6 +163,42 @@ export default class extends Controller {
         });
 
         this.mask = mask;
+    }
+
+    /**
+     * Buduje planszę słowo po słowie: litery jednego wyrazu siedzą we wspólnym,
+     * nierozrywalnym kontenerze (.puzzle-word), więc wyraz nigdy nie przechodzi
+     * w połowie do następnego wiersza - plansza łamie się tylko między wyrazami.
+     *
+     * this.cells trzyma płaskie odwzorowanie „pozycja w haśle -> kafelek" (null
+     * dla spacji), żeby odkrywanie liter po indeksie nie zależało od tego, jak
+     * kafelki są pogrupowane w drzewie.
+     */
+    #buildBoard(mask) {
+        this.cells = [];
+        const words = [];
+        let word = null;
+
+        [...mask].forEach((char) => {
+            if (' ' === char) {
+                word = null;
+                this.cells.push(null);
+
+                return;
+            }
+
+            if (!word) {
+                word = document.createElement('span');
+                word.className = 'puzzle-word';
+                words.push(word);
+            }
+
+            const cell = this.#cell(char);
+            word.append(cell);
+            this.cells.push(cell);
+        });
+
+        this.boardTarget.replaceChildren(...words);
     }
 
     #cell(char) {

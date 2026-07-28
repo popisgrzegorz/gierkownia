@@ -16,23 +16,19 @@
           data-player-status-team-value="{{ team.id }}"
           data-player-status-game-value="{{ gameType ?? '' }}">
 
+        {# Drużyna i punkty to tylko mała informacja w pasku - resztę ekranu
+           telefonu ma zająć samo granie. #}
         <header class="player-bar">
             <p class="player-brand">GIERK<span class="brand-o">★</span>WNIA</p>
+            <span class="player-who">
+                <span class="player-who-dot"></span>
+                <span class="player-who-name">{{ team.name }}</span>
+                <span class="player-who-score"><b data-player-status-target="score">{{ score }}</b> pkt</span>
+            </span>
             <span class="conn" data-player-status-target="connection" data-state="connecting">łączenie…</span>
         </header>
 
         <section class="player-main">
-            <div class="player-facts">
-                <div class="fact-card">
-                    <span class="fact-label">Drużyna:</span>
-                    <span class="fact-value fact-team">{{ team.name }}</span>
-                </div>
-                <div class="fact-card">
-                    <span class="fact-label">Punkty:</span>
-                    <span class="fact-value" data-player-status-target="score">{{ score }}</span>
-                </div>
-            </div>
-
             {% if gameType is not null %}
                 {# Widok modułu gry po konwencji game/{typ}/player. #}
                 {{ include('game/' ~ gameType ~ '/player.html.twig') }}

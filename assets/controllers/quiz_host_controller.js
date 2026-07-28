@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { sfx } from '../audio/sfx.js';
+import { celebrate, shake } from '../anim.js';
 
 /* Obrys kasety ma pathLength="100", więc odliczanie liczy się w procentach
    długości - bez wyliczania obwodu zaokrąglonego prostokąta. */
@@ -94,7 +95,15 @@ export default class extends Controller {
 
         if (['phase', 'timer', 'question_ready', 'answered', 'results', 'again',
             'round_reset', 'category_picked', 'team_joined', 'reset'].includes(event.type)) {
-            this.refresh();
+            const done = this.refresh();
+
+            // Odpowiedzi wjeżdżają własną animacją CSS, więc tu tylko reakcja na
+            // wynik: komunikat świętuje przy trafieniu, potrząsa przy pudle.
+            if ('results' === event.type) {
+                done.then(() => (0 < (event.winners?.length ?? 0)
+                    ? celebrate(this.messageTarget)
+                    : shake(this.messageTarget)));
+            }
         }
     }
 

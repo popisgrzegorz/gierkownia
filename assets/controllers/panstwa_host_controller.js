@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
+import gsap from 'gsap';
 import { sfx } from '../audio/sfx.js';
+import { popIn } from '../anim.js';
 
 /**
  * Panel państw i miast na ekranie hosta.
@@ -135,7 +137,12 @@ export default class extends Controller {
                 this.teams.set(event.team.id, event.team.name);
             }
 
-            this.refresh();
+            const done = this.refresh();
+
+            // Tabela wyników wskakuje z powiększenia - cały ekran „siada" w wynik.
+            if ('results' === event.type) {
+                done.then(() => popIn(this.resultsTarget, { scale: 0.85, duration: 0.45 }));
+            }
         }
     }
 
@@ -430,7 +437,7 @@ export default class extends Controller {
         }
 
         if (null === this.landing) {
-            this.letterTarget.textContent = ROLL[Math.floor(Math.random() * ROLL.length)];
+            this.#flip(ROLL[Math.floor(Math.random() * ROLL.length)], 0.05);
             this.rollTimer = setTimeout(() => this.#rollStep(), 45);
 
             return;
@@ -440,7 +447,8 @@ export default class extends Controller {
 
         if (1 === progress) {
             this.#stopRolling();
-            this.letterTarget.textContent = this.landing;
+            // Ostatnia klapka opada wolniej i mocniej - to ona ma zostać w oku.
+            this.#flip(this.landing, 0.55, 'back.out(1.6)');
             this.letterBoxTarget.classList.add('landed');
             // Litera zapadła - pieczątka i dzwonek. Nie w #stopRolling(), bo
             // tamto woła też odmowa serwera, a wtedy nic nie wylosowano.
@@ -451,10 +459,40 @@ export default class extends Controller {
             return;
         }
 
-        this.letterTarget.textContent = ROLL[Math.floor(Math.random() * ROLL.length)];
+        const delay = 45 + 215 * progress ** 2;
+
+        // Klapka opada tym dłużej, im wolniej kręci się bęben - obrót nadąża
+        // za rytmem, więc przy hamowaniu każdą literę widać, jak się przewraca.
+        this.#flip(ROLL[Math.floor(Math.random() * ROLL.length)], (delay / 1000) * 0.9);
 
         // Od 45 ms tuż po STOP-ie do ~260 ms przed zatrzymaniem.
-        this.rollTimer = setTimeout(() => this.#rollStep(), 45 + 215 * progress ** 2);
+        this.rollTimer = setTimeout(() => this.#rollStep(), delay);
+    }
+
+    /**
+     * Przewrócenie litery jak klapka na dworcowej tablicy: nowa litera spada
+     * z góry, obracając się wokół górnej krawędzi. Przy reduced-motion litera
+     * po prostu się podmienia - bez obrotu.
+     */
+    #flip(letter, duration, ease = 'power1.out') {
+        this.letterTarget.textContent = letter;
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+
+        gsap.fromTo(
+            this.letterTarget,
+            { rotationX: -92 },
+            {
+                rotationX: 0,
+                duration: Math.max(0.04, duration),
+                transformOrigin: '50% 0%',
+                transformPerspective: 600,
+                ease,
+                overwrite: true,
+            },
+        );
     }
 
     #stopRolling() {
