@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { softNavigate } from '../soft_nav.js';
 
 /**
  * Wybór gry na ekranie hosta. Lista modułów pochodzi z serwera - rdzeń nie zna
@@ -25,8 +26,9 @@ export default class extends Controller {
             return;
         }
 
-        // Panel gry to osobny szablon serwerowy, więc po starcie przeładowujemy
-        // ekran zamiast składać go w JS. Dzieje się to raz na grę.
-        window.location.reload();
+        // Panel gry to osobny szablon serwerowy - pobieramy go i podmieniamy
+        // <body> BEZ pełnego przeładowania (soft_nav.js). Twardy reload
+        // wyrzucałby hosta z pełnego ekranu przy każdym starcie gry.
+        await softNavigate();
     }
 }

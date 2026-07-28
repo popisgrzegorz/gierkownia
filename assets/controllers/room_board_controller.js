@@ -6,8 +6,8 @@ import { MercureStream } from '../live/mercure_stream.js';
  * oraz punkty - telewizor nigdy sie nie odswieza recznie.
  */
 export default class extends Controller {
-    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel'];
-    static values = { hub: String, code: String, scoreUrl: String };
+    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel', 'standingsModal'];
+    static values = { hub: String, code: String };
 
     connect() {
         /** Trwające przewijanie licznika - jedno na kafelek drużyny. */
@@ -21,7 +21,11 @@ export default class extends Controller {
 
         this.onKey = (event) => {
             if ('Escape' === event.key) {
+                // Esc = host świadomie wychodzi z pełnego ekranu; kasujemy
+                // życzenie, żeby kolejny ekran już go nie wciągał z powrotem.
+                sessionStorage.removeItem('tvFull');
                 this.#focus(false);
+                this.closeStandings();
             }
         };
         // Wyjście z pełnego ekranu przeglądarki (Esc, gest telewizora) ma
@@ -35,22 +39,89 @@ export default class extends Controller {
 
         window.addEventListener('keydown', this.onKey);
         document.addEventListener('fullscreenchange', this.onFullscreen);
+
+        this.#restoreFullscreen();
     }
 
     disconnect() {
         this.stream?.disconnect();
         window.removeEventListener('keydown', this.onKey);
         document.removeEventListener('fullscreenchange', this.onFullscreen);
+
+        if (this.reFull) {
+            window.removeEventListener('pointerdown', this.reFull, true);
+            window.removeEventListener('keydown', this.reFull, true);
+        }
     }
 
     /**
      * Chowa pasek u góry i punktację z boku - zostaje sama scena gry.
      *
-     * Punkty nadal się liczą; znika tylko ich podgląd i ręczna korekta, więc
-     * wyjście musi być widoczne przez cały czas (przycisk w rogu).
+     * Punkty nadal się liczą; znika tylko ich podgląd, więc wyjście musi być
+     * widoczne przez cały czas (przycisk w rogu).
      */
     toggleFocus() {
-        this.#focus(!this.element.classList.contains('tv-focus'));
+        const on = !this.element.classList.contains('tv-focus');
+
+        // Zapamiętujemy życzenie hosta na cały wieczór (sessionStorage przeżywa
+        // przeładowania w tej samej karcie). Przy każdej zmianie ekranu - start
+        // gry (reload), powrót do wyboru (redirect) - przeglądarka wychodzi
+        // z pełnego ekranu, a bez gestu nie wolno go włączyć z powrotem. Dzięki
+        // fladze wracamy do niego przy pierwszym dotknięciu nowego ekranu.
+        if (on) {
+            sessionStorage.setItem('tvFull', '1');
+        } else {
+            sessionStorage.removeItem('tvFull');
+        }
+
+        this.#focus(on);
+    }
+
+    /**
+     * Odtwarza pełny ekran po zmianie ekranu, jeśli host go wcześniej włączył.
+     *
+     * Przeglądarka wychodzi z pełnego ekranu przy każdej nawigacji i nie pozwala
+     * włączyć go z powrotem bez gestu użytkownika (zabezpieczenie - inaczej
+     * dowolna strona porywałaby ekran). Dlatego czekamy na pierwsze dotknięcie
+     * albo klawisz na nowym ekranie i dopiero wtedy wracamy do pełnego ekranu.
+     * Dla hosta przy telewizorze jest to praktycznie bezszwowe: i tak zaraz
+     * w coś klika, żeby prowadzić grę.
+     */
+    #restoreFullscreen() {
+        if ('1' !== sessionStorage.getItem('tvFull')) {
+            return;
+        }
+
+        // Pełny ekran przetrwał miękką nawigację (soft_nav.js) - został tylko
+        // tryb skupienia (chowanie paska), który żyje na klasie i ginie razem
+        // z podmienionym <body>. Dokładamy go od razu, bez czekania na gest.
+        if (document.fullscreenElement) {
+            this.element.classList.add('tv-focus');
+
+            return;
+        }
+
+        // Twarda nawigacja (wpisany adres, tablica w tej samej karcie) wyrzuciła
+        // z pełnego ekranu - włączyć go z powrotem wolno tylko z gestu, więc
+        // czekamy na pierwsze dotknięcie albo klawisz.
+        this.reFull = (event) => {
+            // Esc ma wyprowadzać z pełnego ekranu, więc nie traktujemy go jako
+            // gestu do powrotu - obsłuży go onKey.
+            if ('keydown' === event.type && 'Escape' === event.key) {
+                return;
+            }
+
+            window.removeEventListener('pointerdown', this.reFull, true);
+            window.removeEventListener('keydown', this.reFull, true);
+
+            if ('1' === sessionStorage.getItem('tvFull') && !document.fullscreenElement) {
+                this.#focus(true);
+            }
+        };
+
+        // Capture, żeby złapać gest zanim pochłonie go przycisk gry.
+        window.addEventListener('pointerdown', this.reFull, true);
+        window.addEventListener('keydown', this.reFull, true);
     }
 
     #focus(on) {
@@ -82,38 +153,28 @@ export default class extends Controller {
     }
 
     /**
-     * Przyznaje lub odejmuje punkt. Nowy wynik nie jest wpisywany tutaj -
-     * wraca eventem 'score' z Mercure, tak samo jak do telefonów. Dzięki temu
-     * ekran hosta i telefony pokazują dokładnie to samo, nawet gdy dwa punkty
-     * padną w tej samej sekundzie.
+     * Wyniki jako okienko modal nad ekranem. Lista w środku to drugi target
+     * `list` - kontroler aktualizuje wszystkie listy naraz, więc modal jest
+     * żywy tak samo jak tablo z boku.
      */
-    async score(event) {
-        const button = event.currentTarget;
-        const teamId = button.closest('[data-team-id]')?.dataset.teamId;
-
-        if (!teamId) {
-            return;
+    openStandings() {
+        if (this.hasStandingsModalTarget) {
+            this.standingsModalTarget.hidden = false;
+            // Poukładaj od razu wg aktualnych punktów - ukryta lista nie liczy
+            // pozycji przez FLIP, więc przy otwarciu wyrównujemy kolejność.
+            this.listTargets.forEach((list) => this.#reorder(list));
         }
+    }
 
-        // Blokada na czas żądania: host klika szybciej, niż leci odpowiedź,
-        // a podwójne kliknięcie to podwójny punkt.
-        button.disabled = true;
-
-        try {
-            const response = await fetch(this.scoreUrlValue, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({ teamId, delta: Number(button.dataset.delta) }),
-            });
-
-            if (!response.ok) {
-                this.#showConnection('offline');
-            }
-        } catch {
-            this.#showConnection('offline');
-        } finally {
-            button.disabled = false;
+    closeStandings() {
+        if (this.hasStandingsModalTarget) {
+            this.standingsModalTarget.hidden = true;
         }
+    }
+
+    /** Klik w kartę nie może zamykać modala (tło zamyka, karta nie). */
+    stop(event) {
+        event.stopPropagation();
     }
 
     #handle(event) {
@@ -135,35 +196,50 @@ export default class extends Controller {
     }
 
     #addTeam(team, score) {
-        // Event moze przyjsc drugi raz (reconnect SSE odtwarza historie),
-        // wiec dokladamy kafelek tylko gdy tej druzyny jeszcze nie ma.
-        if (!team?.id || this.#tile(team.id)) {
+        if (!team?.id) {
             return;
         }
 
-        const tile = this.templateTarget.content.firstElementChild.cloneNode(true);
-        tile.dataset.teamId = team.id;
-        tile.style.setProperty('--team-color', team.color);
-        tile.querySelector('.team-name').textContent = team.name;
-        tile.querySelector('[data-score]').textContent = String(score);
+        // Kafelek trafia do każdej listy (boczne tablo i modal). Event moze
+        // przyjsc drugi raz (reconnect SSE odtwarza historie), wiec dokladamy
+        // tylko tam, gdzie tej druzyny jeszcze nie ma.
+        this.listTargets.forEach((list) => {
+            if (this.#tileIn(list, team.id)) {
+                return;
+            }
 
-        this.listTarget.append(tile);
+            const tile = this.templateTarget.content.firstElementChild.cloneNode(true);
+            tile.dataset.teamId = team.id;
+            tile.style.setProperty('--team-color', team.color);
+            tile.querySelector('.team-name').textContent = team.name;
+            tile.querySelector('[data-score]').textContent = String(score);
+
+            list.append(tile);
+        });
+
         this.#refreshCount();
-        this.#reorder();
+        this.listTargets.forEach((list) => this.#reorder(list));
     }
 
     #setScore(teamId, total) {
-        const scoreEl = this.#tile(teamId)?.querySelector('[data-score]');
-        if (!scoreEl) {
-            return;
+        let found = false;
+
+        this.listTargets.forEach((list) => {
+            const scoreEl = this.#tileIn(list, teamId)?.querySelector('[data-score]');
+            if (!scoreEl) {
+                return;
+            }
+
+            found = true;
+            this.#countTo(scoreEl, total);
+            scoreEl.classList.remove('bump');
+            void scoreEl.offsetWidth; // restart animacji przy kolejnym punkcie z rzedu
+            scoreEl.classList.add('bump');
+        });
+
+        if (found) {
+            this.listTargets.forEach((list) => this.#reorder(list));
         }
-
-        this.#countTo(scoreEl, total);
-        scoreEl.classList.remove('bump');
-        void scoreEl.offsetWidth; // restart animacji przy kolejnym punkcie z rzedu
-        scoreEl.classList.add('bump');
-
-        this.#reorder();
     }
 
     /**
@@ -213,11 +289,11 @@ export default class extends Controller {
      * klatce; transform idzie po stronie kompozytora i nie gubi klatek nawet
      * na słabym procesorze telewizora.
      */
-    #reorder() {
-        const tiles = [...this.listTarget.children];
+    #reorder(list) {
+        const tiles = [...list.children];
 
         if (tiles.length < 2) {
-            this.#renumber();
+            this.#renumber(list);
 
             return;
         }
@@ -227,9 +303,9 @@ export default class extends Controller {
         // Malejąco po punktach; przy remisie zostaje dotychczasowa kolejność,
         // żeby kafelki nie skakały bez powodu przy każdym punkcie.
         const sorted = [...tiles].sort((a, b) => this.#scoreOf(b) - this.#scoreOf(a));
-        sorted.forEach((tile) => this.listTarget.append(tile));
+        sorted.forEach((tile) => list.append(tile));
 
-        this.#renumber();
+        this.#renumber(list);
 
         sorted.forEach((tile) => {
             const delta = before.get(tile) - tile.getBoundingClientRect().top;
@@ -245,8 +321,8 @@ export default class extends Controller {
         });
     }
 
-    #renumber() {
-        [...this.listTarget.children].forEach((tile, index) => {
+    #renumber(list) {
+        [...list.children].forEach((tile, index) => {
             const rank = tile.querySelector('.team-rank');
 
             if (rank) {
@@ -260,19 +336,21 @@ export default class extends Controller {
     }
 
     #resetScores() {
-        this.listTarget.querySelectorAll('[data-score]').forEach((el) => {
-            el.textContent = '0';
-        });
+        this.listTargets.forEach((list) => {
+            list.querySelectorAll('[data-score]').forEach((el) => {
+                el.textContent = '0';
+            });
 
-        this.#renumber();
+            this.#renumber(list);
+        });
     }
 
-    #tile(teamId) {
-        return this.listTarget.querySelector(`[data-team-id="${CSS.escape(teamId)}"]`);
+    #tileIn(list, teamId) {
+        return list.querySelector(`[data-team-id="${CSS.escape(teamId)}"]`);
     }
 
     #refreshCount() {
-        const total = this.listTarget.children.length;
+        const total = this.listTargets[0]?.children.length ?? 0;
 
         if (this.hasCountTarget) {
             this.countTarget.textContent = `(${total})`;

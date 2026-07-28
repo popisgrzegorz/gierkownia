@@ -4,6 +4,12 @@
 {% block body_class %}host{% endblock %}
 
 {% block body %}
+    {# Ekran wyboru gry ma dwie wersje: świeżą „ścianę gier" (v2, domyślna) i
+       starą (v1) dostępną pod ?v=1. Dotyczy tylko poczekalni - po starcie gry
+       i tak wchodzi normalny panel hosta. #}
+    {% if gameType is null and app.request.query.get('v') != '1' %}
+        {% include 'host/lobby_v2.html.twig' %}
+    {% else %}
     {# Jeden kontroler na całą stronę: subskrybuje topic pokoju, aktualizuje
        tablo i rozsyła zdarzenia do panelu gry. Telewizor nigdy się nie odświeża.
 
@@ -15,10 +21,9 @@
        do telefonów - jedna sala gra jednym głośnikiem, a dziesięć telefonów
        brzęczących z własnym opóźnieniem to hałas, nie efekt. #}
     <main class="tv"
-          data-controller="room-board sfx"
+          data-controller="room-board sfx tournament"
           data-room-board-hub-value="{{ hubUrl }}"
-          data-room-board-code-value="{{ room.code }}"
-          data-room-board-score-url-value="{{ path('game_score', {code: room.code}) }}">
+          data-room-board-code-value="{{ room.code }}">
 
         {# Poczekalnia dostaje pełny nagłówek z makiety (_other/layout2.png):
            duży logotyp po lewej, kod i QR po prawej. W trakcie gry ten sam
@@ -58,15 +63,23 @@
                     {# Powrot do wyboru gry - druzyny i punkty zostaja, telefony
                        przelaczaja sie same po evencie fazy. #}
                     <form method="post" action="{{ path('game_stop', {code: room.code}) }}"
-                          onsubmit="return confirm('Zakończyć tę grę i wrócić do wyboru? Drużyny i punkty zostają.')">
+                          data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                          data-confirm="Zakończyć tę grę i wrócić do wyboru? Drużyny i punkty zostają.">
                         <button type="submit" class="btn btn-ghost btn-reset">Zmień grę</button>
                     </form>
                 {% endif %}
 
                 <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
-                      onsubmit="return confirm('Zerować punkty i stan gry? Drużyny zostają w pokoju.')">
+                      data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                      data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
                     <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
                 </form>
+
+                {# Pełna tablica wyników jako okienko modal - ranking wszystkich
+                   uczestników na wierzchu ekranu, żywy z tego samego strumienia
+                   co tablo z boku. #}
+                <button type="button" class="btn btn-ghost btn-reset"
+                        data-action="room-board#openStandings">🏆 Tablica wyników</button>
 
                 {# Wyciszenie zapamiętuje się w przeglądarce telewizora: kto raz
                    ucisza grę na czas rozmowy, nie chce jej włączać po każdym
@@ -100,6 +113,51 @@
         </div>
         {% endif %}
 
+        {# Wyniki jako modal - tabela TURNIEJU (punkty za miejsca ze wszystkich
+           gier), nie surowy wynik bieżącej gry. Ten drugi widać na tablo z boku.
+           Lista żyje przez kontroler `tournament`: doszła gra → przestawia się.
+           Klik w tło zamyka. #}
+        <div class="standings-modal" data-room-board-target="standingsModal" hidden
+             data-action="click->room-board#closeStandings">
+            <div class="standings-modal-card" data-action="click->room-board#stop">
+                <div class="standings-modal-head">
+                    <h2 class="standings-modal-title">🏆 Turniej</h2>
+                    <span class="standings-note" data-tournament-target="note">
+                        {{ playedGames == 0 ? 'Turniej zacznie się po pierwszej grze.' : 'Po ' ~ playedGames ~ (playedGames == 1 ? ' grze.' : ' grach.') }}
+                    </span>
+                    <button type="button" class="btn btn-ghost" data-action="room-board#closeStandings"
+                            aria-label="Zamknij">✕</button>
+                </div>
+
+                <ul class="standings-list teams" data-tournament-target="list">
+                    {% for team in tournament %}
+                        <li class="team" data-team-id="{{ team.id }}" style="--team-color: {{ team.color }}">
+                            <span class="team-rank">{{ loop.index }}</span>
+                            <span class="team-name">{{ team.name }}</span>
+                            <span class="team-games">
+                                {% for game in team.games|filter(g => g.points > 0) %}
+                                    <span class="team-game-pill">{{ game.label }} +{{ game.points }}</span>
+                                {% endfor %}
+                            </span>
+                            <span class="team-score" data-total>{{ team.total }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                {# Zapis turnieju do pliku - żeby wrócić następnego dnia. Nazwa
+                   pomaga odnaleźć go na liście „Wznów". #}
+                <form class="standings-save" method="post"
+                      action="{{ path('tournament_save', {code: room.code}) }}">
+                    <input type="text" name="name" class="form-control" maxlength="60"
+                           placeholder="Nazwa (np. Wieczór u Kasi)" autocomplete="off">
+                    <button type="submit" class="btn">💾 Zapisz turniej</button>
+                </form>
+
+                <a class="standings-modal-link" href="{{ path('host_standings', {code: room.code}) }}"
+                   target="_blank" rel="noopener">Otwórz na osobnym ekranie ↗</a>
+            </div>
+        </div>
+
         <div class="tv-body">
             {# Tablo po LEWEJ, na pełną wysokość: przyciski hosta u góry, pod nimi
                drużyny posortowane po punktach. Kolejność przestawia kontroler
@@ -123,18 +181,12 @@
                             <span class="team-rank">{{ loop.index }}</span>
                             <span class="team-name">{{ team.name }}</span>
                             <span class="team-score" data-score>{{ team.score }}</span>
-                            <span class="team-buttons">
-                                <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="-1"
-                                        aria-label="Odejmij punkt drużynie {{ team.name }}">−</button>
-                                <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="1"
-                                        aria-label="Dodaj punkt drużynie {{ team.name }}">+</button>
-                            </span>
                         </li>
                     {% endfor %}
                 </ul>
             </aside>
 
-            <section class="tv-stage">
+            <section class="tv-stage {{ gameType is null ? 'tv-stage-lobby' : '' }}">
                 {% if gameType is null %}
                     {# Gry z planu (spec §1), których moduły jeszcze nie powstały. Pokazujemy
                        je jako "wkrótce" i odsiewamy te, które już się wpięły - dzięki temu
@@ -224,11 +276,8 @@
                 <span class="team-rank"></span>
                 <span class="team-name"></span>
                 <span class="team-score" data-score>0</span>
-                <span class="team-buttons">
-                    <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="-1">−</button>
-                    <button type="button" class="btn btn-score" data-action="room-board#score" data-delta="1">+</button>
-                </span>
             </li>
         </template>
     </main>
+    {% endif %}
 {% endblock %}
