@@ -10,6 +10,7 @@ use App\Core\Game\GameRegistry;
 use App\Core\Room\RoomAccess;
 use App\Core\Room\RoomManager;
 use App\Core\Score\Scoreboard;
+use App\Core\Tournament\Tournament;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,6 +32,7 @@ final class GameController extends AbstractController
         private readonly GameEngine $engine,
         private readonly GameRegistry $registry,
         private readonly Scoreboard $scoreboard,
+        private readonly Tournament $tournament,
     ) {
     }
 
@@ -56,15 +58,23 @@ final class GameController extends AbstractController
     }
 
     /**
-     * Koniec gry i powrot do wyboru - druzyny i punkty zostaja w pokoju.
-     * Telefony przelaczaja sie same po evencie fazy "lobby"; przycisk jest
-     * zwyklym formularzem na ekranie hosta, wiec po POST wracamy tam redirectem.
+     * Koniec gry i powrot do wyboru gry.
+     *
+     * To tutaj zapada punktacja turnieju: surowy wynik biezacej gry zamienia sie
+     * na punkty za miejsce (recordCurrentGame) i zeruje pod nastepna gre. Dlatego
+     * musi pojsc PRZED engine->stop(), ktore kasuje typ gry i stan. Druzyny
+     * zostaja w pokoju, telefony przelaczaja sie same po evencie fazy "lobby";
+     * przycisk jest zwyklym formularzem, wiec po POST wracamy na ekran hosta.
      */
     #[Route('/stop', name: 'game_stop', methods: ['POST'])]
     public function stop(Request $request, string $code): Response
     {
         $room = $this->rooms->getOrFail($code);
         $this->access->requireHost($request, $room->code);
+
+        if (null !== $room->gameType) {
+            $this->tournament->recordCurrentGame($room, $room->gameType);
+        }
 
         $this->engine->stop($room);
 

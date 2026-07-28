@@ -12,6 +12,7 @@ use App\Core\Room\JoinLink;
 use App\Core\Room\RoomAccess;
 use App\Core\Room\RoomManager;
 use App\Core\Score\Scoreboard;
+use App\Core\Tournament\Tournament;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,6 +31,7 @@ final class HostController extends AbstractController
         private readonly GameEngine $engine,
         private readonly GameRegistry $registry,
         private readonly Subscription $subscription,
+        private readonly Tournament $tournament,
     ) {
     }
 
@@ -77,6 +79,38 @@ final class HostController extends AbstractController
                 static fn ($team) => $team->toPublicArray() + ['score' => $scores[$team->id] ?? 0],
                 $this->rooms->teams($room->code),
             ),
+            // Tabela turnieju (punkty za miejsca) - do modala z wynikami. Tablo
+            // z boku pokazuje surowy wynik biezacej gry, turniej sumuje miejsca.
+            'tournament' => $this->tournament->standings($room),
+            'playedGames' => $this->tournament->playedGames($room->code),
+        ]);
+
+        $response->headers->setCookie($this->subscription->cookie($request, $topics));
+
+        return $response;
+    }
+
+    /**
+     * Tablica wyników - sama lista uczestnikow posortowana po punktach, na zywo.
+     *
+     * Osobny, lekki widok do rzucenia na drugi ekran albo pokazania rankingu bez
+     * planszy gry. Slucha wylacznie broadcastu pokoju (punkty sa jawne, nie ma
+     * tu nic tajnego), wiec nie wymaga tokenu hosta - wystarczy znac kod pokoju.
+     */
+    #[Route('/host/{code}/tablo', name: 'host_standings', methods: ['GET'], requirements: ['code' => '[A-Z]{4}'])]
+    public function standings(Request $request, string $code): Response
+    {
+        $room = $this->rooms->getOrFail($code);
+        $this->rooms->touch($room->code);
+
+        // Tylko broadcast pokoju: punkty lecą tędy do wszystkich, bez topicu hosta.
+        $topics = [Topics::room($room->code)];
+
+        $response = $this->render('host/standings.html.twig', [
+            'room' => $room,
+            'hubUrl' => $this->subscription->url($request, $topics),
+            'tournament' => $this->tournament->standings($room),
+            'playedGames' => $this->tournament->playedGames($room->code),
         ]);
 
         $response->headers->setCookie($this->subscription->cookie($request, $topics));

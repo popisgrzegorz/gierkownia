@@ -13,6 +13,9 @@ parameters:
     # Katalog z plikami muzycznymi i katalog z opisami talii. Rozdzielone,
     # bo talie sa wersjonowane razem z kodem, a muzyka nigdy nie powinna byc.
     app.media_dir: '%env(resolve:MEDIA_DIR)%'
+    # Zapisane turnieje: jeden maly plik JSON na sesje. Poza Redisem (ten wygasa)
+    # i poza Postgresem (jeden zrzut to za malo na encje i migracje).
+    app.tournament_dir: '%kernel.project_dir%/var/tournaments'
 
 services:
     # default configuration for services in *this* file
@@ -23,6 +26,7 @@ services:
             int $roomTtl: '%app.room_ttl%'
             int $mercurePublicPort: '%env(int:MERCURE_PUBLIC_PORT)%'
             string $mediaDir: '%app.media_dir%'
+            string $tournamentDir: '%app.tournament_dir%'
             string $adminPassword: '%env(ADMIN_PASSWORD)%'
 
     # Moduly gier wpinaja sie same: kazda usluga implementujaca GameInterface

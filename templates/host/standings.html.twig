@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Turniej — {{ room.code }}{% endblock %}
+{% block body_class %}standings-page{% endblock %}
+
+{% block body %}
+    {# Ranking turnieju: sumy punktów za miejsca ze wszystkich gier. room-board
+       trzyma jedno połączenie SSE i rozgłasza je jako `gierki:event`; tournament
+       słucha go i przy każdej zaliczonej grze przestawia tabelę. Widok do
+       oglądania - bez przycisków sterowania. #}
+    <main class="standings"
+          data-controller="room-board tournament"
+          data-room-board-hub-value="{{ hubUrl }}"
+          data-room-board-code-value="{{ room.code }}">
+
+        <header class="standings-head">
+            <h1 class="standings-title">Turniej</h1>
+            <span class="standings-note" data-tournament-target="note">
+                {{ playedGames == 0 ? 'Turniej zacznie się po pierwszej grze.' : 'Po ' ~ playedGames ~ (playedGames == 1 ? ' grze.' : ' grach.') }}
+            </span>
+            <span class="conn" data-room-board-target="connection" data-state="connecting">łączenie…</span>
+        </header>
+
+        <p class="standings-empty" data-tournament-target="empty" {{ tournament is not empty ? 'hidden' : '' }}>
+            Czekam na graczy…
+        </p>
+
+        <ul class="standings-list teams" data-tournament-target="list">
+            {% for team in tournament %}
+                <li class="team" data-team-id="{{ team.id }}" style="--team-color: {{ team.color }}">
+                    <span class="team-rank">{{ loop.index }}</span>
+                    <span class="team-name">{{ team.name }}</span>
+                    <span class="team-games">
+                        {% for game in team.games|filter(g => g.points > 0) %}
+                            <span class="team-game-pill">{{ game.label }} +{{ game.points }}</span>
+                        {% endfor %}
+                    </span>
+                    <span class="team-score" data-total>{{ team.total }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </main>
+{% endblock %}

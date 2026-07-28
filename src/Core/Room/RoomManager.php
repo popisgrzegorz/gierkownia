@@ -123,6 +123,45 @@ final readonly class RoomManager
         return $team;
     }
 
+    /**
+     * Odtwarza druzyny z zapisanego turnieju do nowego pokoju.
+     *
+     * Zachowujemy id, nazwe, kolor i numer - dzieki temu tabela turnieju wciaz
+     * wskazuje te same druzyny. deviceToken losujemy na nowo: telefon z wczoraj
+     * i tak stracil ciasteczko, a wracajacy gracz wpisze te sama nazwe i join()
+     * odda mu te druzyne z jej dorobkiem. Licznik seq ustawiamy na najwyzszy
+     * odtworzony, zeby ktos dosiadajacy sie jutro dostal kolejny numer i kolor,
+     * a nie zdublowal istniejacy.
+     *
+     * @param list<array{id: string, name: string, color: string, seq: int}> $teams
+     */
+    public function restoreTeams(string $code, array $teams): void
+    {
+        $teamsKey = RoomKeys::teams($code);
+        $maxSeq = 0;
+
+        foreach ($teams as $data) {
+            $team = new Team(
+                id: $data['id'],
+                name: $data['name'],
+                color: $data['color'],
+                deviceToken: $this->generateToken(),
+                seq: $data['seq'],
+                joinedAt: time(),
+            );
+
+            $this->redis->hset($teamsKey, $team->id, $team->toJson());
+            $this->redis->setex(RoomKeys::score($code, $team->id), $this->roomTtl, '0');
+            $maxSeq = max($maxSeq, $data['seq']);
+        }
+
+        $this->redis->expire($teamsKey, $this->roomTtl);
+
+        $seqKey = RoomKeys::teamSeq($code);
+        $this->redis->set($seqKey, (string) $maxSeq);
+        $this->redis->expire($seqKey, $this->roomTtl);
+    }
+
     /** @return list<Team> */
     public function teams(string $code): array
     {

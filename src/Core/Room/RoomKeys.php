@@ -37,6 +37,16 @@ final class RoomKeys
         return sprintf('room:%s:score:%s', $code, $teamId);
     }
 
+    /**
+     * Tabela turnieju: punkty za miejsca zebrane przez wszystkie rozegrane gry.
+     * Poza prefiksem game:, wiec reset rozgrywki jej nie zdejmuje (turniej trwa
+     * ponad pojedyncza gra), ale wygasa razem z pokojem po TTL.
+     */
+    public static function tournament(string $code): string
+    {
+        return sprintf('room:%s:tournament', $code);
+    }
+
     public static function scorePattern(string $code): string
     {
         return sprintf('room:%s:score:*', $code);

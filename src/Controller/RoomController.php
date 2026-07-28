@@ -9,6 +9,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Room\RoomAccess;
 use App\Core\Room\RoomManager;
 use App\Core\Score\Scoreboard;
+use App\Core\Tournament\Tournament;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -26,6 +27,7 @@ final class RoomController extends AbstractController
         private readonly RoomAccess $access,
         private readonly Publisher $publisher,
         private readonly Scoreboard $scoreboard,
+        private readonly Tournament $tournament,
     ) {
     }
 
@@ -115,6 +117,9 @@ final class RoomController extends AbstractController
         $this->access->requireHost($request, $code);
 
         $this->rooms->resetGame($code);
+        // Reset to "zaczynamy wieczor od nowa" - kasuje tez tabele turnieju,
+        // inaczej punkty za miejsca z poprzedniej imprezy zostalyby doliczone.
+        $this->tournament->clear($code);
         $this->publisher->broadcast($code, new Event(Event::RESET));
 
         return $this->redirectToRoute('host_screen', ['code' => $code]);

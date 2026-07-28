@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Zapisane turnieje{% endblock %}
+{% block body_class %}home{% endblock %}
+
+{% block body %}
+    <main class="home-screen">
+        <div class="brand">
+            <h1 class="brand-name">ZAPISANE<span class="brand-star">★</span>TURNIEJE</h1>
+            <p class="brand-tag">wróćcie tam, gdzie skończyliście</p>
+        </div>
+
+        {% if sessions is empty %}
+            <p class="lead" style="text-align:center">
+                Nic tu jeszcze nie ma. Zapisz turniej na ekranie hosta („🏆 Turniej” → Zapisz),
+                żeby wrócić do niego następnego dnia.
+            </p>
+        {% else %}
+            <ul class="saved-list">
+                {% for session in sessions %}
+                    <li class="saved-item">
+                        <div class="saved-main">
+                            <h2 class="saved-name">{{ session.name }}</h2>
+                            <p class="saved-meta">
+                                {{ session.savedAt|date('d.m.Y, H:i') }}
+                                · {{ session.teamCount }}
+                                {{ session.teamCount == 1 ? 'drużyna' : (session.teamCount in 2..4 ? 'drużyny' : 'drużyn') }}
+                                · {{ session.games }}
+                                {{ session.games == 1 ? 'gra' : (session.games in 2..4 ? 'gry' : 'gier') }}
+                                {% if session.leader %} · prowadzi <strong>{{ session.leader }}</strong>{% endif %}
+                            </p>
+                        </div>
+                        <form method="post" action="{{ path('tournament_restore', {id: session.id}) }}">
+                            <button type="submit" class="btn btn-primary btn-lg">Wznów</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <p class="home-foot"><a href="{{ path('home') }}" class="btn btn-ghost">← Strona główna</a></p>
+    </main>
+{% endblock %}
