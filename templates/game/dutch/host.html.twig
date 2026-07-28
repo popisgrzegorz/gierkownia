@@ -1,0 +1,51 @@
+{# Panel Dutcha na ekranie hosta (telewizor).
+
+   Na TV widać stół: rewersy kart każdego gracza, talię, wierzch stosu i ranking.
+   Ręce graczy są tajne do końca rundy - odkrywają się dopiero na ekranie wyników.
+   Rozgrywką sterują telefony; host tylko rozdaje, zaczyna i kończy rundy. #}
+<section class="game-panel dutch-panel"
+         data-controller="dutch-host"
+         data-dutch-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-dutch-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
+
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1 c-dutch">DUTCH</span>
+            <span class="game-name-2 c-dutch">GRA PAMIĘCI</span>
+        </h2>
+
+        {# Talia i stos odrzuconych - środek stołu. #}
+        <div class="dutch-center">
+            <div class="dutch-pile-wrap">
+                <span class="dutch-pile-label">Talia</span>
+                <span class="dutch-deck"><span class="dutch-pile-count" data-dutch-host-target="deckCount">—</span></span>
+            </div>
+            <div class="dutch-pile-wrap">
+                <span class="dutch-pile-label">Stos</span>
+                <span class="dutch-discard-pile" data-dutch-host-target="discard"></span>
+            </div>
+        </div>
+
+        <p class="banner-small" data-dutch-host-target="event"></p>
+
+        <p class="tip-card" data-dutch-host-target="tip">
+            <strong>Gracie na telefonach.</strong> Podejrzyjcie dwie karty i grajcie z pamięci.
+        </p>
+    </div>
+
+    <div class="game-main">
+        <p class="panel-eyebrow" data-dutch-host-target="progressLine"></p>
+
+        {# Stół: kafelek każdej drużyny z rewersami (albo odkrytymi kartami po rundzie). #}
+        <div class="dutch-table" data-dutch-host-target="table"></div>
+
+        {# Ranking - najniższy wynik na górze. #}
+        <div class="dutch-standings" data-dutch-host-target="standings"></div>
+
+        <div class="panel-row panel-controls" data-dutch-host-target="controls"></div>
+
+        <p class="hint muted" data-dutch-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot">Najniższa suma wygrywa. As = 1, figury = 10. Błędny „Dutch” to +5 karnych.</p>
+</section>

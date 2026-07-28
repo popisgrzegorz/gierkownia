@@ -1,0 +1,33 @@
+{# Sterownik Dutcha na telefonie. Cała gra dzieje się tutaj: podgląd kart na
+   starcie (przytrzymaj, żeby zobaczyć - potem grasz z pamięci), a w swojej turze
+   dobieranie i decyzja: podmień albo odrzuć.
+
+   Stan początkowy renderuje serwer i wstrzykuje jako JSON - trasa widoku gry
+   jest dla hosta, więc telefon nie ma jej skąd odpytać i dalej żyje z eventów
+   (swoje karty dostaje wyłącznie przez prywatny topic drużyny). #}
+<p class="game-tab c-bg-dutch">DUTCH</p>
+
+<div class="dutch-player"
+     data-controller="dutch-player"
+     data-team-id="{{ team.id }}"
+     data-dutch-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
+     data-dutch-player-view-value="{{ game|json_encode|e('html_attr') }}">
+
+    <div class="dutch-status">
+        <span class="dutch-turn" data-dutch-player-target="turn"></span>
+        <span class="dutch-mini-pile" data-dutch-player-target="discard" hidden></span>
+    </div>
+
+    {# Moja ręka: cztery karty w kwadracie 2x2. #}
+    <div class="dutch-hand" data-dutch-player-target="hand"></div>
+
+    {# Nakładka damy: wybór karty do podejrzenia albo podejrzana karta. #}
+    <div class="dutch-overlay" data-dutch-player-target="overlay" hidden></div>
+
+    {# Dobrana karta i decyzja - widoczne tylko w mojej turze. #}
+    <div class="dutch-drawn" data-dutch-player-target="drawnRow" hidden></div>
+
+    <div class="dutch-controls" data-dutch-player-target="controls"></div>
+
+    <p class="dutch-note" data-dutch-player-target="note"></p>
+</div>
