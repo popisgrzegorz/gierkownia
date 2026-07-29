@@ -1,0 +1,27 @@
+# Limity per IP klienta (spec 12, P2-7 audytu). Zliczanie zyje w cache.app -
+# domyslnie plik na dysku, wspolny dla wszystkich workerow PHP-FPM, wiec nie
+# trzeba do tego osobnego Redisa. To nie stan gry (ten zawsze siedzi w Redisie
+# z TTL) - to tylko licznik prob, ktoremu nie szkodzi utrata przy restarcie.
+framework:
+    rate_limiter:
+        # Haslo panelu jest slownikowe + cyfra - bez limitu do zlamania w godziny.
+        admin_login:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '15 minutes'
+
+        # Prawdziwa impreza dolacza kilkanascie telefonow w minute; limit ma
+        # zatrzymac skrypt zasypujacy jeden pokoj tysiacami druzyn, nie gosci.
+        room_join:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 minute'
+
+        # Kod pokoju to 4 litery (ok. 234 tys. kombinacji) - bez limitu
+        # przejscie calej puli i podejrzenie nazw druzyn/punktow zajmuje
+        # ~40 min. Telefon w normalnej grze odpytuje ten adres rzadko
+        # (wejscie + zerwanie SSE), wiec limit go nie dotyka.
+        room_state:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'

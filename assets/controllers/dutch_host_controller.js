@@ -35,7 +35,18 @@ export default class extends Controller {
     }
 
     async refresh() {
+        // Zdarzenie z jednego żądania serwera potrafi przyjść kilka naraz
+        // (np. 'called'+'turn', albo zawsze event+'phase') - każde odpala
+        // refresh(). Jeśli w międzyczasie wystartował NOWSZY refresh(), ta
+        // odpowiedź jest już nieaktualna - bez tego dwie równoległe odpowiedzi
+        // mogły wrócić w odwrotnej kolejności i starsza malowała ekran jako
+        // ostatnia (widoczne np. jako migający stan tury na TV).
+        const requestId = (this.refreshSeq = (this.refreshSeq ?? 0) + 1);
         const response = await fetch(this.viewUrlValue, { headers: { Accept: 'application/json' } });
+
+        if (requestId !== this.refreshSeq) {
+            return;
+        }
 
         if (response.ok) {
             this.#render(await response.json());
@@ -43,7 +54,22 @@ export default class extends Controller {
     }
 
     async act(event) {
-        await this.#send(event.currentTarget.dataset.dutchAction);
+        const button = event.currentTarget;
+
+        // Bez blokady podwójny klik (albo dwa palce naraz) wysyłał tę samą
+        // akcję dwukrotnie - w kole/melodii to przeskoczone hasło z puli,
+        // tutaj podwójne rozdanie czy podwójne "Zaczynamy".
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            await this.#send(button.dataset.dutchAction);
+        } finally {
+            button.disabled = false;
+        }
     }
 
     #onServerEvent(event) {
@@ -111,7 +137,8 @@ export default class extends Controller {
         }
 
         if (['phase', 'dealt', 'drew', 'swapped', 'discarded', 'blind_swapped', 'snapped', 'snap_failed',
-            'called', 'turn', 'peek_progress', 'revealed', 'round_reset', 'team_joined', 'reset'].includes(event.type)) {
+            'called', 'turn', 'peek_progress', 'revealed', 'round_reset', 'team_joined', 'reset',
+            'resync'].includes(event.type)) {
             const done = this.refresh();
 
             // Animacje odpalamy PO odświeżeniu, gdy nowe kafelki są już w DOM-ie.

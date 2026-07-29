@@ -103,8 +103,16 @@ final class HostController extends AbstractController
         $room = $this->rooms->getOrFail($code);
         $this->rooms->touch($room->code);
 
-        // Tylko broadcast pokoju: punkty lecą tędy do wszystkich, bez topicu hosta.
-        $topics = [Topics::room($room->code)];
+        // Tylko broadcast pokoju: punkty lecą tędy do wszystkich, bez topicu hosta -
+        // WYJATEK: jesli to sam host otworzyl te karte obok ekranu glownego,
+        // dostaje ten sam (szerszy) zestaw topicow. Ciasteczko Mercure jest
+        // jedno na przegladarke (nazwa i sciezka na sztywno w protokole) -
+        // gdyby ta karta zapisala wezsze uprawnienia, nadpisalaby ciasteczko
+        // ekranu hosta i po najblizszym reconnekcie TV przestalby dostawac
+        // prywatne eventy (podglad hasla) bez zadnego komunikatu.
+        $topics = $this->access->isHost($request, $room->code)
+            ? [Topics::room($room->code), Topics::host($room->code)]
+            : [Topics::room($room->code)];
 
         $response = $this->render('host/standings.html.twig', [
             'room' => $room,

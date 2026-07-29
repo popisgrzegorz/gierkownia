@@ -15,8 +15,10 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
+use App\Core\Timer\GameTimer;
 use App\Game\Dutch\DutchGame;
 use App\Tests\RedisConnection;
 use App\Tests\RedisTestCase;
@@ -59,6 +61,7 @@ final class DutchGameTest extends RedisTestCase
         $this->gameState = new GameState($this->redis, $reader, self::TTL);
         $fsm = new GameFsm(new RedisMarkingStore($this->gameState));
         $this->rooms = new RoomManager($this->redis, $reader, new RoomCodeGenerator(), self::TTL);
+        $timer = new GameTimer($this->redis, $reader, self::TTL);
 
         $publisher = new Publisher(new MockHub(
             url: 'http://localhost/.well-known/mercure',
@@ -70,8 +73,8 @@ final class DutchGameTest extends RedisTestCase
             },
         ));
 
-        $game = new DutchGame($fsm, $this->gameState, $this->rooms);
-        $this->engine = new GameEngine(new GameRegistry([$game]), $this->gameState, $fsm, $this->rooms, $publisher);
+        $game = new DutchGame($fsm, $this->gameState, $this->rooms, $timer);
+        $this->engine = new GameEngine(new GameRegistry([$game]), $this->gameState, $fsm, $this->rooms, $publisher, new RoomLock($this->redis));
 
         $this->room = $this->rooms->create();
         $this->ania = $this->rooms->join($this->room->code, 'Ania');
@@ -147,6 +150,34 @@ final class DutchGameTest extends RedisTestCase
         $this->expectExceptionMessage('tylko dwie karty');
 
         $this->team($this->ania, 'peek', ['slot' => 2]);
+    }
+
+    /**
+     * Sedno naprawy: limit okna podglądu jest teraz pilnowany przez SERWER
+     * (GameTimer), nie tylko przez zegar w JS. Gdyby ktoś w kółko odświeżał
+     * telefon w fazie peek (trik z audytu), stan FSM wciąż byłby 'peek', ale
+     * termin już minął - a to termin, nie stan, decyduje o tym, co playerView()
+     * odda. Symulujemy upływ czasu przez bezpośredni zapis w Redisie zamiast
+     * naprawdę czekać dwanaście sekund w teście.
+     */
+    public function testPeekedCardsVanishAfterTheServerDeadlineEvenInPeekState(): void
+    {
+        $this->host('deal');
+        $this->team($this->ania, 'peek', ['slot' => 0]);
+
+        self::assertNotSame([], $this->engine->playerView($this->room, $this->ania)['peekedCards']);
+
+        // Termin w przeszłości - dokładnie to, co się dzieje po PEEK_WINDOW_SECONDS,
+        // tylko bez czekania. Stan FSM zostaje 'peek' (host nie kliknął "Zaczynamy").
+        $this->redis->setex(\App\Core\Room\RoomKeys::gameDeadline($this->room->code), self::TTL, (string) (self::nowMs() - 1000));
+
+        self::assertSame('peek', $this->engine->hostView($this->room)['state']);
+        self::assertSame([], $this->engine->playerView($this->room, $this->ania)['peekedCards']);
+    }
+
+    private static function nowMs(): int
+    {
+        return (int) (microtime(true) * 1000);
     }
 
     /** Uczciwa pamięć: gdy runda rusza, podejrzane karty znikają z widoku. */
@@ -377,6 +408,82 @@ final class DutchGameTest extends RedisTestCase
         $this->expectExceptionMessage('różnych graczy');
 
         $this->team($this->ania, 'power_swap', ['a' => $this->ania->id, 'b' => $this->ania->id]);
+    }
+
+    /**
+     * Walet, ktory nie ma kogo wskazac (przeciwnik wysnapowal ostatnia karte
+     * dokladnie w oknie miedzy zagraniem waleta a wyborem celu) nie moze
+     * wieszac tury na amen - power_cancel domyka ja tak samo jak zwykle
+     * wyrzucenie, bez wykonania efektu.
+     */
+    public function testJackWithNoLegalTargetCanBeCancelled(): void
+    {
+        $this->startPlaying();
+        $this->forceHands([
+            $this->ania->id => [0, 1, 2, 3],
+            // Reka Bartka jest juz pusta - dokladnie ten wyscig z audytu.
+            $this->bartek->id => [-1, -1, -1, -1],
+        ]);
+        $this->forceDrawn($this->ania, 10); // J♠ (moc: zamiana)
+        $this->team($this->ania, 'power');
+
+        try {
+            $this->team($this->ania, 'power_swap', ['a' => $this->ania->id, 'b' => $this->bartek->id]);
+            self::fail('Zamiana z pusta reka powinna byc niewykonalna.');
+        } catch (IllegalActionException) {
+            // Oczekiwane - to jest ten sam zaklinczony stan co w audycie.
+        }
+
+        // Bez wyjscia awaryjnego tura stalaby tu na zawsze.
+        $this->team($this->ania, 'power_cancel');
+
+        self::assertNull($this->gameState->ctx($this->room->code)['_power'] ?? null);
+        self::assertSame($this->bartek->id, $this->engine->hostView($this->room)['turn']);
+    }
+
+    /** Dama bez wlasnych kart (wszystkie wysnapowane) tez ma wyjscie awaryjne. */
+    public function testQueenWithNoOwnCardsCanBeCancelled(): void
+    {
+        $this->startPlaying();
+        $this->forceHands([
+            $this->ania->id => [-1, -1, -1, -1],
+            $this->bartek->id => [4, 5, 6, 7],
+        ]);
+        $this->forceDrawn($this->ania, 11); // Q♠
+        $this->team($this->ania, 'power');
+
+        try {
+            $this->team($this->ania, 'power_peek', ['teamId' => $this->ania->id, 'slot' => 0]);
+            self::fail('Podglad pustego pola powinien byc niewykonalny.');
+        } catch (IllegalActionException) {
+        }
+
+        $this->team($this->ania, 'power_cancel');
+
+        self::assertNull($this->gameState->ctx($this->room->code)['_power'] ?? null);
+        self::assertSame($this->bartek->id, $this->engine->hostView($this->room)['turn']);
+    }
+
+    public function testCancelPowerFailsWithoutAPendingPower(): void
+    {
+        $this->startPlaying();
+
+        $this->expectException(IllegalActionException::class);
+        $this->expectExceptionMessage('Nie ma mocy do pominięcia.');
+
+        $this->team($this->ania, 'power_cancel');
+    }
+
+    public function testCancelPowerIsOnlyForTheCurrentPlayer(): void
+    {
+        $this->startPlaying();
+        $this->forceDrawn($this->ania, 11); // Q♠
+        $this->team($this->ania, 'power');
+
+        $this->expectException(IllegalActionException::class);
+        $this->expectExceptionMessage('nie twoja tura');
+
+        $this->team($this->bartek, 'power_cancel');
     }
 
     /**

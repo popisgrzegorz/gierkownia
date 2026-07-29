@@ -19,14 +19,6 @@ export default class extends Controller {
     /** Na tyle długo, żeby nie wysyłać co literę, i na tyle krótko, by nie zgubić słowa. */
     static DEBOUNCE = 400;
 
-    /**
-     * Ile telefon czeka z pokazaniem litery po jej wylosowaniu. Bęben na
-     * telewizorze hamuje ~1,4 s (BRAKE_MS hosta) - telefon odsłania literę
-     * odrobinę później, żeby nikt nie odczytał jej z ekranu, zanim spadnie
-     * ostatnia klapka na TV.
-     */
-    static LETTER_DELAY = 1600;
-
     connect() {
         this.offset = 0;
         this.timers = new Map();
@@ -79,7 +71,13 @@ export default class extends Controller {
         // Przed STOP-em dosyłamy wszystko, co czeka w kolejce - inaczej własne
         // ostatnie słowo przepadłoby przez własne kliknięcie.
         await this.#flushPending();
-        await this.#send('stop');
+        const ok = await this.#send('stop');
+
+        if (!ok) {
+            // Bez tego przycisk zostawał szary do końca rundy, mimo że STOP
+            // nigdy nie dotarł do serwera - gracz nie miał jak spróbować ponownie.
+            this.stopTarget.disabled = false;
+        }
     }
 
     #handle(event) {
@@ -92,7 +90,7 @@ export default class extends Controller {
                 this.stateValue = 'writing';
                 this.stoppedValue = false;
                 this.#rebuildFields(event.columns);
-                this.#revealLetterSoon(event.letter);
+                this.#revealLetterSoon(event.letter, event.revealAt, event.serverNow);
                 break;
 
             case 'timer':
@@ -171,21 +169,29 @@ export default class extends Controller {
     }
 
     /**
-     * Zakrywa literę i odsłania ją dopiero po chwili - tyle, ile bęben na
-     * telewizorze hamuje. Do tego czasu pola są zablokowane (patrz #render).
+     * Zakrywa literę i odsłania ją dopiero w chwili revealAt - serwerowym
+     * terminie, do którego bęben na telewizorze zdąży wyhamować i opaść.
+     * Stały lokalny czas (dawne LETTER_DELAY) rozjeżdżał się z TV: dwa
+     * niezależne zegary liczące od chwili odbioru tego samego zdarzenia SSE
+     * różniły się o tyle, że telefon czasem odsłaniał literę, zanim spadła
+     * ostatnia klapka na ekranie (P2-12 audytu). offset przelicza serwerowy
+     * termin na czas tego urządzenia - jak w #startClock i reszcie gier.
      */
-    #revealLetterSoon(letter) {
+    #revealLetterSoon(letter, revealAt, serverNow) {
         clearTimeout(this.letterTimer);
         this.letterHidden = true;
         this.pendingLetter = letter;
         this.letterValue = '';
+
+        const offset = serverNow - Date.now();
+        const delay = Math.max(0, revealAt - (Date.now() + offset));
 
         this.letterTimer = setTimeout(() => {
             this.letterHidden = false;
             this.letterValue = this.pendingLetter;
             this.#render();
             this.#revealLetter();
-        }, this.constructor.LETTER_DELAY);
+        }, delay);
     }
 
     /** Sprząta zakrycie - przy resecie rundy litera znika bez czekania. */
@@ -323,15 +329,42 @@ export default class extends Controller {
             }
         };
 
-        tick();
+        // Interwal PRZED pierwszym tick() - patrz komentarz w analogicznym
+        // miejscu quiz_host_controller.js (ten sam wyścig o podwójne 'finish',
+        // tu dodatkowo o podwójne wysłanie #flushPending()).
         this.ticker = setInterval(tick, 200);
+        tick();
     }
 
+    /**
+     * @return {Promise<boolean>} czy serwer przyjął żądanie
+     */
     async #send(action, payload = {}) {
-        await fetch(this.actionUrlValue, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ action, payload }),
-        });
+        let response;
+
+        try {
+            response = await fetch(this.actionUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ action, payload }),
+            });
+        } catch {
+            // Sieć padła w drodze - to samo ryzyko co odpowiedź spoza 2xx:
+            // wpisane słowo albo STOP nigdy nie dotarło, a gracz o tym nie wie.
+            this.noteTarget.textContent = 'Brak połączenia — spróbuj ponownie.';
+
+            return false;
+        }
+
+        if (!response.ok) {
+            // Bez tego wpisane słowo (albo STOP) znikało bez śladu - gracz
+            // widział u siebie wypełnione pole, a serwer nigdy go nie dostał.
+            const problem = await response.json().catch(() => ({}));
+            this.noteTarget.textContent = problem.detail ?? 'Nie udało się wysłać - spróbuj ponownie.';
+
+            return false;
+        }
+
+        return true;
     }
 }

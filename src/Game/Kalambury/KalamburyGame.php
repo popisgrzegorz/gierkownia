@@ -75,7 +75,10 @@ final class KalamburyGame extends AbstractGame
             transitions: [
                 new Transition('draw', 'idle', 'drawn'),
                 new Transition('act', 'drawn', 'acting'),
-                new Transition('guessed', 'acting', 'guessed'),
+                // Zrodlo 'timeout' obok 'acting': host moze kliknac "Zgadnieto"
+                // tuz po tym, jak zegar TV juz wyslal timeout - w wyscigu ktos
+                // musi przegrac, a punkt ma isc do zgadujacego, nie do nikogo.
+                new Transition('guessed', ['acting', 'timeout'], 'guessed'),
                 new Transition('timeout', 'acting', 'timeout'),
                 // Rezygnacja z karty przed startem odliczania - aktor moze
                 // trafic na haslo, ktorego nie zna. Bez tego utykamy w 'drawn'.

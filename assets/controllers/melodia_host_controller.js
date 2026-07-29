@@ -25,7 +25,14 @@ export default class extends Controller {
     }
 
     async refresh() {
+        // Patrz komentarz w analogicznym miejscu dutch_host_controller.js -
+        // ignorujemy odpowiedź, jeśli w międzyczasie wystartował nowszy refresh().
+        const requestId = (this.refreshSeq = (this.refreshSeq ?? 0) + 1);
         const response = await fetch(this.viewUrlValue, { headers: { Accept: 'application/json' } });
+
+        if (requestId !== this.refreshSeq) {
+            return;
+        }
 
         if (response.ok) {
             this.#render(await response.json());
@@ -53,20 +60,33 @@ export default class extends Controller {
     }
 
     async act(event) {
-        const action = event.currentTarget.dataset.melodiaAction;
+        const button = event.currentTarget;
 
-        // "Następny utwór" to dwie rzeczy naraz: zamknięcie rundy i losowanie.
-        // Serwerowe akcje zostają atomowe (finish kończy rundę, next_track
-        // losuje), ale host nie ma powodu klikać dwa razy - a wcześniej ten
-        // przycisk kończył rundę i zostawiał na ekranie ten sam utwór.
-        if ('finish_next' === action) {
-            await this.#send('finish');
-            await this.#send('next_track');
-
+        // Bez blokady podwójny klik wysyłał tę samą akcję dwukrotnie - tu
+        // dodatkowo groziło podwójnym "Losuj utwór" (pomijanie utworu z puli).
+        if (button.disabled) {
             return;
         }
 
-        await this.#send(action);
+        const action = button.dataset.melodiaAction;
+        button.disabled = true;
+
+        try {
+            // "Następny utwór" to dwie rzeczy naraz: zamknięcie rundy i losowanie.
+            // Serwerowe akcje zostają atomowe (finish kończy rundę, next_track
+            // losuje), ale host nie ma powodu klikać dwa razy - a wcześniej ten
+            // przycisk kończył rundę i zostawiał na ekranie ten sam utwór.
+            if ('finish_next' === action) {
+                await this.#send('finish');
+                await this.#send('next_track');
+
+                return;
+            }
+
+            await this.#send(action);
+        } finally {
+            button.disabled = false;
+        }
     }
 
     #onServerEvent(event) {
@@ -91,7 +111,7 @@ export default class extends Controller {
             sfx.play('reveal');
         }
 
-        if (['phase', 'buzz', 'judged', 'track_ready', 'category_picked', 'reset'].includes(event.type)) {
+        if (['phase', 'buzz', 'judged', 'track_ready', 'category_picked', 'reset', 'resync'].includes(event.type)) {
             const done = this.refresh();
 
             // Baner „ma głos!" wskakuje z impetem, trafienie świętuje, pudło potrząsa.

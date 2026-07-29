@@ -12,6 +12,14 @@ export default class extends Controller {
     async submit(event) {
         event.preventDefault();
 
+        // Bez tego drugi klik w "Reset"/"Zmień grę" w oknie oczekiwania na
+        // odpowiedź wystrzeliwuje drugi POST - a to akurat akcje niszczące
+        // stan (zerowanie punktów, zamykanie gry), więc podwójne wykonanie
+        // nie jest nieszkodliwe.
+        if (this.submitting) {
+            return;
+        }
+
         const form = event.currentTarget;
         const question = form.dataset.confirm;
 
@@ -19,9 +27,19 @@ export default class extends Controller {
             return;
         }
 
-        await softNavigate(form.action, {
-            method: (form.method || 'post').toUpperCase(),
-            body: new FormData(form),
-        });
+        this.submitting = true;
+
+        try {
+            await softNavigate(form.action, {
+                method: (form.method || 'post').toUpperCase(),
+                body: new FormData(form),
+            });
+        } finally {
+            // softNavigate zwykle podmienia <body> (ten formularz znika razem
+            // z nim) albo nawiguje twardo - ale gdyby mimo to zostać na
+            // miejscu (np. odpowiedź 2xx bez zmiany widoku), kolejny klik ma
+            // znowu działać.
+            this.submitting = false;
+        }
     }
 }

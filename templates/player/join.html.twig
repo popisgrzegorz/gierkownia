@@ -9,6 +9,7 @@
         <h1 class="room-code small">{{ room.code }}</h1>
 
         <form method="post" action="{{ path('room_join', {code: room.code}) }}" class="join-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
             <label for="name">Nazwa drużyny</label>
             {# autofocus + enterkeyhint: gracz wpisuje nazwe jedna reka, w biegu #}
             <input id="name" name="name" maxlength="24" required autofocus

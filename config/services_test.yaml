@@ -1,0 +1,17 @@
+# Nadpisania parametrow tylko dla testow (APP_ENV=test).
+#
+# ADMIN_PASSWORD w .env jest puste, a prawdziwa wartosc siedzi w .env.local
+# (poza gitem) - testy HTTP sprawdzajace brame do panelu i do /turnieje
+# potrzebuja WIADOMEGO hasla, niezaleznego od tego, co akurat ma dana maszyna
+# deweloperska. Bez tego pliku testy dzialalyby inaczej na czystym klonie
+# (haslo puste = panel wylaczony) niz na maszynie z .env.local.
+#
+# _defaults.bind NIE wystarczy: dziala tylko dla uslug zarejestrowanych w TYM
+# SAMYM pliku, a AdminAccess jest rejestrowane przez skan zasobow w
+# services.yaml. Trzeba wiec nadpisac ten jeden serwis jawnie - Symfony scala
+# definicje tego samego id z kolejnych plikow, a services_test.yaml laduje sie
+# po services.yaml (MicroKernelTrait::configureContainer).
+services:
+    App\Admin\AdminAccess:
+        arguments:
+            $adminPassword: 'testowe-haslo-panelu'

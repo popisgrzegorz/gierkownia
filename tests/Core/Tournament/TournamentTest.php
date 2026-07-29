@@ -145,6 +145,29 @@ final class TournamentTest extends RedisTestCase
         self::assertSame(0, $this->tournament->playedGames($room->code));
     }
 
+    /**
+     * array_sum() === 0 nie wystarczy: kara hosta (-1) i bonus (+1) daja sume
+     * zero, mimo ze obie druzyny naprawde cos ugraly. Taka gra MUSI zostac
+     * zaliczona - inaczej surowe punkty nigdy by sie nie wyzerowaly i policzylyby
+     * sie drugi raz przy nastepnej grze.
+     */
+    public function testGameWithCancellingScoresIsStillRecorded(): void
+    {
+        $room = $this->rooms->create();
+        [$a, $b] = $this->threeTeams($room);
+
+        $this->scoreboard->add($room->code, $a->id, 1);
+        $this->scoreboard->add($room->code, $b->id, -1);
+
+        $result = $this->tournament->recordCurrentGame($room, 'kolo');
+
+        self::assertNotNull($result);
+        self::assertSame(1, $this->tournament->playedGames($room->code));
+        // I surowe punkty faktycznie wrocily do zera pod nastepna gre.
+        self::assertSame(0, $this->scoreboard->get($room->code, $a->id));
+        self::assertSame(0, $this->scoreboard->get($room->code, $b->id));
+    }
+
     /** Turniej ma miejsce dla kazdej druzyny w pokoju - takze przed pierwsza gra. */
     public function testStandingsIncludeTeamsWithNoPointsYet(): void
     {

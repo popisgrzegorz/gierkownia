@@ -60,8 +60,13 @@ final readonly class Tournament
 
         // Sama obecnosc druzyn to za malo - gra bez ani jednego punktu nie
         // rozstrzyga niczego, a rozdanie za nia miejsc premiowaloby drozyny za
-        // to, ze host pomylil przycisk.
-        if (0 === array_sum($raw)) {
+        // to, ze host pomylil przycisk. array_sum() === 0 tu NIE wystarczy:
+        // kara (-1 przez host) i bonus (+1) daja sume zero, mimo ze obie
+        // druzyny naprawde cos ugraly - taka gra zostawalaby niezaliczona,
+        // a jej surowe punkty nigdy by sie nie wyzerowaly pod nastepna runde.
+        // array_filter() bez callbacku odsiewa same zera (0 jest falsy w PHP),
+        // wiec pyta o wlasciwa rzecz: "czy ktokolwiek ma NIEZEROWY wynik".
+        if ([] === array_filter($raw)) {
             return null;
         }
 

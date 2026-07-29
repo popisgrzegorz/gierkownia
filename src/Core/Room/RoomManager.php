@@ -83,8 +83,13 @@ final readonly class RoomManager
      * Dolacza druzyne. Nazwa jest kluczem naturalnym w obrebie pokoju: telefon,
      * ktoremu padla bateria, wraca pod ta sama nazwa i odzyskuje swoje punkty
      * zamiast zakladac duplikat obok.
+     *
+     * $knownDevice: to urzadzenie ma juz wazny token JAKIEJS druzyny w tym
+     * pokoju (sprawdza wywolujacy, po ciasteczku - RoomAccess). Bez tego
+     * "powrot pod ta sama nazwa" byłby przejeciem cudzej druzyny przez zwykle
+     * wpisanie jej nazwy w formularzu dolaczania.
      */
-    public function join(string $code, string $name): Team
+    public function join(string $code, string $name, bool $knownDevice = false): Team
     {
         $room = $this->getOrFail($code);
         $name = trim($name);
@@ -95,6 +100,14 @@ final readonly class RoomManager
 
         foreach ($this->teams($room->code) as $existing) {
             if (0 === strcasecmp($existing->name, $name)) {
+                // Odtworzona druzyna, po ktora jeszcze nikt zywy sie nie zglosil -
+                // to zadanie jest pierwsze, wiec fizycznie nie moze byc przejeciem.
+                $wasUnclaimed = 1 === (int) $this->redis->srem(RoomKeys::unclaimedTeams($room->code), [$existing->id]);
+
+                if (!$knownDevice && !$wasUnclaimed) {
+                    throw new TeamNameTakenException($name);
+                }
+
                 return $existing;
             }
         }
@@ -129,15 +142,18 @@ final readonly class RoomManager
      * Zachowujemy id, nazwe, kolor i numer - dzieki temu tabela turnieju wciaz
      * wskazuje te same druzyny. deviceToken losujemy na nowo: telefon z wczoraj
      * i tak stracil ciasteczko, a wracajacy gracz wpisze te sama nazwe i join()
-     * odda mu te druzyne z jej dorobkiem. Licznik seq ustawiamy na najwyzszy
-     * odtworzony, zeby ktos dosiadajacy sie jutro dostal kolejny numer i kolor,
-     * a nie zdublowal istniejacy.
+     * odda mu te druzyne z jej dorobkiem - dlatego kazda odtworzona druzyna
+     * laduje tez do zbioru "nieodebranych" (patrz join()), inaczej nikt bez
+     * ciasteczka nowego pokoju nie mogby juz nigdy jej przejac. Licznik seq
+     * ustawiamy na najwyzszy odtworzony, zeby ktos dosiadajacy sie jutro dostal
+     * kolejny numer i kolor, a nie zdublowal istniejacy.
      *
      * @param list<array{id: string, name: string, color: string, seq: int}> $teams
      */
     public function restoreTeams(string $code, array $teams): void
     {
         $teamsKey = RoomKeys::teams($code);
+        $unclaimedKey = RoomKeys::unclaimedTeams($code);
         $maxSeq = 0;
 
         foreach ($teams as $data) {
@@ -151,11 +167,13 @@ final readonly class RoomManager
             );
 
             $this->redis->hset($teamsKey, $team->id, $team->toJson());
+            $this->redis->sadd($unclaimedKey, [$team->id]);
             $this->redis->setex(RoomKeys::score($code, $team->id), $this->roomTtl, '0');
             $maxSeq = max($maxSeq, $data['seq']);
         }
 
         $this->redis->expire($teamsKey, $this->roomTtl);
+        $this->redis->expire($unclaimedKey, $this->roomTtl);
 
         $seqKey = RoomKeys::teamSeq($code);
         $this->redis->set($seqKey, (string) $maxSeq);
@@ -207,11 +225,13 @@ final readonly class RoomManager
 
     public function setPhase(string $code, string $phase): void
     {
+        $this->touchMeta($code);
         $this->redis->hset(RoomKeys::meta($code), 'phase', $phase);
     }
 
     public function setGameType(string $code, string $gameType): void
     {
+        $this->touchMeta($code);
         $this->redis->hset(RoomKeys::meta($code), 'gameType', $gameType);
     }
 
@@ -222,7 +242,49 @@ final readonly class RoomManager
      */
     public function clearGameType(string $code): void
     {
+        $this->touchMeta($code);
         $this->redis->hdel(RoomKeys::meta($code), ['gameType']);
+    }
+
+    /**
+     * Odswieza TTL meta pokoju i pilnuje, zeby nie pisac w klucz, ktorego juz
+     * nie ma.
+     *
+     * Dwa zwiazane problemy naraz: (1) setPhase/setGameType byly wolane przy
+     * KAZDEJ akcji gry, ale nigdy nie przedluzaly TTL meta - liczyl sie
+     * wylacznie czas od ostatniego pelnego zaladowania ekranu hosta (touch()),
+     * wiec dlugo trwajaca gra bez odswiezenia strony mogla wygasnac w polowie,
+     * mimo ze cala gra trwala nieprzerwanie. (2) hset/hdel na kluczu, ktory
+     * PRZED chwila wygasl, tworzy go OD NOWA z jednym polem, bez TTL i bez
+     * pozostalych pol (code, hostToken) - Room::fromRedisHash dostaje potem
+     * null zamiast string i wywraca sie trwale, do recznego usuniecia kluczem
+     * przez administratora. Sprawdzenie istnienia zamienia to na czyste,
+     * oczekiwane "pokoj wygasl" zamiast cichego, permanentnego bledu.
+     */
+    private function touchMeta(string $code): void
+    {
+        if (1 !== (int) $this->redis->exists(RoomKeys::meta($code))) {
+            throw new RoomNotFoundException($code);
+        }
+
+        $this->redis->expire(RoomKeys::meta($code), $this->roomTtl);
+    }
+
+    /**
+     * Kasuje WSZYSTKIE klucze gry (state, ctx, round, armed, winner:N,
+     * turn:order, turn:index, deadline) - nie tylko state+ctx, ktore czysci
+     * GameState::clear(). Bez tego np. termin z poprzedniej gry (Kalambury,
+     * Panstwa-Miasta, Dutch - kazda ma wlasny zegar pod tym samym kluczem)
+     * zostawal w Redisie i "wyciekal" do nastepnej gry w tym samym pokoju:
+     * publicView() nowej gry oddawal deadline, ktorego nikt nie uruchomil.
+     */
+    public function clearGameKeys(string $code): void
+    {
+        $keys = $this->read->keys(RoomKeys::gamePattern($code));
+
+        if ([] !== $keys) {
+            $this->redis->del($keys);
+        }
     }
 
     /**
@@ -231,11 +293,7 @@ final readonly class RoomManager
      */
     public function resetGame(string $code): void
     {
-        $keys = $this->read->keys(RoomKeys::gamePattern($code));
-
-        if ([] !== $keys) {
-            $this->redis->del($keys);
-        }
+        $this->clearGameKeys($code);
 
         foreach ($this->teams($code) as $team) {
             $this->redis->setex(RoomKeys::score($code, $team->id), $this->roomTtl, '0');

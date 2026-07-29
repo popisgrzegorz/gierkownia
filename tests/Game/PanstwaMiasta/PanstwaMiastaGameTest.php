@@ -15,6 +15,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
@@ -84,7 +85,7 @@ final class PanstwaMiastaGameTest extends RedisTestCase
             $this->timer,
         );
 
-        $this->engine = new GameEngine(new GameRegistry([$game]), $this->gameState, $fsm, $this->rooms, $publisher);
+        $this->engine = new GameEngine(new GameRegistry([$game]), $this->gameState, $fsm, $this->rooms, $publisher, new RoomLock($this->redis));
 
         $this->room = $this->rooms->create();
         $this->kanapowcy = $this->rooms->join($this->room->code, 'Kanapowcy');
@@ -103,6 +104,22 @@ final class PanstwaMiastaGameTest extends RedisTestCase
         self::assertNotNull($view['letter']);
         self::assertSame(['Państwo', 'Miasto', 'Zwierzę', 'Rzecz'], $view['columns']);
         self::assertTrue($view['canWrite']);
+    }
+
+    /**
+     * Telefon odslania litere w chwili revealAt, nie po wlasnym, zgadywanym
+     * opoznieniu - inaczej dwa niezalezne zegary (telefonu i TV) rozjezdzaly
+     * sie o tyle, ze gracz z telefonem widzial litere, zanim spadla ostatnia
+     * klapka na TV (P2-12 audytu). revealAt musi byc PO serverNow o dokladnie
+     * tyle, ile realnie trwa hamowanie benba na TV plus zapas na jitter.
+     */
+    public function testLetterDrawnCarriesAServerRevealDeadline(): void
+    {
+        $event = $this->publishedEvent('letter_drawn');
+
+        self::assertIsInt($event['serverNow']);
+        self::assertIsInt($event['revealAt']);
+        self::assertSame(2200, $event['revealAt'] - $event['serverNow']);
     }
 
     /**
@@ -397,6 +414,25 @@ final class PanstwaMiastaGameTest extends RedisTestCase
             self::TTL,
             (string) ((int) (microtime(true) * 1000) - 1000),
         );
+    }
+
+    /**
+     * Ostatnie rozgloszone zdarzenie danego typu, zdekodowane z JSON-a.
+     *
+     * @return array<string, mixed>
+     */
+    private function publishedEvent(string $type): array
+    {
+        foreach (array_reverse($this->published) as $update) {
+            /** @var array<string, mixed> $data */
+            $data = json_decode($update->getData(), true, flags: \JSON_THROW_ON_ERROR);
+
+            if (($data['type'] ?? null) === $type) {
+                return $data;
+            }
+        }
+
+        self::fail(sprintf('Nie rozgloszono zadania typu "%s".', $type));
     }
 
     /** @param array<string, mixed> $payload */

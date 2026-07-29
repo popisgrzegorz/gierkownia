@@ -16,6 +16,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
@@ -89,7 +90,7 @@ final class MelodiaQuizGameTest extends DoctrineTestCase
 
         $quiz = new MelodiaQuizGame($fsm, $this->gameState, $deck, $this->scoreboard, $this->timer, $this->rooms);
 
-        $this->engine = new GameEngine(new GameRegistry([$quiz]), $this->gameState, $fsm, $this->rooms, $publisher);
+        $this->engine = new GameEngine(new GameRegistry([$quiz]), $this->gameState, $fsm, $this->rooms, $publisher, new RoomLock($this->redis));
 
         $this->room = $this->rooms->create();
         $this->kanapowcy = $this->rooms->join($this->room->code, 'Kanapowcy');
@@ -300,6 +301,52 @@ final class MelodiaQuizGameTest extends DoctrineTestCase
 
         self::assertSame('idle', $this->engine->currentState($this->room));
         self::assertSame([], $this->engine->hostView($this->room)['options']);
+    }
+
+    /**
+     * Host miedzy rundami przelacza na kategorie za mala na test 1 z 4 (mniej
+     * niz cztery nagrania) - buildOptions() musi to odrzucic PRZED zapisem
+     * transition('next_round')/patchCtx, nie po. Wczesniej kolejnosc byla
+     * odwrotna: FSM zdazyl przejsc do 'idle' z wyczyszczonym ctx, zanim wyjatek
+     * w ogole doszedl do glosu - blad HTTP nie dawal klientowi szansy tego
+     * zobaczyc, wiec ekran zawisal na starych wynikach, choc serwer byl juz
+     * w zupelnie innym stanie.
+     */
+    public function testNextRoundKeepsTheOldStateWhenTheNewCategoryIsTooSmall(): void
+    {
+        $this->seedTinyCategory();
+        $this->playRound();
+
+        $before = $this->engine->hostView($this->room);
+
+        $this->host('pick_category', ['category' => 'ciasna']);
+
+        try {
+            $this->host('next_round');
+            self::fail('Za mala kategoria powinna byc odrzucona.');
+        } catch (IllegalActionException $e) {
+            self::assertStringContainsString('przynajmniej czterech', $e->getMessage());
+        }
+
+        // FSM MUSI zostac w 'results' - transition('next_round') nie mogl
+        // wykonac sie przed rzuceniem wyjatku.
+        self::assertSame('results', $this->engine->currentState($this->room));
+        self::assertSame($before['revealed'], $this->engine->hostView($this->room)['revealed']);
+    }
+
+    /** Kategoria z dwoma nagraniami - stanowczo za malo na cztery opcje. */
+    private function seedTinyCategory(): void
+    {
+        $category = new Category('ciasna', 'Ciasna kategoria', Category::KIND_MELODIA);
+        $this->entityManager->persist($category);
+
+        foreach (['Jedyny', 'Drugi'] as $i => $title) {
+            $track = new Track($category, sprintf('demo/ciasna-%d.wav', $i), $title, 'Tradycyjne');
+            $track->setPosition($i);
+            $this->entityManager->persist($track);
+        }
+
+        $this->entityManager->flush();
     }
 
     /** Obie druzyny odpowiadaja - runda zamyka sie sama. */

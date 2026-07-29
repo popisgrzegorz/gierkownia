@@ -35,7 +35,14 @@ export default class extends Controller {
     }
 
     async refresh() {
+        // Patrz komentarz w analogicznym miejscu dutch_host_controller.js -
+        // ignorujemy odpowiedź, jeśli w międzyczasie wystartował nowszy refresh().
+        const requestId = (this.refreshSeq = (this.refreshSeq ?? 0) + 1);
         const response = await fetch(this.viewUrlValue, { headers: { Accept: 'application/json' } });
+
+        if (requestId !== this.refreshSeq) {
+            return;
+        }
 
         if (response.ok) {
             this.#render(await response.json());
@@ -47,10 +54,24 @@ export default class extends Controller {
     }
 
     async act(event) {
-        const action = event.currentTarget.dataset.kalamburyAction;
+        const button = event.currentTarget;
+
+        // Bez blokady podwójny klik wysyłał tę samą akcję dwukrotnie - patrz
+        // analogiczny komentarz w dutch_host_controller.js.
+        if (button.disabled) {
+            return;
+        }
+
+        const action = button.dataset.kalamburyAction;
         const payload = 'start' === action ? { seconds: Number(this.secondsTarget.value) } : {};
 
-        await this.#send(action, payload);
+        button.disabled = true;
+
+        try {
+            await this.#send(action, payload);
+        } finally {
+            button.disabled = false;
+        }
     }
 
     async guessedBy(event) {
@@ -80,7 +101,7 @@ export default class extends Controller {
         }
 
         if (['phase', 'timer', 'card_drawn', 'card_skipped', 'round_over', 'turn',
-            'hint', 'category_picked', 'team_joined', 'reset'].includes(event.type)) {
+            'hint', 'category_picked', 'team_joined', 'reset', 'resync'].includes(event.type)) {
             if ('team_joined' === event.type) {
                 this.teams.set(event.team.id, event.team.name);
             }
@@ -257,8 +278,10 @@ export default class extends Controller {
             }
         };
 
-        tick();
+        // Interwal PRZED pierwszym tick() - patrz komentarz w analogicznym
+        // miejscu quiz_host_controller.js (ten sam wyścig o podwójne 'timeout').
         this.ticker = setInterval(tick, 250);
+        tick();
     }
 
     #renderControls(view) {

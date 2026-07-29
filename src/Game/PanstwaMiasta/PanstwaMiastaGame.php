@@ -48,6 +48,19 @@ final class PanstwaMiastaGame extends AbstractGame
     /** Dluzsza odpowiedz to juz nie odpowiedz, tylko wypracowanie. */
     private const MAX_ANSWER = 60;
 
+    /**
+     * Ile realnie trwa bęben na TV od chwili, gdy dotrze do niego zdarzenie
+     * 'letter_drawn', do momentu, gdy klapka z literą w pełni opadnie:
+     * hamowanie (BRAKE_MS w panstwa_host_controller.js, 1400 ms) + finałowe
+     * przewrócenie ostatniej litery (550 ms) + zapas na typowy jitter
+     * dostawy tego samego zdarzenia do dwóch różnych urządzeń. Telefon
+     * odsłania literę dopiero po tym czasie, licząc od tej samej chwili
+     * (revealAt), a nie z osobnego, zgadywanego opóźnienia - inaczej dwa
+     * niezależne zegary (telefonu i TV) rozjeżdżały się o kilkaset ms
+     * i gracz z telefonem widział literę, zanim spadła ostatnia klapka.
+     */
+    private const LETTER_REVEAL_MS = 2200;
+
     public function __construct(
         GameFsm $fsm,
         GameState $gameState,
@@ -174,11 +187,15 @@ final class PanstwaMiastaGame extends AbstractGame
             'results' => null,
         ]);
 
+        $serverNow = (int) (microtime(true) * 1000);
+
         return [Message::broadcast(new Event('letter_drawn', [
             'letter' => $letter,
             'columns' => $columns,
             'round' => $round,
             'seconds' => $this->seconds($room),
+            'serverNow' => $serverNow,
+            'revealAt' => $serverNow + self::LETTER_REVEAL_MS,
         ]))];
     }
 

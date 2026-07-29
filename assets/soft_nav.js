@@ -21,6 +21,17 @@ export async function softNavigate(url = window.location.href, options = {}) {
             headers: { 'X-Soft-Nav': '1', ...(options.headers ?? {}) },
         });
 
+        // Odpowiedź spoza 2xx (sesja hosta wygasła, 500, cokolwiek) NIE może
+        // wejść w miejsce ekranu hosta jako podmiana <body> - traci się wtedy
+        // data-controller="room-board" razem z nim, więc SSE i sterowanie
+        // gasną bez śladu. Prawdziwa nawigacja pokazuje prawdziwy błąd
+        // (np. przekierowanie na logowanie) zamiast martwego ekranu.
+        if (!response.ok) {
+            window.location.assign(response.url || url);
+
+            return;
+        }
+
         const html = await response.text();
         const next = new DOMParser().parseFromString(html, 'text/html');
 

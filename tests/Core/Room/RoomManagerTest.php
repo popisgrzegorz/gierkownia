@@ -9,6 +9,7 @@ use App\Core\Room\RoomCodeGenerator;
 use App\Core\Room\RoomKeys;
 use App\Core\Room\RoomManager;
 use App\Core\Room\RoomNotFoundException;
+use App\Core\Room\TeamNameTakenException;
 use App\Tests\RedisTestCase;
 
 final class RoomManagerTest extends RedisTestCase
@@ -67,6 +68,65 @@ final class RoomManagerTest extends RedisTestCase
     }
 
     /**
+     * setPhase/setGameType byly wolane przy KAZDEJ akcji gry, ale nigdy nie
+     * przedluzaly TTL meta - liczyl sie wylacznie czas od ostatniego pelnego
+     * zaladowania ekranu hosta. Dluga gra bez odswiezenia strony (SSE trzyma
+     * ekran zywy bez przeladowania) mogla wygasnac w polowie rozgrywki.
+     */
+    public function testSetPhaseRefreshesTheMetaTtl(): void
+    {
+        $room = $this->rooms->create();
+        $key = RoomKeys::meta($room->code);
+
+        // Skracamy TTL recznie, zeby zasymulowac "dawno nieodswiezany" pokoj -
+        // bez czekania naprawde 60 sekund w tescie.
+        $this->redis->expire($key, 5);
+        self::assertSame(5, (int) $this->redis->ttl($key));
+
+        $this->rooms->setPhase($room->code, 'writing');
+
+        self::assertSame(self::TTL, (int) $this->redis->ttl($key));
+    }
+
+    public function testSetGameTypeAlsoRefreshesTheMetaTtl(): void
+    {
+        $room = $this->rooms->create();
+        $key = RoomKeys::meta($room->code);
+        $this->redis->expire($key, 5);
+
+        $this->rooms->setGameType($room->code, 'kolo');
+
+        self::assertSame(self::TTL, (int) $this->redis->ttl($key));
+    }
+
+    /**
+     * Klucz meta, ktory juz wygasl (albo zniknal recznym DEL), nie moze zostac
+     * po cichu odtworzony przez hset z jednym polem - to dawalo hash bez
+     * code/hostToken, na ktorym Room::fromRedisHash wywalal sie trwale przy
+     * KAZDYM kolejnym zadaniu. Czysty RoomNotFoundException to oczekiwane,
+     * naprawialne "pokoj wygasl", nie cichy, permanentny 500.
+     */
+    public function testSetPhaseOnAGoneRoomThrowsInsteadOfRecreatingABrokenHash(): void
+    {
+        $room = $this->rooms->create();
+        $this->redis->del([RoomKeys::meta($room->code)]);
+
+        $this->expectException(RoomNotFoundException::class);
+
+        $this->rooms->setPhase($room->code, 'writing');
+    }
+
+    public function testSetGameTypeOnAGoneRoomThrows(): void
+    {
+        $room = $this->rooms->create();
+        $this->redis->del([RoomKeys::meta($room->code)]);
+
+        $this->expectException(RoomNotFoundException::class);
+
+        $this->rooms->setGameType($room->code, 'kolo');
+    }
+
+    /**
      * Telefon z padnieta bateria wraca pod ta sama nazwa - musi odzyskac swoja
      * druzyne, a nie zalozyc obok drugiej o tej samej nazwie i zerowych punktach.
      */
@@ -75,11 +135,25 @@ final class RoomManagerTest extends RedisTestCase
         $room = $this->rooms->create();
 
         $first = $this->rooms->join($room->code, 'Kanapowcy');
-        $again = $this->rooms->join($room->code, 'kanapowcy');
+        $again = $this->rooms->join($room->code, 'kanapowcy', knownDevice: true);
 
         self::assertSame($first->id, $again->id);
         self::assertSame($first->deviceToken, $again->deviceToken);
         self::assertCount(1, $this->rooms->teams($room->code));
+    }
+
+    /**
+     * Bez dowodu, ze to urzadzenie juz mialo tu jakas druzyne, wpisanie cudzej
+     * nazwy nie moze cicho oddac tokenu do niej - to byloby przejecie druzyny.
+     */
+    public function testJoiningWithATakenNameWithoutAKnownDeviceIsRejected(): void
+    {
+        $room = $this->rooms->create();
+        $this->rooms->join($room->code, 'Kanapowcy');
+
+        $this->expectException(TeamNameTakenException::class);
+
+        $this->rooms->join($room->code, 'kanapowcy');
     }
 
     public function testTeamsGetDistinctColorsAndKeepJoinOrder(): void

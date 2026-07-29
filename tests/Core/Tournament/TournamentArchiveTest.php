@@ -9,6 +9,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\RoomCodeGenerator;
 use App\Core\Room\RoomManager;
+use App\Core\Room\TeamNameTakenException;
 use App\Core\Score\Scoreboard;
 use App\Core\Tournament\Tournament;
 use App\Core\Tournament\TournamentArchive;
@@ -98,6 +99,9 @@ final class TournamentArchiveTest extends TestCase
         self::assertNotSame($room->code, $restored->code, 'Wznowienie zaklada nowy pokoj.');
 
         // Wracajacy telefon wpisuje te sama nazwe - join() oddaje mu druzyne.
+        // Bez knownDevice: to nowy pokoj, wiec cookie z wczoraj i tak nie
+        // pasuje - odtworzona druzyna jest "nieodebrana", wiec pierwsze
+        // zadanie z ta nazwa przechodzi bez dowodu (nikt inny nie zdazyl).
         $kasiaBack = $this->rooms->join($restored->code, 'Kasia i Tomek');
         self::assertSame($kasia->id, $kasiaBack->id, 'Ta sama nazwa = ta sama druzyna z dorobkiem.');
 
@@ -109,6 +113,28 @@ final class TournamentArchiveTest extends TestCase
 
         self::assertSame(2, $byId[$kasia->id]);
         self::assertSame(1, $byId[$ania->id]);
+    }
+
+    /**
+     * Pierwsze zadanie z pasujaca nazwa odbiera odtworzona druzyne bez dowodu -
+     * ale kolejne juz nie moze, bo miejsce jest zajete. Inaczej ktokolwiek,
+     * kto zna imie z wczorajszej imprezy, moglby przejac czyjs dorobek
+     * w kazdej chwili, nie tylko przy pierwszym powrocie.
+     */
+    public function testOnceClaimedARestoredNameCannotBeTakenAgainWithoutProof(): void
+    {
+        $room = $this->rooms->create();
+        $this->rooms->join($room->code, 'Kasia i Tomek');
+
+        $id = $this->archive->save($room, 'Wieczór u Kasi');
+        $this->redis->flushdb();
+        $restored = $this->archive->restore($id);
+
+        $this->rooms->join($restored->code, 'Kasia i Tomek');
+
+        $this->expectException(TeamNameTakenException::class);
+
+        $this->rooms->join($restored->code, 'Kasia i Tomek');
     }
 
     /** Nastepni dosiadajacy sie po wznowieniu dostaja kolejne numery, nie duble. */

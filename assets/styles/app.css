@@ -586,6 +586,54 @@ body:not(.admin) .btn:focus-visible {
 
 .tv.tv-focus .tv-focus-exit { display: grid; }
 
+/* Menu w pełnym ekranie - te same akcje co schowany pasek (Zmień grę, Reset,
+   Tablica, Dźwięk), tylko za jednym przyciskiem w rogu. Bez niego jedynym
+   sposobem dosięgnięcia ich byłoby najpierw wyjść z pełnego ekranu. */
+.tv-focus-menu-btn {
+    display: none;
+    position: fixed;
+    top: 0.6rem;
+    /* Po lewej stronie przycisku wyjścia (2.4rem szerokości + 0.6rem odstępu). */
+    right: 3.6rem;
+    z-index: 40;
+    width: 2.4rem;
+    height: 2.4rem;
+    place-items: center;
+    border: 1px solid #2c3358;
+    border-radius: 50%;
+    background: rgba(13, 16, 30, 0.6);
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.tv-focus-menu-btn:hover {
+    color: var(--fg);
+    background: rgba(13, 16, 30, 0.9);
+}
+
+.tv.tv-focus .tv-focus-menu-btn { display: grid; }
+
+.tv-focus-menu {
+    position: fixed;
+    top: 3.4rem;
+    right: 0.6rem;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    min-width: 12rem;
+    border-radius: 14px;
+    border: 1px solid #2c3358;
+    background: rgba(13, 16, 30, 0.92);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.tv-focus-menu form { margin: 0; }
+.tv-focus-menu .btn { width: 100%; }
+
 .tv-body {
     display: grid;
     /* Wąska kolumna punktacji po LEWEJ, scena bierze resztę. minmax(0,...)
@@ -3905,6 +3953,13 @@ body:not(.admin) .btn:focus-visible {
 
 .dutch-btn-primary { background: #12b886; color: #04231b; border: none; }
 .dutch-btn-call { background: var(--accent); color: #201500; border: none; }
+
+/* "Pomiń" w pickerze mocy - wyjście awaryjne, nie ma świecić jak akcja główna. */
+.dutch-btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 2px solid rgba(242, 239, 230, 0.25);
+}
 
 .dutch-note { color: var(--muted); text-align: center; margin: 0; max-width: 320px; }
 

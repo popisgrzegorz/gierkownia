@@ -17,6 +17,7 @@
 
                 <div class="ms-auto">
                     <form method="post" action="{{ path('admin_logout') }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin') }}">
                         <button type="submit" class="btn btn-outline-secondary">Wyloguj</button>
                     </form>
                 </div>

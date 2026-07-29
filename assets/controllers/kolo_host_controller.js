@@ -48,11 +48,21 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener('gierki:event', this.onEvent);
-        cancelAnimationFrame(this.frame);
+        // Zabija tween kręcenia, jeśli akurat trwa (zmiana gry/reset w trakcie
+        // obrotu) - bez tego leciał dalej na osieroconym canvasie i na końcu
+        // wysyłał fantomowe 'land' do gry, która już nie istnieje.
+        this.spinTween?.kill();
     }
 
     async refresh() {
+        // Patrz komentarz w analogicznym miejscu dutch_host_controller.js -
+        // ignorujemy odpowiedź, jeśli w międzyczasie wystartował nowszy refresh().
+        const requestId = (this.refreshSeq = (this.refreshSeq ?? 0) + 1);
         const response = await fetch(this.viewUrlValue, { headers: { Accept: 'application/json' } });
+
+        if (requestId !== this.refreshSeq) {
+            return;
+        }
 
         if (response.ok) {
             this.#render(await response.json());
@@ -64,7 +74,21 @@ export default class extends Controller {
     }
 
     async act(event) {
-        await this.#send(event.currentTarget.dataset.koloAction);
+        const button = event.currentTarget;
+
+        // Bez blokady podwójny klik w "Następne hasło" przeskakiwał jedno
+        // hasło z puli - patrz analogiczny komentarz w dutch_host_controller.js.
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            await this.#send(button.dataset.koloAction);
+        } finally {
+            button.disabled = false;
+        }
     }
 
     #onServerEvent(event) {
@@ -116,7 +140,7 @@ export default class extends Controller {
         }
 
         if (['phase', 'letter_revealed', 'penalty', 'puzzle_solved', 'puzzle_ready',
-            'category_picked', 'turn', 'solve_failed', 'reset'].includes(event.type)) {
+            'category_picked', 'turn', 'solve_failed', 'reset', 'resync'].includes(event.type)) {
             const done = this.refresh();
 
             // Rozwiązane hasło świętuje, bankrut potrząsa kołem, nowe hasło
@@ -416,8 +440,10 @@ export default class extends Controller {
             const proxy = { a: from };
 
             // GSAP power4.out: długie, aksamitne dohamowanie - buduje napięcie
-            // i wygląda płynniej niż ręczna pętla rAF.
-            gsap.to(proxy, {
+            // i wygląda płynniej niż ręczna pętla rAF. Trzymamy uchwyt na tween,
+            // żeby disconnect() mógł go zabić - inaczej leciałby dalej po
+            // odłączeniu kontrolera.
+            this.spinTween = gsap.to(proxy, {
                 a: to,
                 duration,
                 ease: 'power4.out',

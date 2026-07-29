@@ -16,6 +16,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Tests\Fixtures\PingPongGame;
@@ -64,6 +65,7 @@ final class GameEngineTest extends RedisTestCase
             $fsm,
             $this->rooms,
             $publisher,
+            new RoomLock($this->redis),
         );
 
         $this->room = $this->rooms->create();
@@ -103,6 +105,36 @@ final class GameEngineTest extends RedisTestCase
         $this->engine->start($this->room, 'pingpong');
 
         self::assertSame([], $this->gameState->ctx($this->room->code));
+    }
+
+    /**
+     * state->clear() kasowal tylko game:state i game:ctx - reszta kluczy gry
+     * (round, armed, winner:N, turn:*, deadline) zostawala z poprzedniej gry
+     * i "wyciekala" do nastepnej w tym samym pokoju. Zegar to najbardziej
+     * widoczny przypadek: Kalambury, Panstwa-Miasta i Dutch trzymaja swoj
+     * termin pod tym samym kluczem, wiec nowa gra dostawalaby deadline,
+     * ktorego nikt nie uruchomil.
+     */
+    public function testStartingClearsLeftoverKeysFromThePreviousGameLikeATimerDeadline(): void
+    {
+        $this->redis->setex(\App\Core\Room\RoomKeys::gameDeadline($this->room->code), self::TTL, '99999999999999');
+        $this->redis->setex(\App\Core\Room\RoomKeys::gameRound($this->room->code), self::TTL, '7');
+
+        $this->engine->start($this->room, 'pingpong');
+
+        self::assertNull($this->redis->get(\App\Core\Room\RoomKeys::gameDeadline($this->room->code)));
+        self::assertNull($this->redis->get(\App\Core\Room\RoomKeys::gameRound($this->room->code)));
+    }
+
+    /** Ten sam wyciek przy powrocie do lobby ("Zmień grę"), nie tylko przy starcie. */
+    public function testStoppingAlsoClearsLeftoverGameKeys(): void
+    {
+        $this->engine->start($this->room, 'pingpong');
+        $this->redis->setex(\App\Core\Room\RoomKeys::gameDeadline($this->room->code), self::TTL, '99999999999999');
+
+        $this->engine->stop($this->room);
+
+        self::assertNull($this->redis->get(\App\Core\Room\RoomKeys::gameDeadline($this->room->code)));
     }
 
     public function testActionIsDelegatedToTheModuleAndItsMessagesGoOut(): void

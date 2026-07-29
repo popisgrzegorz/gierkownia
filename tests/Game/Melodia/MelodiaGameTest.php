@@ -16,6 +16,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
@@ -94,6 +95,7 @@ final class MelodiaGameTest extends DoctrineTestCase
             $fsm,
             $this->rooms,
             $publisher,
+            new RoomLock($this->redis),
         );
 
         $this->room = $this->rooms->create();
@@ -315,6 +317,66 @@ final class MelodiaGameTest extends DoctrineTestCase
         // ...i od razu da sie puscic kolejny utwor.
         $this->host('arm');
         self::assertSame('armed', $this->engine->currentState($this->room));
+    }
+
+    /**
+     * Dwie mozliwe kolejnosci rozstrzygniecia wyscigu buzz/cancel - obie
+     * musza zostawiac stan spojny, nigdy "broadcast BUZZ poszedl, a gra go
+     * nie widziala". RoomLock (GameEngine::handle) serializuje wszystkie
+     * akcje na tym samym pokoju, wiec te dwie sekwencje sa JEDYNYMI mozliwymi
+     * wynikami rownoleglego zadania hosta ('cancel') i druzyny ('buzz') -
+     * nigdy przeplotu w polowie.
+     *
+     * Tutaj: buzz zdazyl pierwszy (zaakceptowany, FSM w 'buzzed'). Host, ktory
+     * kliknal "nikt nie zgadl" ulamek sekundy pozniej, dostaje odmowe zamiast
+     * cichego przejscia do 'idle' z pominieciem buzza kogos, kto wlasnie
+     * zabuzzowal.
+     */
+    public function testCancelAfterABuzzAlreadyWonIsRefusedInsteadOfSilentlySkippingIt(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        self::assertSame('buzzed', $this->engine->currentState($this->room));
+
+        $this->expectException(IllegalActionException::class);
+
+        try {
+            $this->host('cancel');
+        } finally {
+            // Niezaleznie od tego, czy wyjatek poleci - stan MUSI zostac
+            // 'buzzed', nie przeskoczyc cicho do 'idle'.
+            self::assertSame('buzzed', $this->engine->currentState($this->room));
+        }
+    }
+
+    /**
+     * Odwrotna kolejnosc: host zdazyl pierwszy (cancel wykonal sie w calosci,
+     * buzzer zgaszony). Buzz druzyny, ktory dotarl pozniej, dostaje uprzejma
+     * odmowe (tak jak "nacisniecie zanim host cokolwiek puscil") zamiast
+     * rozgloszenia zwyciestwa dla rundy, ktorej juz nie ma.
+     */
+    public function testBuzzAfterACancelHasAlreadyHappenedIsRefused(): void
+    {
+        $this->host('arm');
+        $this->host('cancel');
+
+        self::assertSame('idle', $this->engine->currentState($this->room));
+
+        $mark = \count($this->published);
+
+        $this->team($this->kanapowcy, 'buzz');
+
+        self::assertSame('idle', $this->engine->currentState($this->room), 'Odrzucony buzz nie moze ruszyc FSM.');
+
+        $newEvents = \array_slice($this->published, $mark);
+        self::assertNotEmpty($newEvents, 'Druzyna musi dostac odpowiedz - choc odmowna.');
+
+        foreach ($newEvents as $update) {
+            $payload = json_decode($update->getData(), true, 512, \JSON_THROW_ON_ERROR);
+            self::assertIsArray($payload);
+            self::assertNotSame('buzz', $payload['type'] ?? null, 'Spozniony buzz nie moze rozglosic zwyciestwa.');
+        }
     }
 
     /**

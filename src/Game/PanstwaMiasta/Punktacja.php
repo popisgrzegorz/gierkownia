@@ -252,10 +252,22 @@ final class Punktacja
     /**
      * Czy dwa (znormalizowane) zapisy to to samo slowo z dokladnoscia do literowki.
      *
-     * Prog rosnie z dlugoscia: przy krotkim slowie jedna zmiana to zwykle inne
-     * slowo ("kot"/"kat", "chiny"/"chile"), przy dluzszym - niemal na pewno
-     * literowka ("luksemburg"/"luxemburg"). Dlatego slowa do czterech liter
-     * musza zgadzac sie znak w znak.
+     * Prog liczy sie od KROTSZEGO slowa, nie dluzszego: przy parze (5,6) jedna
+     * literowka wciaz przechodzila, choc piecioliterowe slowo od exact-match
+     * dzieli tylko jedna zmiana na cale slowo - a przy takiej krotkosci to
+     * zwykle juz inne slowo, nie literowka. Sprawdzone na zywo: "balon"/"balkon",
+     * "korek"/"kotek", "banan"/"baran", "sanok"/"sanoki", "lubin"/"luboń" (dwa
+     * NAPRAWDE ROZNE polskie miasta) i "mali"/"malia" mialy dystans 1 przy
+     * dlugosci progu liczonym od dluzszego slowa - i wszystkie przechodzily jako
+     * "to samo slowo". Krotsze slowa maja mniej miejsca na przypadkowe
+     * podobienstwo, wiec do siedmiu znakow wymagamy dokladnego dopasowania.
+     *
+     * Konsekwencja: "Kanadaa" i "Kanda" (typowe literowki "Kanady") tez przestaja
+     * scalac sie automatycznie - potrzebuja jednego kliknieca hosta, tak jak
+     * kazde inne miekkie odrzucenie w tej grze. To jest ten sam kompromis co
+     * wszedzie indziej: rzadsza automatyczna zgoda w zamian za to, ze zaden
+     * WYMYSLONY albo INNY prawdziwy wpis nie przechodzi po cichu jako czyjas
+     * poprawna odpowiedz.
      *
      * Porownujemy postac znormalizowana, wiec bez ogonkow i wielkosci liter -
      * a ta jest juz czystym ASCII, na ktorym bajtowy `levenshtein` liczy znaki.
@@ -266,8 +278,8 @@ final class Punktacja
             return true;
         }
 
-        $la = \strlen($a);
-        $lb = \strlen($b);
+        $la = mb_strlen($a);
+        $lb = mb_strlen($b);
 
         // Roznica dlugosci wieksza niz prog to od razu inne slowo - i przy okazji
         // odsiewamy pary, ktorych nie warto liczyc znak po znaku.
@@ -275,15 +287,15 @@ final class Punktacja
             return false;
         }
 
-        return levenshtein($a, $b) <= self::typoTolerance(max($la, $lb));
+        return levenshtein($a, $b) <= self::typoTolerance(min($la, $lb));
     }
 
     /** Ile przekreconych znakow wciaz uznajemy za to samo slowo. */
     private static function typoTolerance(int $length): int
     {
         return match (true) {
-            $length <= 4 => 0,
-            $length <= 7 => 1,
+            $length <= 7 => 0,
+            $length <= 8 => 1,
             default => 2,
         };
     }

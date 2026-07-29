@@ -8,6 +8,7 @@ use App\Core\Game\Actor;
 use App\Core\Game\GameEngine;
 use App\Core\Game\GameRegistry;
 use App\Core\Room\RoomAccess;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Score\Scoreboard;
 use App\Core\Tournament\Tournament;
@@ -33,6 +34,7 @@ final class GameController extends AbstractController
         private readonly GameRegistry $registry,
         private readonly Scoreboard $scoreboard,
         private readonly Tournament $tournament,
+        private readonly RoomLock $lock,
     ) {
     }
 
@@ -65,6 +67,13 @@ final class GameController extends AbstractController
      * musi pojsc PRZED engine->stop(), ktore kasuje typ gry i stan. Druzyny
      * zostaja w pokoju, telefony przelaczaja sie same po evencie fazy "lobby";
      * przycisk jest zwyklym formularzem, wiec po POST wracamy na ekran hosta.
+     *
+     * Cala sekwencja (zaliczenie turnieju + stop) biegnie pod jednym zamkiem
+     * pokoju: podwojny klik "Zmien gre" inaczej moglby zaliczyc te sama gre do
+     * turnieju dwa razy albo wyzerowac punkty na ujemne (dwa rownolegle
+     * recordCurrentGame czytajace ten sam surowy wynik przed wyzerowaniem).
+     * engine->stop() NIE ma wlasnego zamka - zagniezdzenie dwoch blokad na tym
+     * samym kodzie pokoju z tego samego zadania zakonczyloby sie zakleszczeniem.
      */
     #[Route('/stop', name: 'game_stop', methods: ['POST'])]
     public function stop(Request $request, string $code): Response
@@ -72,11 +81,17 @@ final class GameController extends AbstractController
         $room = $this->rooms->getOrFail($code);
         $this->access->requireHost($request, $room->code);
 
-        if (null !== $room->gameType) {
-            $this->tournament->recordCurrentGame($room, $room->gameType);
+        if (!$this->isCsrfTokenValid('room', (string) $request->request->get('_csrf_token'))) {
+            throw new AccessDeniedHttpException('Token CSRF wygasł lub jest nieprawidłowy - odśwież stronę i spróbuj ponownie.');
         }
 
-        $this->engine->stop($room);
+        $this->lock->synchronized($room->code, function () use ($room): void {
+            if (null !== $room->gameType) {
+                $this->tournament->recordCurrentGame($room, $room->gameType);
+            }
+
+            $this->engine->stop($room);
+        });
 
         return $this->redirectToRoute('host_screen', ['code' => $room->code]);
     }

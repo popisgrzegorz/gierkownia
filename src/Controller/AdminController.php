@@ -20,7 +20,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -40,6 +42,7 @@ final class AdminController extends AbstractController
         private readonly TrackRepository $tracks,
         private readonly PhraseRepository $phrases,
         private readonly AudioUploader $uploader,
+        private readonly RateLimiterFactory $adminLoginLimiter,
     ) {
     }
 
@@ -51,6 +54,20 @@ final class AdminController extends AbstractController
         }
 
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('admin', (string) $request->request->get('_csrf_token'))) {
+                $this->addFlash('error', 'Sesja wygasła - spróbuj ponownie.');
+
+                return $this->redirectToRoute('admin_login');
+            }
+
+            // Haslo panelu jest jedno, wspolne i slownikowe - bez tego limitu
+            // do zlamania brute-force'em starczy kilka godzin (P2-7 audytu).
+            if (!$this->adminLoginLimiter->create($request->getClientIp())->consume()->isAccepted()) {
+                $this->addFlash('error', 'Zbyt wiele prob logowania - sprobuj ponownie za kilkanascie minut.');
+
+                return $this->redirectToRoute('admin_login');
+            }
+
             if ($this->access->login($request, (string) $request->request->get('password', ''))) {
                 return $this->redirectToRoute('admin_categories');
             }
@@ -68,7 +85,9 @@ final class AdminController extends AbstractController
     #[Route('/logout', name: 'admin_logout', methods: ['POST'])]
     public function logout(Request $request): Response
     {
-        $this->access->logout($request);
+        if ($this->isCsrfTokenValid('admin', (string) $request->request->get('_csrf_token'))) {
+            $this->access->logout($request);
+        }
 
         return $this->redirectToRoute('admin_login');
     }
@@ -243,7 +262,9 @@ final class AdminController extends AbstractController
     }
 
     /**
-     * Odsyla na logowanie albo na informacje o wylaczonym panelu.
+     * Odsyla na logowanie albo na informacje o wylaczonym panelu. Dla
+     * formularzy (POST) sprawdza tez token CSRF - jedno miejsce dla
+     * wszystkich akcji panelu, wiec kazda nowa akcja dostaje to za darmo.
      * Zwraca null, gdy wszystko w porzadku i akcja moze isc dalej.
      */
     private function guard(Request $request): ?Response
@@ -252,7 +273,15 @@ final class AdminController extends AbstractController
             return $this->render('admin/disabled.html.twig');
         }
 
-        return $this->access->needsLogin($request) ? $this->redirectToRoute('admin_login') : null;
+        if ($this->access->needsLogin($request)) {
+            return $this->redirectToRoute('admin_login');
+        }
+
+        if ($request->isMethod('POST') && !$this->isCsrfTokenValid('admin', (string) $request->request->get('_csrf_token'))) {
+            throw new AccessDeniedHttpException('Token CSRF wygasł lub jest nieprawidłowy - odśwież stronę i spróbuj ponownie.');
+        }
+
+        return null;
     }
 
     private function category404(int $id): Category

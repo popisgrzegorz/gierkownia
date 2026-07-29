@@ -154,13 +154,24 @@ final class Wykaz
             return $norm;
         }
 
-        // Najblizszy wpis, ale tylko gdy miesci sie w granicy literowki. Bez tego
-        // warunku "Kongo" prostowaloby sie do czegokolwiek, bo cos zawsze jest
-        // najblizej.
+        // Najblizszy wpis, ale tylko gdy miesci sie w granicy literowki I ma TA
+        // SAMA pierwsza litere co odpowiedz. Bez pierwszego warunku "Kongo"
+        // prostowaloby sie do czegokolwiek, bo cos zawsze jest najblizej. Bez
+        // drugiego "Ganada" (odpowiedz na litere G) prostowalaby sie do "Kanada" -
+        // Levenshtein liczy odleglosc calego slowa, nie widzi, ze roznica siedzi
+        // akurat na pierwszym znaku. Litera rundy jest juz zweryfikowana przez
+        // startsWith() zanim tu trafimy, wiec $norm[0] to zawsze litera rundy -
+        // ograniczenie kandydatow do tej litery to dokladnie "prostuj literowki
+        // W OBREBIE tego panstwa", a nie "znajdz najblizsze cokolwiek".
+        $firstLetter = mb_substr($norm, 0, 1);
         $best = null;
         $bestDistance = \PHP_INT_MAX;
 
         foreach ($list as $entry) {
+            if (mb_substr($entry, 0, 1) !== $firstLetter) {
+                continue;
+            }
+
             if (abs(\strlen($entry) - \strlen($norm)) > 2) {
                 continue;
             }

@@ -2,16 +2,51 @@ import { Controller } from '@hotwired/stimulus';
 import { MercureStream } from '../live/mercure_stream.js';
 
 /**
+ * sessionStorage bywa niedostepny (prywatne okno Safari, przegladarki TV
+ * z wylaczonym storage) - proba odczytu/zapisu rzuca SecurityError zamiast
+ * po prostu nie dzialac. Bez tego opakowania caly connect() tego kontrolera
+ * wywalal sie na pierwszym wywolaniu, a przycisk "Pelny ekran" zostawal
+ * martwy bez zadnego komunikatu.
+ */
+const safeStorage = {
+    get(key) {
+        try {
+            return sessionStorage.getItem(key);
+        } catch {
+            return null;
+        }
+    },
+    set(key, value) {
+        try {
+            sessionStorage.setItem(key, value);
+        } catch {
+            // Bez pamieci zyczenie hosta zyje tylko do zamkniecia karty - trudno.
+        }
+    },
+    remove(key) {
+        try {
+            sessionStorage.removeItem(key);
+        } catch {
+            // jw.
+        }
+    },
+};
+
+/**
  * Tablo na ekranie hosta. Sluchan eventow pokoju i aktualizuje liste druzyn
  * oraz punkty - telewizor nigdy sie nie odswieza recznie.
  */
 export default class extends Controller {
-    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel', 'standingsModal'];
+    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel', 'standingsModal', 'focusMenu'];
     static values = { hub: String, code: String };
 
     connect() {
         /** Trwające przewijanie licznika - jedno na kafelek drużyny. */
         this.counters = new Map();
+        // Czy EventSource już raz się otworzył - drugie (i kolejne) 'online'
+        // znaczy, że połączenie się zerwało i wróciło, a hub Mercure nie ma
+        // historii: eventy z tego okna przepadły bezpowrotnie.
+        this.everConnected = false;
 
         this.stream = new MercureStream(this.hubValue, {
             onEvent: (event) => this.#handle(event),
@@ -23,9 +58,10 @@ export default class extends Controller {
             if ('Escape' === event.key) {
                 // Esc = host świadomie wychodzi z pełnego ekranu; kasujemy
                 // życzenie, żeby kolejny ekran już go nie wciągał z powrotem.
-                sessionStorage.removeItem('tvFull');
+                safeStorage.remove('tvFull');
                 this.#focus(false);
                 this.closeStandings();
+                this.closeFocusMenu();
             }
         };
         // Wyjście z pełnego ekranu przeglądarki (Esc, gest telewizora) ma
@@ -69,9 +105,9 @@ export default class extends Controller {
         // z pełnego ekranu, a bez gestu nie wolno go włączyć z powrotem. Dzięki
         // fladze wracamy do niego przy pierwszym dotknięciu nowego ekranu.
         if (on) {
-            sessionStorage.setItem('tvFull', '1');
+            safeStorage.set('tvFull', '1');
         } else {
-            sessionStorage.removeItem('tvFull');
+            safeStorage.remove('tvFull');
         }
 
         this.#focus(on);
@@ -88,7 +124,7 @@ export default class extends Controller {
      * w coś klika, żeby prowadzić grę.
      */
     #restoreFullscreen() {
-        if ('1' !== sessionStorage.getItem('tvFull')) {
+        if ('1' !== safeStorage.get('tvFull')) {
             return;
         }
 
@@ -114,7 +150,7 @@ export default class extends Controller {
             window.removeEventListener('pointerdown', this.reFull, true);
             window.removeEventListener('keydown', this.reFull, true);
 
-            if ('1' === sessionStorage.getItem('tvFull') && !document.fullscreenElement) {
+            if ('1' === safeStorage.get('tvFull') && !document.fullscreenElement) {
                 this.#focus(true);
             }
         };
@@ -131,6 +167,11 @@ export default class extends Controller {
 
         this.element.classList.toggle('tv-focus', on);
 
+        if (!on) {
+            // Pasek wrócił - menu zastępcze nie ma już czego zastępować.
+            this.closeFocusMenu();
+        }
+
         // Przy okazji prawdziwy pełny ekran: na telewizorze pasek adresu zjada
         // tyle samo miejsca, co nasz nagłówek. Odmowa nic nie psuje - układ
         // i tak jest już schowany.
@@ -138,6 +179,24 @@ export default class extends Controller {
             document.documentElement.requestFullscreen?.().catch(() => {});
         } else if (document.fullscreenElement) {
             document.exitFullscreen?.().catch(() => {});
+        }
+    }
+
+    /**
+     * Menu w trybie pełnego ekranu: pasek u góry (Zmień grę, Reset, Tablica
+     * wyników, Dźwięk...) jest wtedy schowany razem z resztą, więc te akcje
+     * potrzebują osobnego, małego wejścia w rogu - inaczej jedynym wyjściem
+     * z pełnego ekranu byłoby najpierw z niego wyjść.
+     */
+    toggleFocusMenu() {
+        if (this.hasFocusMenuTarget) {
+            this.focusMenuTarget.hidden = !this.focusMenuTarget.hidden;
+        }
+    }
+
+    closeFocusMenu() {
+        if (this.hasFocusMenuTarget) {
+            this.focusMenuTarget.hidden = true;
         }
     }
 
@@ -361,6 +420,18 @@ export default class extends Controller {
     }
 
     #showConnection(state) {
+        // Reconnect po realnym zerwaniu: hub nie ma historii (transport local),
+        // więc każdy event z tego okna przepadł. Panele gier same nie mają jak
+        // się o tym dowiedzieć - stąd sygnał "odśwież się", niezależnie od
+        // tego, czy przerwa zdążyła pokazać się jako 'offline', czy tylko jako
+        // krótkie 'connecting' w tle (EventSource re-łączy się sam z backoffem).
+        if ('online' === state) {
+            if (this.everConnected) {
+                window.dispatchEvent(new CustomEvent('gierki:event', { detail: { type: 'resync' } }));
+            }
+            this.everConnected = true;
+        }
+
         if (!this.hasConnectionTarget) {
             return;
         }

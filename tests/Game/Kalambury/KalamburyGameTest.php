@@ -16,6 +16,8 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomKeys;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
@@ -49,6 +51,7 @@ final class KalamburyGameTest extends DoctrineTestCase
     private GameEngine $engine;
     private GameState $gameState;
     private RoomManager $rooms;
+    private Scoreboard $scoreboard;
     private Room $room;
     private Team $kanapowcy;
     private Team $dywanowi;
@@ -80,6 +83,8 @@ final class KalamburyGameTest extends DoctrineTestCase
 
         $this->seedCategory();
 
+        $this->scoreboard = new Scoreboard($this->redis, $reader, $this->rooms, $publisher, self::TTL);
+
         $kalambury = new KalamburyGame(
             $fsm,
             $this->gameState,
@@ -88,12 +93,12 @@ final class KalamburyGameTest extends DoctrineTestCase
                 self::getContainer()->get(PhraseRepository::class),
             ),
             new TurnManager($this->redis, $reader, $publisher, self::TTL),
-            new Scoreboard($this->redis, $reader, $this->rooms, $publisher, self::TTL),
+            $this->scoreboard,
             new GameTimer($this->redis, $reader, self::TTL),
             $this->rooms,
         );
 
-        $this->engine = new GameEngine(new GameRegistry([$kalambury]), $this->gameState, $fsm, $this->rooms, $publisher);
+        $this->engine = new GameEngine(new GameRegistry([$kalambury]), $this->gameState, $fsm, $this->rooms, $publisher, new RoomLock($this->redis));
 
         $this->room = $this->rooms->create();
         $this->kanapowcy = $this->rooms->join($this->room->code, 'Kanapowcy');
@@ -208,6 +213,64 @@ final class KalamburyGameTest extends DoctrineTestCase
 
         self::assertStringContainsString('K__ _ ______', $published);
         self::assertStringNotContainsString(self::PHRASE, $published);
+    }
+
+    /** Zgadniete daje punkt zarowno zgadujacym, jak i pokazujacym. */
+    public function testGuessedAwardsAPointToBothTeams(): void
+    {
+        $this->host('start', ['seconds' => 60]);
+        $this->host('guessed', ['teamId' => $this->dywanowi->id]);
+
+        self::assertSame(1, $this->scoreboard->get($this->room->code, $this->dywanowi->id));
+        self::assertSame(1, $this->scoreboard->get($this->room->code, $this->kanapowcy->id));
+    }
+
+    /** Po uplywie czasu nikt nie zgadl - nikt nie dostaje punktu. */
+    public function testTimeoutEndsTheRoundWithoutAnyScore(): void
+    {
+        $this->host('start', ['seconds' => 15]);
+        $this->expireTimer();
+
+        $this->host('timeout');
+
+        self::assertSame(0, $this->scoreboard->get($this->room->code, $this->dywanowi->id));
+        self::assertSame(0, $this->scoreboard->get($this->room->code, $this->kanapowcy->id));
+    }
+
+    /**
+     * Host klika "Zgadnieto" w tej samej chwili, gdy zegar telewizora juz
+     * wyslal timeout - zadanie dociera do serwera, gdy stan jest juz
+     * 'timeout'. RoomLock nie dopuszcza do przekłamania danych, ale bez
+     * tego przejscia punkt nie trafialby do nikogo, mimo ze ktos naprawde
+     * zgadl. Host jest sedzia - jego klik ma wygrac ten wyscig.
+     */
+    public function testGuessedArrivingJustAfterTimeoutStillAwardsThePoint(): void
+    {
+        $this->host('start', ['seconds' => 15]);
+        $this->expireTimer();
+
+        $this->host('timeout');
+        $this->host('guessed', ['teamId' => $this->dywanowi->id]);
+
+        self::assertSame('guessed', $this->engine->hostView($this->room)['state']);
+        self::assertSame(1, $this->scoreboard->get($this->room->code, $this->dywanowi->id));
+        self::assertSame(1, $this->scoreboard->get($this->room->code, $this->kanapowcy->id));
+    }
+
+    /** Po zgadnieciu runda jest zamknieta - drugie zgadniecie to juz nielegalne przejscie. */
+    public function testASecondGuessedAfterOneAlreadyResolvedIsRefused(): void
+    {
+        $this->host('start', ['seconds' => 60]);
+        $this->host('guessed', ['teamId' => $this->dywanowi->id]);
+
+        $this->expectException(IllegalActionException::class);
+
+        $this->host('guessed', ['teamId' => $this->kanapowcy->id]);
+    }
+
+    private function expireTimer(): void
+    {
+        $this->redis->setex(RoomKeys::gameDeadline($this->room->code), self::TTL, (string) ((int) (microtime(true) * 1000) - 1000));
     }
 
     private function seedCard(string $phrase): void

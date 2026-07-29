@@ -37,15 +37,19 @@ export default class extends Controller {
         this.pickKind = this.m.power ?? null;
         this.pickFirst = null;
         this.seen = null;
+        this.offset = 0;
 
         this.onEvent = (event) => this.#handle(event.detail);
         window.addEventListener('gierki:event', this.onEvent);
 
         this.#render();
 
-        // Wejście/odświeżenie w trakcie podglądu: pokaż już odkryte i wznów okno.
-        if ('peek' === this.m.state && this.opened.size > 0) {
-            this.#startPeekWindow();
+        // Wejście/odświeżenie w trakcie podglądu: licznik rusza od terminu
+        // SERWERA (peekDeadline w modelu początkowym), nie od nowa przy każdym
+        // odświeżeniu - inaczej odświeżanie strony w kółko trzymałoby karty
+        // odkryte bez końca, dopóki reszta stołu czeka na "Zaczynamy".
+        if ('peek' === this.m.state && this.m.peekDeadline) {
+            this.#syncPeekWindow(this.m.peekDeadline, this.m.serverNow);
         }
     }
 
@@ -56,18 +60,57 @@ export default class extends Controller {
 
     // --- akcje gracza ---
 
-    async draw() {
-        await this.#send('draw');
+    async draw(event) {
+        const button = event.currentTarget;
+
+        // Bez blokady podwójny tap na telefonie wysyłał "dobierz kartę"
+        // dwukrotnie - drugie żądanie i tak dostawało błąd, ale najpierw
+        // zdążyło zmylić serwer/UI na chwilę.
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            await this.#send('draw');
+        } finally {
+            button.disabled = false;
+        }
     }
 
-    async discardDrawn() {
-        // Dobrana karta wylatuje w górę z telefonu - „rzut na stół".
-        this.#throwUp(this.drawnRowTarget.querySelector('.dutch-card'), this.m.drawn);
-        await this.#send('discard');
+    async discardDrawn(event) {
+        const button = event.currentTarget;
+
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            // Dobrana karta wylatuje w górę z telefonu - „rzut na stół".
+            this.#throwUp(this.drawnRowTarget.querySelector('.dutch-card'), this.m.drawn);
+            await this.#send('discard');
+        } finally {
+            button.disabled = false;
+        }
     }
 
-    async callDutch() {
-        await this.#send('call');
+    async callDutch(event) {
+        const button = event.currentTarget;
+
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            await this.#send('call');
+        } finally {
+            button.disabled = false;
+        }
     }
 
     /** Dorzucenie pasującej karty na stos (refleks - dostępne dla każdego). */
@@ -206,11 +249,30 @@ export default class extends Controller {
         this.#send('peek', { slot: Number(slot) });
     }
 
-    /** Dziesięć sekund od pierwszej odkrytej karty - potem zakrycie i blokada. */
-    #startPeekWindow() {
+    /**
+     * Wyrównuje lokalny licznik do AUTORYTATYWNEGO terminu serwera
+     * (DutchGame::PEEK_WINDOW_SECONDS, patrz komentarz tam). Serwer i telefon
+     * mają różne zegary, więc liczymy offset - dokładnie ten sam wzorzec co
+     * przy zegarach kalambur i państw-miast.
+     *
+     * Termin biegnie od ROZDANIA, nie od pierwszego kliknięcia gracza - inaczej
+     * ktoś zwlekający z otwarciem pierwszej karty dostawałby więcej czasu niż
+     * ktoś, kto klika od razu. Ten sam mechanizm zamyka lukę bezpieczeństwa:
+     * playerView() i tak przestaje oddawać podejrzane karty po tym terminie,
+     * więc odświeżanie strony w kółko nic już nie da - to liczy się tylko
+     * jako wyświetlacz odliczania.
+     */
+    #syncPeekWindow(deadline, serverNow) {
+        if (!deadline) {
+            return;
+        }
+
         this.#stopPeekWindow();
-        this.peekDeadline = Date.now() + this.constructor.PEEK_MS;
-        this.peekTimer = setTimeout(() => this.#closePeek(), this.constructor.PEEK_MS);
+        this.offset = (serverNow ?? Date.now()) - Date.now();
+        this.peekDeadline = deadline - this.offset;
+
+        const left = Math.max(0, this.peekDeadline - Date.now());
+        this.peekTimer = setTimeout(() => this.#closePeek(), left);
         this.peekTick = setInterval(() => { this.noteTarget.textContent = this.#note(); }, 500);
     }
 
@@ -262,6 +324,9 @@ export default class extends Controller {
                 this.#resetPeek();
                 this.builtFor = null;
                 this.animateDeal = true; // karty wpadną z góry
+                // Okno podglądu rusza TERAZ, od terminu serwera - nie czeka na
+                // pierwszy klik gracza (patrz #syncPeekWindow).
+                this.#syncPeekWindow(event.peekDeadline, event.serverNow);
                 break;
 
             case 'phase':
@@ -287,9 +352,10 @@ export default class extends Controller {
                 this.#ensureBuilt();
                 this.#showPeek(slot);
 
-                // Okno dziesięciu sekund rusza od pierwszej odkrytej karty.
+                // Okno już liczy się od rozdania (#syncPeekWindow w 'dealt') -
+                // to tylko zabezpieczenie, gdyby z jakiegoś powodu nie ruszyło.
                 if (!this.peekDeadline) {
-                    this.#startPeekWindow();
+                    this.#syncPeekWindow(Date.now() + this.constructor.PEEK_MS, Date.now());
                 }
 
                 this.noteTarget.textContent = this.#note();
@@ -364,6 +430,23 @@ export default class extends Controller {
                     sfx.play('wrong');
                 }
                 break;
+
+            case 'blind_swapped': {
+                // Walet: karta na moim polu zmieniła się w ciemno - jeśli coś
+                // z niej pamiętałem (np. z podglądu damą), ta pamięć jest już
+                // nieaktualna. Wartość i tak nigdy nie wychodzi na topic,
+                // więc jedyne, co mogę zrobić, to ostrzec, które pole "zgasło".
+                const mine = [event.a, event.b].find((side) => side.teamId === this.myId);
+
+                if (mine) {
+                    this.snapNote = `Walet zamienił Twoją kartę na polu ${mine.slot + 1} - to już inna karta.`;
+                    clearTimeout(this.snapNoteTimer);
+                    this.snapNoteTimer = setTimeout(() => { this.snapNote = null; this.#render(); }, 4000);
+                    sfx.play('whoosh');
+                }
+
+                break;
+            }
 
             case 'called':
                 this.m.calledBy = event.teamId;
@@ -470,7 +553,10 @@ export default class extends Controller {
             return btn;
         });
 
-        this.overlayTarget.replaceChildren(title, ...buttons);
+        // Gdy żaden gracz nie ma już czym się zamienić (albo wybór po prostu
+        // nie wychodzi), "Pomiń" kończy turę bez wykonania mocy - zamiast
+        // trzymać gracza w martwym punkcie.
+        this.overlayTarget.replaceChildren(title, ...buttons, this.#button('power_cancel', 'Pomiń (bez efektu)', 'ghost'));
     }
 
     /** Dama: podglądasz jedną ze swoich kart. */
@@ -500,7 +586,7 @@ export default class extends Controller {
             cards.append(btn);
         });
 
-        this.overlayTarget.replaceChildren(title, cards);
+        this.overlayTarget.replaceChildren(title, cards, this.#button('power_cancel', 'Pomiń (bez efektu)', 'ghost'));
     }
 
     #renderSeen() {
@@ -734,9 +820,21 @@ export default class extends Controller {
             discard: 'dutch-player#discardDrawn',
             call: 'dutch-player#callDutch',
             power: 'dutch-player#usePower',
+            power_cancel: 'dutch-player#cancelPower',
         }[action];
 
         return button;
+    }
+
+    /**
+     * Rezygnacja z mocy bez wykonania jej efektu - wyjście awaryjne, gdy
+     * wskazanie celu jest niewykonalne (np. wskazany gracz w międzyczasie
+     * wysnapował ostatnią kartę). Karta i tak już poszła na stos w usePower;
+     * to tylko pomija efekt i oddaje turę dalej.
+     */
+    async cancelPower() {
+        this.pickFirst = null;
+        await this.#send('power_cancel');
     }
 
     #note() {

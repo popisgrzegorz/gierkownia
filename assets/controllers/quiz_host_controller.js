@@ -37,7 +37,14 @@ export default class extends Controller {
     }
 
     async refresh() {
+        // Patrz komentarz w analogicznym miejscu dutch_host_controller.js -
+        // ignorujemy odpowiedź, jeśli w międzyczasie wystartował nowszy refresh().
+        const requestId = (this.refreshSeq = (this.refreshSeq ?? 0) + 1);
         const response = await fetch(this.viewUrlValue, { headers: { Accept: 'application/json' } });
+
+        if (requestId !== this.refreshSeq) {
+            return;
+        }
 
         if (response.ok) {
             this.#render(await response.json());
@@ -65,10 +72,22 @@ export default class extends Controller {
     }
 
     async act(event) {
-        const action = event.currentTarget.dataset.quizAction;
+        const button = event.currentTarget;
+
+        if (button.disabled) {
+            return;
+        }
+
+        const action = button.dataset.quizAction;
         const payload = 'start' === action ? { seconds: Number(this.secondsTarget.value) } : {};
 
-        await this.#send(action, payload);
+        button.disabled = true;
+
+        try {
+            await this.#send(action, payload);
+        } finally {
+            button.disabled = false;
+        }
     }
 
     #onServerEvent(event) {
@@ -94,7 +113,7 @@ export default class extends Controller {
         }
 
         if (['phase', 'timer', 'question_ready', 'answered', 'results', 'again',
-            'round_reset', 'category_picked', 'team_joined', 'reset'].includes(event.type)) {
+            'round_reset', 'category_picked', 'team_joined', 'reset', 'resync'].includes(event.type)) {
             const done = this.refresh();
 
             // Odpowiedzi wjeżdżają własną animacją CSS, więc tu tylko reakcja na
@@ -310,8 +329,13 @@ export default class extends Controller {
             }
         };
 
-        tick();
+        // Interwal PRZED pierwszym tick(): jeśli termin już minął (spóźnione
+        // odświeżenie widoku), tick() woła clearInterval(this.ticker) - a to
+        // musi już wskazywać na TEN interwał, inaczej pierwsze wywołanie nic
+        // nie czyści, drugie (za 200 ms) trafia w ten sam wygasły termin
+        // i wysyła 'timeout' po raz drugi.
         this.ticker = setInterval(tick, 200);
+        tick();
     }
 
     #renderControls(view) {

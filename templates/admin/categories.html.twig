@@ -21,6 +21,7 @@
         </div>
         <div class="card-body">
             <form method="post" action="{{ path('admin_category_create') }}" class="row g-2 align-items-end">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin') }}">
                 <div class="col-12 col-md">
                     <label class="form-label" for="cat-name">Nazwa</label>
                     <input id="cat-name" name="name" class="form-control"

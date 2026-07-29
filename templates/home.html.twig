@@ -17,6 +17,7 @@
                 <h2>Na telewizorze</h2>
                 <p class="lead">Załóż pokój — na ekranie pojawi się kod i QR dla gości.</p>
                 <form method="post" action="{{ path('room_create') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
                     <button type="submit" class="btn btn-primary btn-lg">Nowa gra</button>
                 </form>
                 <p class="home-resume">

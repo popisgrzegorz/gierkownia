@@ -10,6 +10,14 @@ export default class extends Controller {
     static values = { hub: String, team: String, game: String };
 
     connect() {
+        // Czy EventSource już raz się otworzył - drugie 'online' znaczy, że
+        // połączenie się zerwało i wróciło. Hub Mercure nie ma historii
+        // (transport local), więc każdy event z przerwy przepadł bezpowrotnie,
+        // a telefon buduje CAŁY swój stan wyłącznie z eventów (nigdy nie
+        // odpytuje serwera) - bez przeładowania zostałby zamrożony na starym
+        // stanie (np. "czekaj na swoją turę" długo po tym, jak minęła).
+        this.everConnected = false;
+
         this.stream = new MercureStream(this.hubValue, {
             onEvent: (event) => this.#handle(event),
             onState: (state) => this.#showConnection(state),
@@ -62,6 +70,19 @@ export default class extends Controller {
     }
 
     #showConnection(state) {
+        if ('online' === state) {
+            if (this.everConnected) {
+                // Reconnect po realnym zerwaniu - przeładowanie odtwarza cały
+                // stan przez player_controller (playerView() na świeżo), tak
+                // samo jak przy niezgodności gry kilka linijek niżej.
+                window.location.reload();
+
+                return;
+            }
+
+            this.everConnected = true;
+        }
+
         if (!this.hasConnectionTarget) {
             return;
         }

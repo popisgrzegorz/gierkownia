@@ -29,6 +29,7 @@
                     {% endfor %}
 
                     <form method="post">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin') }}">
                         <div class="mb-3">
                             <label class="form-label" for="password">Hasło</label>
                             <input type="password" id="password" name="password" class="form-control"

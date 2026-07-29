@@ -16,6 +16,7 @@ use App\Core\Realtime\Message;
 use App\Core\Room\Room;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
+use App\Core\Timer\GameTimer;
 
 /**
  * Dutch (znany tez jako Cabo) - gra pamieciowa w wariancie startowym.
@@ -54,6 +55,19 @@ final class DutchGame extends AbstractGame
     private const MIN_PLAYERS = 2;
 
     /**
+     * Ile sekund od rozdania trwa okno podgladu wlasnych kart.
+     *
+     * Limit byl kiedys pilnowany WYLACZNIE w JS (10 s od pierwszej otwartej
+     * karty, liczone na telefonie) - odswiezenie strony w fazie peek zaczynalo
+     * odliczanie od nowa, wiec gracz znajacy ten trik mogl trzymac karty
+     * odkryte bez ograniczen, dopoki reszta stolu czekala na jego gotowosc.
+     * Zegar tutaj jest tym, co playerView() faktycznie sprawdza - JS-owy
+     * licznik na telefonie zostaje jako UX (pokazuje odliczanie), ale to ten
+     * termin decyduje, czy karta jeszcze wraca w odpowiedzi.
+     */
+    private const PEEK_WINDOW_SECONDS = 12;
+
+    /**
      * Puste pole po dorzuconej karcie. Reka nie jest juz stala (dorzucenie
      * ujmuje karte, kara dokłada), ale pola trzymamy w miejscu - inaczej pamiec
      * o "drugiej karcie" rozsypalaby sie przy kazdym ubytku. Wartownik zamiast
@@ -65,6 +79,7 @@ final class DutchGame extends AbstractGame
         GameFsm $fsm,
         GameState $gameState,
         private readonly RoomManager $rooms,
+        private readonly GameTimer $timer,
     ) {
         parent::__construct($fsm, $gameState);
     }
@@ -111,6 +126,7 @@ final class DutchGame extends AbstractGame
             'power' => $this->usePower($room, $actor),
             'power_peek' => $this->peekPower($room, $payload, $actor),
             'power_swap' => $this->swapCards($room, $payload, $actor),
+            'power_cancel' => $this->cancelPower($room, $actor),
             'call' => $this->call($room, $actor),
             'finish' => $this->finishByHost($room, $actor),
             'next_round' => $this->nextRound($room, $actor),
@@ -168,11 +184,17 @@ final class DutchGame extends AbstractGame
             '_power' => null,
         ]);
 
+        // Autorytatywne okno podgladu: playerView() przestaje oddawac podejrzane
+        // karty po tym terminie, niezaleznie od tego, co pokazuje JS na telefonie.
+        $clock = $this->timer->start($room->code, self::PEEK_WINDOW_SECONDS);
+
         return [Message::broadcast(new Event('dealt', [
             'round' => $round,
             'order' => $order,
             'turn' => $order[0],
             'deckCount' => \count($deck),
+            'peekDeadline' => $clock['deadline'],
+            'serverNow' => $clock['serverNow'],
         ]))];
     }
 
@@ -242,6 +264,9 @@ final class DutchGame extends AbstractGame
     {
         $actor->requireHost();
         $this->transition($room, 'begin');
+        // Okno podglądu skończyło się przedwcześnie (host ruszył grę) - sprzątamy,
+        // choć sam koniec fazy peek już wystarczy, żeby playerView() nic nie oddał.
+        $this->timer->clear($room->code);
 
         // Samą zmianę fazy ogłasza rdzeń; telefony na jej podstawie chowają
         // podejrzane karty i przechodzą na pamięć.
@@ -459,8 +484,10 @@ final class DutchGame extends AbstractGame
     }
 
     /**
-     * Karta z mocą (7,8 = podejrzyj swoją, 9,10 = podejrzyj cudzą): gracz zrzuca
-     * ją zamiast podmiany i wskazuje kartę do podejrzenia. Tura czeka na wskazanie.
+     * Karta z mocą wg zasad domowych (dama - podgląd własnej karty, walet -
+     * losowa zamiana z Karty::power()): gracz zrzuca ją zamiast podmiany
+     * i wskazuje cel. Tura czeka na wskazanie (patrz cancelPower, gdy
+     * wskazanie okaże się niewykonalne).
      *
      * @return list<Message>
      */
@@ -506,9 +533,9 @@ final class DutchGame extends AbstractGame
     }
 
     /**
-     * Wskazanie karty do podejrzenia. Siódemka/ósemka odsłania tylko własną
-     * kartę, dziewiątka/dziesiątka - tylko cudzą. Odsłonięcie trafia wyłącznie
-     * do podglądającego, a tura po nim się kończy.
+     * Wskazanie własnej karty do podejrzenia (dama - jedyna karta, która dziś
+     * daje ten rodzaj mocy). Odsłonięcie trafia wyłącznie do podglądającego,
+     * a tura po nim się kończy.
      *
      * @param array<string, mixed> $payload
      *
@@ -519,9 +546,7 @@ final class DutchGame extends AbstractGame
         $team = $actor->requireTeam();
         $this->requireMyTurn($room, $team);
 
-        $kind = $this->pendingPower($room);
-
-        if ('peek_own' !== $kind && 'peek_other' !== $kind) {
+        if ('peek_own' !== $this->pendingPower($room)) {
             throw new IllegalActionException('Teraz nie podglądasz.');
         }
 
@@ -533,12 +558,8 @@ final class DutchGame extends AbstractGame
             throw new IllegalActionException('Nie ma takiej karty.');
         }
 
-        if ('peek_own' === $kind && $targetId !== $team->id) {
+        if ($targetId !== $team->id) {
             throw new IllegalActionException('Tą kartą podglądasz tylko własną kartę.');
-        }
-
-        if ('peek_other' === $kind && $targetId === $team->id) {
-            throw new IllegalActionException('Tą kartą podglądasz kartę przeciwnika.');
         }
 
         $card = $this->handsOf($room)[$targetId][$slot] ?? null;
@@ -612,6 +633,35 @@ final class DutchGame extends AbstractGame
             'a' => ['teamId' => $idA, 'slot' => $slotA],
             'b' => ['teamId' => $idB, 'slot' => $slotB],
         ]))];
+
+        return array_merge($messages, $this->endTurn($room));
+    }
+
+    /**
+     * Rezygnacja z mocy bez wykonania jej efektu - karta zostaje na stosie
+     * (poszła tam już w usePower), ale nikt nie zostaje podejrzany ani
+     * zamieniony. Tura mimo to się kończy, tak jak przy zwykłym wyrzuceniu.
+     *
+     * Wyjście awaryjne na sytuacje, w których wskazanie celu jest niewykonalne:
+     * walet wskazujący gracza, który w międzyczasie wysnapował ostatnią kartę
+     * (filledSlots puste), albo dama, gdy wszystkie własne pola są już puste.
+     * Bez tej akcji taka moc wieszała turę na amen - jedynym wyjściem był
+     * `finish` hosta, czyli przerwanie całej rundy.
+     *
+     * @return list<Message>
+     */
+    private function cancelPower(Room $room, Actor $actor): array
+    {
+        $team = $actor->requireTeam();
+        $this->requireMyTurn($room, $team);
+
+        if (null === $this->pendingPower($room)) {
+            throw new IllegalActionException('Nie ma mocy do pominięcia.');
+        }
+
+        $this->patchCtx($room, ['_power' => null]);
+
+        $messages = [Message::broadcast(new Event('power_cancelled', ['teamId' => $team->id]))];
 
         return array_merge($messages, $this->endTurn($room));
     }
@@ -807,10 +857,13 @@ final class DutchGame extends AbstractGame
         $state = $this->state($room);
         $view = $this->publicView($room);
 
-        // Uczciwa pamięć: podejrzane karty oddajemy tylko w fazie podglądu.
-        // Gdy runda rusza, znikają - dalej gra się z głowy.
+        // Uczciwa pamięć: podejrzane karty oddajemy tylko w fazie podglądu
+        // I tylko przed autorytatywnym terminem (patrz deal() - PEEK_WINDOW_SECONDS).
+        // Sam stan FSM nie wystarczał: gracz odświeżający telefon w fazie peek
+        // (podczas gdy reszta stołu już czeka na "Zaczynamy") widziałby swoje
+        // karty bez ograniczenia czasowego, bo limit siedział wyłącznie w JS.
         $peekedCards = [];
-        if ('peek' === $state) {
+        if ('peek' === $state && !$this->timer->expired($room->code)) {
             $hand = $this->handsOf($room)[$team->id] ?? [];
             foreach ($this->peeked($room)[$team->id] ?? [] as $slot) {
                 if (isset($hand[$slot])) {
@@ -880,6 +933,10 @@ final class DutchGame extends AbstractGame
             'revealed' => 'reveal' === $state ? $this->revealed($room) : null,
             'scores' => 'reveal' === $state ? $this->scores($room) : null,
             'totals' => $this->totals($room),
+            // Autorytatywny termin okna podglądu - telefon liczy od niego, nie od
+            // własnego kliknięcia "podejrzyj" (patrz deal() i playerView()).
+            'peekDeadline' => 'peek' === $state ? $this->timer->deadline($room->code) : null,
+            'serverNow' => 'peek' === $state ? (int) (microtime(true) * 1000) : null,
         ];
     }
 

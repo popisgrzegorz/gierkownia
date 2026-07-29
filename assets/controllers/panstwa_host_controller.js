@@ -46,7 +46,14 @@ export default class extends Controller {
     }
 
     async refresh() {
+        // Patrz komentarz w analogicznym miejscu dutch_host_controller.js -
+        // ignorujemy odpowiedź, jeśli w międzyczasie wystartował nowszy refresh().
+        const requestId = (this.refreshSeq = (this.refreshSeq ?? 0) + 1);
         const response = await fetch(this.viewUrlValue, { headers: { Accept: 'application/json' } });
+
+        if (requestId !== this.refreshSeq) {
+            return;
+        }
 
         if (response.ok) {
             this.#render(await response.json());
@@ -54,7 +61,19 @@ export default class extends Controller {
     }
 
     async act(event) {
-        await this.#send(event.currentTarget.dataset.panstwaAction);
+        const button = event.currentTarget;
+
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            await this.#send(button.dataset.panstwaAction);
+        } finally {
+            button.disabled = false;
+        }
     }
 
     /**
@@ -132,7 +151,7 @@ export default class extends Controller {
         }
 
         if (['phase', 'timer', 'letter_drawn', 'stopped', 'results', 'awarded',
-            'progress', 'configured', 'round_reset', 'team_joined', 'reset'].includes(event.type)) {
+            'progress', 'configured', 'round_reset', 'team_joined', 'reset', 'resync'].includes(event.type)) {
             if ('team_joined' === event.type) {
                 this.teams.set(event.team.id, event.team.name);
             }
@@ -341,8 +360,10 @@ export default class extends Controller {
             }
         };
 
-        tick();
+        // Interwal PRZED pierwszym tick() - patrz komentarz w analogicznym
+        // miejscu quiz_host_controller.js (ten sam wyścig o podwójne 'finish').
         this.ticker = setInterval(tick, 200);
+        tick();
     }
 
     #renderControls(view) {

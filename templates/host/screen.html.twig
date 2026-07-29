@@ -65,6 +65,7 @@
                     <form method="post" action="{{ path('game_stop', {code: room.code}) }}"
                           data-controller="soft-nav" data-action="submit->soft-nav#submit"
                           data-confirm="Zakończyć tę grę i wrócić do wyboru? Drużyny i punkty zostają.">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
                         <button type="submit" class="btn btn-ghost btn-reset">Zmień grę</button>
                     </form>
                 {% endif %}
@@ -72,6 +73,7 @@
                 <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
                       data-controller="soft-nav" data-action="submit->soft-nav#submit"
                       data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
                     <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
                 </form>
 
@@ -93,10 +95,49 @@
             </div>
         </header>
 
-        {# W trybie pełnego ekranu to jedyne wyjście widoczne na TV - poza
-           klawiszem Esc, którego przy telewizorze nikt nie ma pod ręką. #}
+        {# Wyjście z pełnego ekranu, widoczne cały czas na TV - poza klawiszem
+           Esc, którego przy telewizorze nikt nie ma pod ręką. #}
         <button type="button" class="tv-focus-exit" data-action="room-board#toggleFocus"
                 title="Wyjdź z pełnego ekranu (Esc)" aria-label="Wyjdź z pełnego ekranu">⤡</button>
+
+        {# Menu w pełnym ekranie: pasek u góry jest wtedy schowany razem z resztą,
+           więc Zmień grę/Reset/Tablica/Dźwięk potrzebują osobnego, małego wejścia -
+           inaczej jedynym sposobem dosięgnięcia ich byłoby najpierw wyjść
+           z pełnego ekranu. Te same akcje co w pasku, tylko schowane za jednym
+           przyciskiem. #}
+        <button type="button" class="tv-focus-menu-btn" data-action="room-board#toggleFocusMenu"
+                title="Menu" aria-label="Otwórz menu">☰</button>
+
+        <div class="tv-focus-menu" data-room-board-target="focusMenu" hidden>
+            {% if gameType is not null %}
+                <button type="button" class="btn btn-ghost" data-action="room-board#toggleJoin">
+                    Dołącz <strong class="bar-code">{{ room.code }}</strong>
+                </button>
+
+                <form method="post" action="{{ path('game_stop', {code: room.code}) }}"
+                      data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                      data-confirm="Zakończyć tę grę i wrócić do wyboru? Drużyny i punkty zostają.">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                    <button type="submit" class="btn btn-ghost btn-reset">Zmień grę</button>
+                </form>
+            {% endif %}
+
+            <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
+                  data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                  data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
+            </form>
+
+            <button type="button" class="btn btn-ghost btn-reset"
+                    data-action="room-board#openStandings">🏆 Tablica wyników</button>
+
+            <button type="button" class="btn btn-ghost btn-reset"
+                    data-sfx-target="button" data-action="sfx#toggle">🔊 Dźwięk</button>
+
+            <button type="button" class="btn btn-ghost btn-reset"
+                    data-action="room-board#toggleFocus">⤡ Wyjdź z pełnego ekranu</button>
+        </div>
 
         {# Panel dołączania wysuwa się WYŁĄCZNIE na żądanie - przyciskiem
            „Dołącz" w panelu punktacji. Otwierany sam po wejściu na ekran
@@ -148,6 +189,7 @@
                    pomaga odnaleźć go na liście „Wznów". #}
                 <form class="standings-save" method="post"
                       action="{{ path('tournament_save', {code: room.code}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
                     <input type="text" name="name" class="form-control" maxlength="60"
                            placeholder="Nazwa (np. Wieczór u Kasi)" autocomplete="off">
                     <button type="submit" class="btn">💾 Zapisz turniej</button>

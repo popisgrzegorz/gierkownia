@@ -397,7 +397,16 @@ class Sfx {
         }
 
         if ('running' !== ctx.state) {
+            // Kontekst śpi (brak gestu użytkownika) - currentTime stoi
+            // w miejscu, więc zaplanowanie dźwięku TERAZ zabrzmiałoby dopiero
+            // po odblokowaniu, razem z KAŻDYM innym dźwiękiem zaplanowanym
+            // w tym oknie (wszystkie na ten sam, zamrożony moment) - stąd
+            // kakofonia wszystkiego naraz po pierwszym kliknięciu. Lepiej
+            // pominąć pojedynczy efekt niż zaplanować kolejkę, która i tak
+            // wystrzeli jednocześnie.
             ctx.resume?.().catch(() => {});
+
+            return;
         }
 
         const at = ctx.currentTime + delay + 0.01;

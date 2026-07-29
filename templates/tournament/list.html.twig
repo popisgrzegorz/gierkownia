@@ -31,6 +31,7 @@
                             </p>
                         </div>
                         <form method="post" action="{{ path('tournament_restore', {id: session.id}) }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin') }}">
                             <button type="submit" class="btn btn-primary btn-lg">Wznów</button>
                         </form>
                     </li>

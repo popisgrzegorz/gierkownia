@@ -38,6 +38,17 @@ final class RoomKeys
     }
 
     /**
+     * Druzyny odtworzone z zapisu, po ktore jeszcze nikt zywy sie nie zglosil.
+     * Pierwsze zadanie z pasujaca nazwa moze je przejac bez dowodu wlasnosci -
+     * fizycznie nikt inny nie zdazyl tego zrobic w nowym pokoju - a kazde kolejne
+     * juz musi udowodnic, ze to to samo urzadzenie (RoomManager::join).
+     */
+    public static function unclaimedTeams(string $code): string
+    {
+        return sprintf('room:%s:teams:unclaimed', $code);
+    }
+
+    /**
      * Tabela turnieju: punkty za miejsca zebrane przez wszystkie rozegrane gry.
      * Poza prefiksem game:, wiec reset rozgrywki jej nie zdejmuje (turniej trwa
      * ponad pojedyncza gra), ale wygasa razem z pokojem po TTL.

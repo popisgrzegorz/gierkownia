@@ -15,6 +15,7 @@ use App\Core\Realtime\Publisher;
 use App\Core\Redis\RedisReader;
 use App\Core\Room\Room;
 use App\Core\Room\RoomCodeGenerator;
+use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
 use App\Core\Room\Team;
 use App\Core\Score\Scoreboard;
@@ -97,7 +98,7 @@ final class KoloFortunyGameTest extends DoctrineTestCase
             ),
         );
 
-        $this->engine = new GameEngine(new GameRegistry([$kolo]), $this->gameState, $fsm, $this->rooms, $publisher);
+        $this->engine = new GameEngine(new GameRegistry([$kolo]), $this->gameState, $fsm, $this->rooms, $publisher, new RoomLock($this->redis));
 
         $this->room = $this->rooms->create();
         $this->kanapowcy = $this->rooms->join($this->room->code, 'Kanapowcy');

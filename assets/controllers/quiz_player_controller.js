@@ -41,7 +41,15 @@ export default class extends Controller {
         this.mineValue = String(option);
         this.#render();
 
-        await this.#send('answer', { option });
+        const ok = await this.#send('answer', { option });
+
+        if (!ok) {
+            // Bez tego telefon pokazywal odpowiedz jako "wybrana" (i blokowal
+            // zmiane wyboru), mimo ze serwer jej nigdy nie dostal - gracz
+            // przegrywal runde, nie wiedzac dlaczego.
+            this.mineValue = '';
+            this.#render();
+        }
     }
 
     #handle(event) {
@@ -191,11 +199,33 @@ export default class extends Controller {
         this.#render();
     }
 
+    /**
+     * @return {Promise<boolean>} czy serwer przyjął żądanie
+     */
     async #send(action, payload = {}) {
-        await fetch(this.actionUrlValue, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ action, payload }),
-        });
+        let response;
+
+        try {
+            response = await fetch(this.actionUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ action, payload }),
+            });
+        } catch {
+            this.noteTarget.textContent = 'Brak połączenia — spróbuj ponownie.';
+
+            return false;
+        }
+
+        if (!response.ok) {
+            // Bez tego wybrana odpowiedź znikała bez śladu - gracz widział u
+            // siebie zaznaczony kafelek, a serwer nigdy go nie dostał.
+            const problem = await response.json().catch(() => ({}));
+            this.noteTarget.textContent = problem.detail ?? 'Nie udało się wysłać - spróbuj ponownie.';
+
+            return false;
+        }
+
+        return true;
     }
 }

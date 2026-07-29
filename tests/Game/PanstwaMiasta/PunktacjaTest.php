@@ -69,6 +69,25 @@ final class PunktacjaTest extends TestCase
         self::assertTrue($after['cells']['a']['Państwo']['forced']);
     }
 
+    /**
+     * Wymyslone panstwo na WLASNA litere rundy nie ma prawa przejsc jako
+     * unikat bez hosta - a "Ganada" pod literą G jest odlegla o jeden znak od
+     * "Kanada", wiec zanim Wykaz::resolve() pilnowal pierwszej litery, sama
+     * fuzzy-korekta literowek przepuszczala ja po cichu, z zielonym statusem
+     * unique zamiast zoltego pytajnika. Ganada pod G nie jest odrzucana przez
+     * startsWith (to nie jest zla litera - G to litera rundy), wiec jedyna
+     * linia obrony jest Wykaz.
+     */
+    public function testAMadeUpCountryOnItsOwnLetterIsNotSilentlyAccepted(): void
+    {
+        $result = Punktacja::score('G', ['Państwo'], [
+            'a' => ['Państwo' => 'Ganada'],
+        ], []);
+
+        self::assertSame(0, $result['cells']['a']['Państwo']['points']);
+        self::assertSame(Punktacja::STATUS_UNKNOWN, $result['cells']['a']['Państwo']['status']);
+    }
+
     /** I odwrotnie: wymyslone slowo host odrzuca, mimo poprawnej litery. */
     public function testHostCanRejectANonsenseWord(): void
     {
@@ -164,31 +183,40 @@ final class PunktacjaTest extends TestCase
     }
 
     /**
-     * Literowka w panstwie liczy sie sama, bez klikania hosta: "Kanadaa" to
-     * wciaz Kanada. Wykaz prostuje ja do wpisu, wiec komorka jest zwyklym
-     * unikatem, a nie zoltym pytajnikiem.
+     * Krotkie panstwo z jedna literowka NIE prostuje sie juz samo - potrzebuje
+     * kliknieca hosta, tak jak kazde inne miekkie odrzucenie w tej grze.
+     *
+     * Zmiana wobec wczesniejszej wersji: przy krotkich slowach (do siedmiu
+     * znakow) automatyczne prostowanie okazalo sie zbyt luzne - ten sam prog,
+     * ktory przepuszczal "Kanadaa" jako Kanade, przepuszczal tez "Sanoki" jako
+     * Sanok i "Luboń" jako Lubin (dwa NAPRAWDE ROZNE polskie miasta), oraz
+     * "Malia"/"Cypry" jako Mali/Cypr bez zadnej weryfikacji. Zeby zamknac te
+     * dziury, krotkie slowa wymagaja teraz dokladnego dopasowania - patrz
+     * Punktacja::typoTolerance(). "Kanadaa" wciaz punktuje, ale przez host,
+     * dokladnie tak samo jak "Ganada" ponizej.
      */
-    public function testATypoOfAKnownCountryScoresWithoutTheHost(): void
+    public function testAShortTypoOfAKnownCountryNeedsTheHost(): void
     {
-        $result = Punktacja::score('K', ['Państwo'], [
-            'a' => ['Państwo' => 'Kanadaa'],
-        ], []);
+        $answers = ['a' => ['Państwo' => 'Kanadaa']];
 
-        self::assertSame(Punktacja::UNIQUE, $result['cells']['a']['Państwo']['points']);
-        self::assertSame(Punktacja::STATUS_UNIQUE, $result['cells']['a']['Państwo']['status']);
-        self::assertFalse($result['cells']['a']['Państwo']['forced']);
+        $before = Punktacja::score('K', ['Państwo'], $answers, []);
+        $after = Punktacja::score('K', ['Państwo'], $answers, ['a' => ['Państwo' => true]]);
+
+        self::assertSame(0, $before['totals']['a']);
+        self::assertSame(Punktacja::STATUS_UNKNOWN, $before['cells']['a']['Państwo']['status']);
+        self::assertSame(10, $after['totals']['a']);
     }
 
     /**
-     * Sedno mechanizmu literowek: dwie druzyny wpisaly to samo panstwo, kazda
-     * z innym przekrecleniem ("Kanadaa" i "Kanda"). To jedna i ta sama Kanada,
-     * wiec licza sie jak powtorka - po piec punktow, a nie dwa osobne unikaty.
+     * Dluzsza literowka wciaz prostuje sie sama - prog rosnie z dlugoscia
+     * slowa (patrz Punktacja::typoTolerance), tak samo jak przy "Luksemburg"/
+     * "Luxemburg" w rubrykach otwartych (testTyposInOpenColumnsCountAsTheSameWord).
      */
-    public function testDifferentTyposOfTheSameCountryCountAsShared(): void
+    public function testALongerTypoOfAKnownCountryStillScoresWithoutTheHost(): void
     {
-        $result = Punktacja::score('K', ['Państwo'], [
-            'a' => ['Państwo' => 'Kanadaa'],
-            'b' => ['Państwo' => 'Kanda'],
+        $result = Punktacja::score('P', ['Państwo'], [
+            'a' => ['Państwo' => 'Portugalia'],
+            'b' => ['Państwo' => 'Portugalja'],
         ], []);
 
         self::assertSame(Punktacja::SHARED, $result['cells']['a']['Państwo']['points']);
@@ -213,20 +241,23 @@ final class PunktacjaTest extends TestCase
 
     /**
      * W rubryce bez wykazu (zwierze, roslina, rzecz) nie ma do czego prostowac,
-     * ale zgodne literowki miedzy druzynami wciaz sa tym samym slowem: "Pies"
-     * i "Piess" to jeden pies - po piec punktow.
+     * ale zgodne literowki miedzy druzynami wciaz sa tym samym slowem - dla
+     * slow dostatecznie dlugich, zeby jedna literowka nie zmieniala znaczenia.
+     * Krotkie slowa ("Pies"/"Piess") wymagaja dzis dokladnego dopasowania
+     * (patrz testAShortTypoOfAKnownCountryNeedsTheHost) - to samo ryzyko
+     * falszywego scalenia dotyczy tu "Kot"/"Kit" czy "Byk"/"Bok".
      */
     public function testTyposInOpenColumnsCountAsTheSameWord(): void
     {
-        $result = Punktacja::score('P', ['Zwierzę'], [
-            'a' => ['Zwierzę' => 'Pies'],
-            'b' => ['Zwierzę' => 'Piess'],
-            'c' => ['Zwierzę' => 'Papuga'],
+        $result = Punktacja::score('K', ['Zwierzę'], [
+            'a' => ['Zwierzę' => 'Krokodyl'],
+            'b' => ['Zwierzę' => 'Krokodyll'],
+            'c' => ['Zwierzę' => 'Kangur'],
         ], []);
 
         self::assertSame(Punktacja::SHARED, $result['cells']['a']['Zwierzę']['points']);
         self::assertSame(Punktacja::SHARED, $result['cells']['b']['Zwierzę']['points']);
-        // Papuga to zupelnie inne slowo - zostaje unikatem.
+        // Kangur to zupelnie inne slowo - zostaje unikatem.
         self::assertSame(Punktacja::UNIQUE, $result['cells']['c']['Zwierzę']['points']);
     }
 

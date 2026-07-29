@@ -189,15 +189,16 @@ final class MelodiaQuizGame extends AbstractGame
     }
 
     /**
-     * Uklada pytanie z wylosowanego nagrania i rozglasza je do pokoju.
+     * Buduje i waliduje opcje dla wylosowanego nagrania - osobno od serve(),
+     * zeby nextRound() mogl sprawdzic, czy w ogole DA SIE podac kolejne
+     * pytanie, PRZED wykonaniem wlasnych zapisow do Redisa (patrz komentarz
+     * w nextRound()).
      *
-     * @return list<Message>
+     * @return array{options: list<string>, correct: int}
      */
-    private function serve(Room $room, Track $track): array
+    private function buildOptions(Room $room, Track $track): array
     {
-        $ctx = $this->ctx($room);
         $picked = $this->picked($room);
-        $played = $this->intList($ctx['_played'] ?? null);
 
         // Podpis, nie sam tytul: sam tytul bywa bezuzyteczny przy coverach,
         // a podpis mowi, ktore wykonanie wlasnie leci.
@@ -211,6 +212,20 @@ final class MelodiaQuizGame extends AbstractGame
                 \count($options['options']),
             ));
         }
+
+        return $options;
+    }
+
+    /**
+     * Uklada pytanie z wylosowanego nagrania i rozglasza je do pokoju.
+     *
+     * @return list<Message>
+     */
+    private function serve(Room $room, Track $track): array
+    {
+        $ctx = $this->ctx($room);
+        $played = $this->intList($ctx['_played'] ?? null);
+        $options = $this->buildOptions($room, $track);
 
         $this->transition($room, 'draw');
 
@@ -421,6 +436,18 @@ final class MelodiaQuizGame extends AbstractGame
     private function nextRound(Room $room, Actor $actor): array
     {
         $actor->requireHost();
+
+        $track = $this->drawTrack($room);
+
+        // Walidacja PRZED jakimkolwiek zapisem: gdyby wylosowany utwor mial za
+        // mala kategorie (mniej niz 4 nagrania na dystraktory), buildOptions()
+        // rzuca wyjatek. Wczesniej transition('next_round') i patchCtx nizej
+        // szly PIERWSZE - FSM zdazyl przejsc do 'idle' z wyczyszczonym ctx,
+        // zanim wyjatek w ogole doszedl do glosu. Blad HTTP nie dawal klientowi
+        // szansy odswiezyc widok, wiec ekran zostawal "zawieszony" na starych
+        // wynikach, choc serwer byl juz w zupelnie innym stanie.
+        $options = null === $track ? null : $this->buildOptions($room, $track);
+
         $this->transition($room, 'next_round');
         $this->timer->clear($room->code);
 
@@ -434,8 +461,11 @@ final class MelodiaQuizGame extends AbstractGame
         ]);
 
         $messages = [Message::broadcast(new Event('round_reset', []))];
-        $track = $this->drawTrack($room);
 
+        // TEN SAM $track co przy walidacji wyzej - drugie losowanie mogloby
+        // trafic w zupelnie inne nagranie (drawTrack nie oznacza niczego jako
+        // zagrane, dopoki serve() nie zapisze _played), a wtedy zwalidowalibysmy
+        // jeden utwor i zaserwowali inny.
         // Kategoria sie skonczyla - zostajemy w idle z czystym ekranem, zamiast
         // wywalac akcje juz po zmianie stanu. Host wybiera inna albo restartuje.
         return null === $track ? $messages : [...$messages, ...$this->serve($room, $track)];
