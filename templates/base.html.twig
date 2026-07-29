@@ -35,11 +35,17 @@
     {# data-bs-theme: Tabler ma wbudowany tryb ciemny, a gra jest ciemna
        z założenia - jasny framework na telewizorze oślepiałby pokój. #}
     <body class="{% block body_class %}{% endblock %}" data-bs-theme="dark">
-        {% for label, messages in app.flashes %}
-            {% for message in messages %}
-                <p class="flash flash-{{ label }}">{{ message }}</p>
+        {# Nazwany blok, zeby admin/_layout.html.twig mogl go nadpisac pustym -
+           inaczej ten loop konsumowalby app.flashes PRZED blokiem body, a
+           wlasny, wyglosowany alert Tablera w panelu nigdy nie dostawalby
+           wiadomosci (zawsze pusta lista - P2-27 audytu). #}
+        {% block flashes %}
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <p class="flash flash-{{ label }}">{{ message }}</p>
+                {% endfor %}
             {% endfor %}
-        {% endfor %}
+        {% endblock %}
 
         {% block body %}{% endblock %}
     </body>

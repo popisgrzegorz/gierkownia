@@ -2,6 +2,11 @@
 
 {% block body_class %}admin{% endblock %}
 
+{# Panel ma wlasny, wyglosowany alert Tablera nizej w page-body - surowy
+   akapit z base.html.twig konsumowalby te same flashe pierwszy i ladowal
+   jako goly czerwony pas nad navbarem (P2-27 audytu). #}
+{% block flashes %}{% endblock %}
+
 {% block body %}
     {# Standardowy układ panelu Tablera: górny pasek + page-wrapper + page-body.
        Panel obsługuje się myszą przy biurku, więc w przeciwieństwie do ekranów

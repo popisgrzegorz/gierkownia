@@ -20,7 +20,7 @@
 } %}
 
 <main class="l2"
-      data-controller="room-board game-starter sfx"
+      data-controller="room-board game-starter sfx tournament"
       data-room-board-hub-value="{{ hubUrl }}"
       data-room-board-code-value="{{ room.code }}"
       data-game-starter-start-url-value="{{ path('game_start', {code: room.code}) }}">
@@ -37,7 +37,7 @@
                 <span class="l2-code">{{ room.code }}</span>
                 <span class="l2-url">{{ joinUrl|replace({'http://': '', 'https://': ''}) }}</span>
             </div>
-            <img class="l2-qr" src="{{ qr }}" alt="Kod QR pokoju {{ room.code }}" width="120" height="120">
+            <img class="l2-qr" src="{{ qr }}" alt="Kod QR pokoju {{ room.code }}" width="190" height="190">
         </div>
     </header>
 
@@ -47,7 +47,7 @@
         <aside class="l2-side">
             <div class="l2-side-head">
                 <span class="l2-side-title">Gracze <span data-room-board-target="count">({{ teams|length }})</span></span>
-                <span class="conn" data-room-board-target="connection" data-state="connecting">łączenie…</span>
+                <span class="conn" data-room-board-target="connection" data-state="connecting" aria-live="polite" role="status">łączenie…</span>
             </div>
 
             <div class="l2-side-list">
@@ -66,7 +66,21 @@
             </div>
 
             <div class="l2-side-foot">
-                <a class="l2-standings" href="{{ path('host_standings', {code: room.code}) }}" target="_blank" rel="noopener">🏆 Turniej</a>
+                {# Ta sama tabela turnieju co w v1, jako modal (patrz niżej) -
+                   v2 miała tylko link do osobnej strony, bez Resetu i bez
+                   przełącznika dźwięku (P2-25 audytu: host, który wyciszył
+                   grę, nie miał czym jej odciszyć bez powrotu na ?v=1). #}
+                <button type="button" class="l2-ctrl" data-action="room-board#openStandings">🏆 Turniej</button>
+
+                <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
+                      data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                      data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                    <button type="submit" class="l2-ctrl">↺ Reset</button>
+                </form>
+
+                <button type="button" class="l2-ctrl" data-sfx-target="button" data-action="sfx#toggle">🔊 Dźwięk</button>
+
                 {# Pełny ekran przez ten sam mechanizm co w v1 (room-board#toggleFocus
                    → natywny requestFullscreen), chowa pasek adresu telewizora. #}
                 <button type="button" class="l2-ctrl" data-action="room-board#toggleFocus">⛶ Pełny ekran</button>
@@ -101,4 +115,46 @@
             <span class="team-score" data-score hidden>0</span>
         </li>
     </template>
+
+    {# Ta sama tabela turnieju co w v1 (host/screen.html.twig) - punkty za
+       miejsca ze wszystkich gier, nie surowy wynik biężącej. #}
+    <div class="standings-modal" data-room-board-target="standingsModal" hidden
+         data-action="click->room-board#closeStandings">
+        <div class="standings-modal-card" data-action="click->room-board#stop">
+            <div class="standings-modal-head">
+                <h2 class="standings-modal-title">🏆 Turniej</h2>
+                <span class="standings-note" data-tournament-target="note">
+                    {{ playedGames == 0 ? 'Turniej zacznie się po pierwszej grze.' : 'Po ' ~ playedGames ~ (playedGames == 1 ? ' grze.' : ' grach.') }}
+                </span>
+                <button type="button" class="btn btn-ghost" data-action="room-board#closeStandings"
+                        aria-label="Zamknij">✕</button>
+            </div>
+
+            <ul class="standings-list teams" data-tournament-target="list">
+                {% for team in tournament %}
+                    <li class="team" data-team-id="{{ team.id }}" style="--team-color: {{ team.color }}">
+                        <span class="team-rank">{{ loop.index }}</span>
+                        <span class="team-name">{{ team.name }}</span>
+                        <span class="team-games">
+                            {% for game in team.games|filter(g => g.points > 0) %}
+                                <span class="team-game-pill">{{ game.label }} +{{ game.points }}</span>
+                            {% endfor %}
+                        </span>
+                        <span class="team-score" data-total>{{ team.total }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <form class="standings-save" method="post"
+                  action="{{ path('tournament_save', {code: room.code}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                <input type="text" name="name" class="form-control" maxlength="60"
+                       placeholder="Nazwa (np. Wieczór u Kasi)" autocomplete="off">
+                <button type="submit" class="btn">💾 Zapisz turniej</button>
+            </form>
+
+            <a class="standings-modal-link" href="{{ path('host_standings', {code: room.code}) }}"
+               target="_blank" rel="noopener">Otwórz na osobnym ekranie ↗</a>
+        </div>
+    </div>
 </main>

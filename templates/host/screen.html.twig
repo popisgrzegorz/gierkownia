@@ -51,7 +51,7 @@
             {% endif %}
 
             <div class="tv-bar-right">
-                <span class="conn" data-room-board-target="connection" data-state="connecting">łączenie…</span>
+                <span class="conn" data-room-board-target="connection" data-state="connecting" aria-live="polite" role="status">łączenie…</span>
 
                 {% if gameType is not null %}
                     <button type="button" class="btn btn-join" data-action="room-board#toggleJoin">
@@ -230,15 +230,6 @@
 
             <section class="tv-stage {{ gameType is null ? 'tv-stage-lobby' : '' }}">
                 {% if gameType is null %}
-                    {# Gry z planu (spec §1), których moduły jeszcze nie powstały. Pokazujemy
-                       je jako "wkrótce" i odsiewamy te, które już się wpięły - dzięki temu
-                       kafelek zamienia się w grywalny sam, bez zmiany w tym pliku. #}
-                    {% set planned = [
-                        {name: 'Kalambury', color: '#30a46c', lead: 'Pokaż to bez słów. Reszta odgadnie!', type: 'kalambury'},
-                        {name: 'Państwa Miasta', color: '#8e4ec6', lead: 'Litera, kategoria, czas start!', type: 'panstwa-miasta'}
-                    ] %}
-                    {% set registered = games|map(g => g.type) %}
-
                     <section class="game-grid" data-controller="game-starter"
                              data-game-starter-start-url-value="{{ path('game_start', {code: room.code}) }}">
                         {% for game in games %}
@@ -248,20 +239,6 @@
                                 ['game/' ~ game.type ~ '/card.html.twig', 'game/_card.html.twig'],
                                 {game: game}
                             ) }}
-                        {% endfor %}
-
-                        {% for soon in planned|filter(p => p.type not in registered) %}
-                            <article class="game-card game-card-soon" style="--card: {{ soon.color }}">
-                                <h3 class="game-card-title">{{ soon.name }}</h3>
-                                <div class="game-card-art">
-                                    <svg viewBox="0 0 120 120" aria-hidden="true">
-                                        <rect x="20" y="20" width="80" height="80" rx="18" fill="none"
-                                              stroke="currentColor" stroke-width="5" stroke-dasharray="10 8"/>
-                                    </svg>
-                                </div>
-                                <p class="game-card-lead">{{ soon.lead }}</p>
-                                <span class="game-card-btn game-card-btn-soon">wkrótce</span>
-                            </article>
                         {% endfor %}
                     </section>
 

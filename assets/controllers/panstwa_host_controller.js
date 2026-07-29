@@ -288,7 +288,12 @@ export default class extends Controller {
 
         if (cell.text) {
             // Pusta rubryka nie jest do uznania - klikanie w nią tylko myli.
-            td.dataset.action = 'click->panstwa-host#toggle';
+            // role="button" + tabindex + Enter/Spacja: <td> samo z siebie nie
+            // jest osiągalne z klawiatury, a host ocenia odpowiedzi tylko
+            // myszą, jeśli tego zabraknie (P2-24 audytu).
+            td.dataset.action = 'click->panstwa-host#toggle keydown.enter->panstwa-host#toggle keydown.space->panstwa-host#toggle:prevent';
+            td.setAttribute('role', 'button');
+            td.setAttribute('tabindex', '0');
             td.title = {
                 too_short: 'Jedna litera to nie odpowiedź. Kliknij, jeśli mimo to uznajesz',
                 unknown: 'Nie ma tego na liście państw i miast — kliknij, żeby uznać',

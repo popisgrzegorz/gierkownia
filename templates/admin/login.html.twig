@@ -6,6 +6,10 @@
    logowanie wygląda jak standardowy Tabler, a nie jak sterownik gry. #}
 {% block body_class %}admin{% endblock %}
 
+{# Ekran logowania ma wlasny alert Tablera nizej - surowy akapit z
+   base.html.twig konsumowalby te same flashe pierwszy (P2-27 audytu). #}
+{% block flashes %}{% endblock %}
+
 {% block body %}
     <div class="page page-center">
         <div class="container container-tight py-4">

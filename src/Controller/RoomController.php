@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Core\Game\GameRegistry;
 use App\Core\Realtime\Event;
 use App\Core\Realtime\Publisher;
 use App\Core\Room\RoomAccess;
@@ -34,13 +35,22 @@ final class RoomController extends AbstractController
         private readonly Tournament $tournament,
         private readonly RateLimiterFactory $roomJoinLimiter,
         private readonly RateLimiterFactory $roomStateLimiter,
+        private readonly GameRegistry $registry,
     ) {
     }
 
     #[Route('/', name: 'home', methods: ['GET'])]
     public function home(): Response
     {
-        return $this->render('home.html.twig');
+        // Lista gier idzie z rejestru, nie z reki - strona glowna obiecywala
+        // "wkrotce" grom, ktore juz dawno graja, i nie znala kilku nowszych
+        // w ogole (P2-21 audytu).
+        return $this->render('home.html.twig', [
+            'games' => array_map(
+                static fn ($game): array => ['type' => $game::type(), 'name' => $game->name()],
+                array_values($this->registry->all()),
+            ),
+        ]);
     }
 
     #[Route('/room', name: 'room_create', methods: ['POST'])]

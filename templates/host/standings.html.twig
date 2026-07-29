@@ -18,7 +18,7 @@
             <span class="standings-note" data-tournament-target="note">
                 {{ playedGames == 0 ? 'Turniej zacznie się po pierwszej grze.' : 'Po ' ~ playedGames ~ (playedGames == 1 ? ' grze.' : ' grach.') }}
             </span>
-            <span class="conn" data-room-board-target="connection" data-state="connecting">łączenie…</span>
+            <span class="conn" data-room-board-target="connection" data-state="connecting" aria-live="polite" role="status">łączenie…</span>
         </header>
 
         <p class="standings-empty" data-tournament-target="empty" {{ tournament is not empty ? 'hidden' : '' }}>

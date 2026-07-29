@@ -37,13 +37,24 @@
             </section>
         </div>
 
+        {# Kolor idzie z tych samych zmiennych co .c-bg-* (app.css) - moduly same
+           decyduja o nazwie, ale koloru nie wystawiaja przez PHP (siedzi tylko
+           w ich card.html.twig), stad ta mapa musi znac typy z osobna. #}
+        {% set dotColors = {
+            'melodia': 'var(--g-melodia)',
+            'melodia-quiz': 'var(--g-quiz)',
+            'kolo': 'var(--g-kolo)',
+            'kalambury': 'var(--g-kalambury)',
+            'panstwa-miasta': 'var(--g-panstwa)',
+            'dutch': 'var(--g-dutch)',
+        } %}
+
         <ul class="home-games">
-            <li><span class="dot" style="--dot: #3e63dd"></span>Jaka to melodia</li>
-            <li><span class="dot" style="--dot: #f5a524"></span>Koło fortuny</li>
-            <li class="soon"><span class="dot" style="--dot: #30a46c"></span>Kalambury <em>wkrótce</em></li>
-            <li class="soon"><span class="dot" style="--dot: #8e4ec6"></span>Państwa Miasta <em>wkrótce</em></li>
+            {% for game in games %}
+                <li><span class="dot" style="--dot: {{ dotColors[game.type] ?? 'var(--accent)' }}"></span>{{ game.name }}</li>
+            {% endfor %}
         </ul>
 
-        <p class="home-foot muted">Wszystko działa w waszej sieci — bez internetu i bez zakładania kont.</p>
+        <p class="home-foot muted">Załóżcie pokój na jednym ekranie, dołączcie telefonami — bez zakładania kont.</p>
     </main>
 {% endblock %}

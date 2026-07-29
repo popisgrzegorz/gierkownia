@@ -16,8 +16,13 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class RoomManager
 {
-    /** Kolory druzyn - rozroznialne z drugiego konca pokoju, w kolejnosci przydzialu. */
-    private const COLORS = ['#e5484d', '#3e63dd', '#30a46c', '#f5a524', '#8e4ec6', '#0ea5e9'];
+    /**
+     * Kolory druzyn - rozroznialne z drugiego konca pokoju, w kolejnosci przydzialu.
+     * Niebieski i fioletowy sa rozjasnione wzgledem "podrecznikowych" wartosci -
+     * oryginalne #3e63dd/#8e4ec6 jako kolor TEKSTU na ciemnym tle dawaly
+     * kontrast 3,47:1 i 3,49:1, ponizej progu AA 4,5:1 (P2-23 audytu).
+     */
+    private const COLORS = ['#e5484d', '#6381e4', '#30a46c', '#f5a524', '#a16cd0', '#0ea5e9'];
 
     private const MAX_CODE_ATTEMPTS = 20;
 

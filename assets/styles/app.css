@@ -16,6 +16,16 @@
     --radius: 16px;
     --team-color: var(--accent);
 
+    /* Jeden kolor na gre - kafelek, lobby, strona glowna i panel hosta musza
+       zgadzac sie ze soba. Bez wspolnego zrodla Kolo bylo pomaranczowe wszedzie
+       oprocz .c-bg-kolo, ktora dzielila (bledny) niebieski z melodia. */
+    --g-melodia: #3e63dd;
+    --g-kolo: #f5a524;
+    --g-kalambury: #30a46c;
+    --g-panstwa: #8e4ec6;
+    --g-quiz: #5b7cf0;
+    --g-dutch: #12b886;
+
     color-scheme: dark;
 }
 
@@ -124,8 +134,13 @@ body:not(.admin) input {
     width: 100%;
 }
 
+/* Selektor "button", nie tylko ".btn" - przyciski budowane w JS bez tej
+   klasy (kafelki gier, karty Dutcha, koło fortuny...) miały zerowy obrys
+   fokusa (P2-24 audytu). Bardziej specyficzne reguły (np. .l2-panel) i tak
+   wygrywają kaskadą, więc to tylko siatka bezpieczeństwa dla reszty. */
 body:not(.admin) input:focus-visible,
-body:not(.admin) .btn:focus-visible {
+body:not(.admin) button:focus-visible,
+body:not(.admin) [role="button"]:focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 2px;
 }
@@ -248,155 +263,15 @@ body:not(.admin) .btn:focus-visible {
     font-size: 1.4rem;
 }
 
-/* ---------- panel treści ----------
-
-   Ekran roboczy oglądany z 50 cm na laptopie, nie z kanapy - stąd stałe
-   rozmiary w rem zamiast skalowania na vmin jak w reszcie aplikacji. */
-
-.admin-shell {
-    width: min(56rem, 100%);
-    margin: 0 auto;
-    padding: 1.5rem 1rem 4rem;
-    display: grid;
-    gap: 1rem;
-}
-
-.admin-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #232741;
-}
-
-.admin-brand {
-    font-weight: 900;
-    letter-spacing: -0.01em;
-    color: var(--fg);
-    text-decoration: none;
-}
-
-.admin-out {
-    margin-left: auto;
-}
-
-.admin-block {
-    padding: 1.2rem;
-    border-radius: var(--radius);
-    background: rgba(21, 24, 41, 0.7);
-    border: 1px solid #232741;
-}
-
-.admin-block h1,
-.admin-block h2 {
-    margin: 0 0 0.6rem;
-    font-size: 1.15rem;
-}
-
-.admin-block.danger {
-    border-color: #4a2430;
-}
-
+/* Panel treści (/admin) przeszedł na czysty Tabler - .admin-shell/-bar/-brand/
+   -block/-row/-form/-list/-items/.slug/.note/.snippet z pierwszej wersji
+   panelu nie mają już żadnego szablonu, który by ich używał (P2-26 audytu).
+   .btn-danger zostaje - to jedyna klasa stąd, którą admin/category.html.twig
+   wciąż odwołuje (przycisk usuwania kategorii). */
 .btn-danger {
     background: var(--err);
     border-color: transparent;
     color: #fff;
-}
-
-.admin-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.6rem;
-}
-
-.admin-row input {
-    width: auto;
-    flex: 1 1 10rem;
-    min-width: 0;
-}
-
-.admin-row .narrow {
-    flex: 0 0 5.5rem;
-}
-
-.admin-form {
-    display: grid;
-    gap: 0.6rem;
-    margin-top: 0.6rem;
-}
-
-.admin-form label {
-    display: grid;
-    gap: 0.3rem;
-    font-size: 0.85rem;
-    color: var(--muted);
-}
-
-.admin-list,
-.admin-items {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.5rem;
-}
-
-.admin-list li,
-.admin-items li {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.6rem 0.8rem;
-    border-radius: 10px;
-    background: #10121f;
-    border: 1px solid #1e2237;
-}
-
-.admin-items li .admin-row {
-    flex: 1;
-    margin: 0;
-}
-
-.admin-list a {
-    color: var(--fg);
-    font-weight: 600;
-}
-
-/* Slug siedzi w ścieżkach plików i w stanie trwającej gry, więc pokazujemy go
-   wprost - ale przygaszony, bo na co dzień nikogo nie interesuje. */
-.slug {
-    font-size: 0.78rem;
-    color: var(--muted);
-    background: #0b0d17;
-    padding: 0.15em 0.5em;
-    border-radius: 6px;
-    margin-left: auto;
-}
-
-.note {
-    margin: 0;
-    padding: 0.7rem 1rem;
-    border-radius: 10px;
-    font-weight: 600;
-    background: rgba(229, 72, 77, 0.18);
-    border: 1px solid var(--err);
-}
-
-.note-success {
-    background: rgba(48, 164, 108, 0.18);
-    border-color: var(--ok);
-}
-
-.snippet {
-    margin: 0;
-    padding: 0.8rem 1rem;
-    border-radius: 10px;
-    background: #0b0d17;
-    border: 1px solid #232741;
-    overflow-x: auto;
-    text-align: left;
 }
 
 /* ---------- ekran hosta (TV) ----------
@@ -703,7 +578,10 @@ body:not(.admin) .btn:focus-visible {
 
 .tv-teams .team-name {
     grid-area: name;
-    font-size: clamp(0.85rem, 1.6vmin, 1.25rem);
+    /* Nazwa drużyny to jedyna rzecz, której gracz szuka wzrokiem co rundę -
+       stary sufit (1.25rem) był dobrany pod laptopa i na TV oglądanym
+       z kanapy nie rósł powyżej ~20px (P2-23 audytu). */
+    font-size: clamp(1rem, 2.4vmin, 2.2rem);
     font-weight: 800;
     overflow-wrap: anywhere;
 }
@@ -832,22 +710,11 @@ body:not(.admin) .btn:focus-visible {
     color: var(--muted);
 }
 
-.join-url {
-    margin: 0;
-    font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
-    color: var(--muted);
-}
-
-.qr {
-    /* Duży: kod jest skanowany z drugiego końca pokoju, pod kątem i przez
-       odbicie światła od ekranu. */
-    width: clamp(180px, 34vmin, 420px);
-    height: auto;
-    border-radius: 12px;
-    /* Białe tło pod QR: czytniki telefonów gubią kod odwrócony kolorystycznie. */
-    background: #fff;
-    padding: 0.5rem;
-}
+/* .join-url i .qr miały tu drugą, sprzeczną definicję niżej w pliku - ta
+   druga (bliżej końca arkusza) zawsze wygrywała kaskadą, więc ta pierwsza
+   nigdy się nie renderowała. Została usunięta (P2-26 audytu: .qr
+   zdefiniowany dwukrotnie, druga wersja wygrywa i unieważnia komentarz
+   "Duży: kod jest skanowany z drugiego końca pokoju"). */
 
 /* ---------- dolny pas poczekalni (wg _other/layout2.png) ---------- */
 
@@ -1072,51 +939,6 @@ body:not(.admin) .btn:focus-visible {
     opacity: 0.6;
 }
 
-/* Gra „wkrótce": kafelek przygaszony, bez korpusu i poświaty - ma być widać,
-   że jeszcze nie da się w nią zagrać. */
-.game-card-soon {
-    background: rgba(242, 239, 230, 0.09);
-    color: var(--muted);
-    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
-}
-
-.game-card-soon .game-card-title {
-    background: transparent;
-    color: var(--card);
-    text-shadow: none;
-}
-
-.game-card-soon .game-card-lead {
-    color: var(--muted);
-}
-
-.game-card-btn-soon {
-    display: block;
-    margin: 0.3rem clamp(0.7rem, 1.8vmin, 1.3rem) 0;
-    padding: 0.5em 1em;
-    background: transparent;
-    border: 2px dashed var(--card);
-    border-radius: 12px;
-    color: var(--card);
-    text-align: center;
-    text-transform: uppercase;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-}
-
-.tv-footer {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    flex-wrap: wrap;
-    color: var(--muted);
-    font-size: clamp(0.72rem, 1.4vmin, 1rem);
-}
-
-.tv-footer .sep {
-    opacity: 0.4;
-}
-
 .reset-form {
     margin-left: auto;
 }
@@ -1136,20 +958,6 @@ body:not(.admin) .btn:focus-visible {
 
 .conn[data-state="offline"] {
     color: var(--err);
-}
-
-.join-panel {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(1.5rem, 6vmin, 5rem);
-    flex-wrap: wrap;
-}
-
-.join-hint {
-    margin: 0.2em 0;
-    color: var(--muted);
-    font-size: clamp(0.9rem, 1.8vmin, 1.4rem);
 }
 
 .join-url {
@@ -1360,7 +1168,11 @@ body:not(.admin) .btn:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
     .team-new,
-    .bump {
+    .bump,
+    .buzz-banner,
+    .tv-teams .team-score.bump,
+    .standings-list .team-score.bump,
+    .standings-modal {
         animation: none;
     }
 }
@@ -1812,8 +1624,8 @@ body:not(.admin) .btn:focus-visible {
     font-weight: 900;
 }
 
-.c-melodia { color: #3e7bfa; }
-.c-kolo { color: #f5a524; }
+.c-melodia { color: var(--g-melodia); }
+.c-kolo { color: var(--g-kolo); }
 
 .game-art {
     display: grid;
@@ -1836,7 +1648,9 @@ body:not(.admin) .btn:focus-visible {
     background: rgba(46, 107, 216, 0.16);
     border: 1px solid rgba(62, 123, 250, 0.45);
     color: var(--fg);
-    font-size: clamp(0.75rem, 1.5vmin, 1.1rem);
+    /* Instrukcja dla graczy - stary sufit (1.1rem) był dobrany pod laptopa
+       (P2-23 audytu). */
+    font-size: clamp(0.85rem, 2.1vmin, 1.6rem);
 }
 
 .game-main {
@@ -1869,7 +1683,8 @@ body:not(.admin) .btn:focus-visible {
     grid-area: foot;
     margin: 0;
     color: var(--muted);
-    font-size: clamp(0.7rem, 1.4vmin, 1rem);
+    /* Stary sufit (1rem) był dobrany pod laptopa (P2-23 audytu). */
+    font-size: clamp(0.75rem, 1.8vmin, 1.4rem);
     text-align: center;
 }
 
@@ -1932,8 +1747,8 @@ body:not(.admin) .btn:focus-visible {
     color: #fff;
 }
 
-.c-bg-melodia { background: #2f6bd8; }
-.c-bg-kolo { background: #2f6bd8; }
+.c-bg-melodia { background: var(--g-melodia); }
+.c-bg-kolo { background: var(--g-kolo); }
 
 .player-facts {
     display: grid;
@@ -2220,8 +2035,8 @@ body:not(.admin) .btn:focus-visible {
 
 /* ---------- kalambury ---------- */
 
-.c-kalambury { color: #30a46c; }
-.c-bg-kalambury { background: #30a46c; }
+.c-kalambury { color: var(--g-kalambury); }
+.c-bg-kalambury { background: var(--g-kalambury); }
 
 /* Zegar rundy: największa liczba na ekranie po planszy hasła - zgadujący
    patrzą na niego przez całą rundę. Ostatnie 10 sekund na czerwono. */
@@ -2271,8 +2086,8 @@ body:not(.admin) .btn:focus-visible {
 
 /* ---------- państwa i miasta ---------- */
 
-.c-panstwa { color: #8e4ec6; }
-.c-bg-panstwa { background: #8e4ec6; }
+.c-panstwa { color: var(--g-panstwa); }
+.c-bg-panstwa { background: var(--g-panstwa); }
 
 /* Litera jest sercem tej gry: musi być czytelna z kanapy przez całą rundę,
    więc dostaje tyle miejsca, ile zostanie po zegarze. */
@@ -2877,8 +2692,8 @@ body:not(.admin) .btn:focus-visible {
 
 /* ---------- jaka to melodia: wariant 1 z 4 ---------- */
 
-.c-quiz { color: #5b7cf0; }
-.c-bg-quiz { background: #5b7cf0; }
+.c-quiz { color: var(--g-quiz); }
+.c-bg-quiz { background: var(--g-quiz); }
 
 .game-badge {
     /* Bez fit-content siatka nazwy gry rozciąga odznakę na całą szerokość
@@ -3615,8 +3430,8 @@ body:not(.admin) .btn:focus-visible {
 }
 
 /* ---------- Dutch (gra karciana) ---------- */
-.c-dutch { color: #12b886; }
-.c-bg-dutch { background: #12b886; }
+.c-dutch { color: var(--g-dutch); }
+.c-bg-dutch { background: var(--g-dutch); }
 
 /* Środek stołu: talia i stos odrzuconych, każde z podpisem u góry. */
 .dutch-center {
@@ -3641,8 +3456,11 @@ body:not(.admin) .btn:focus-visible {
 }
 
 .dutch-deck {
-    width: 132px;
-    height: 186px;
+    /* Ten sam wzrost co stos obok (--cw/--ch pile-wrap) - talia i stos to
+       jeden wspolny punkt stolu i musza rosnac razem (P2-23 audytu: Dutch
+       byl na sztywnych px i na duzym ekranie zostawal wielkosci okienka). */
+    width: clamp(100px, 12.2vmin, 230px);
+    height: clamp(140px, 17.08vmin, 322px);
     border-radius: 16px;
     display: grid;
     place-items: center;
@@ -3651,24 +3469,24 @@ body:not(.admin) .btn:focus-visible {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
-.dutch-pile-count { font-size: 3rem; font-weight: 900; }
-.dutch-pile-label { font-size: 0.8rem; }
+.dutch-pile-count { font-size: clamp(1.6rem, 4.5vmin, 3.4rem); font-weight: 900; }
+.dutch-pile-label { font-size: clamp(0.65rem, 1.6vmin, 1.1rem); }
 
 /* Stos i talia to wspólny punkt stołu - największe i najczytelniejsze karty. */
-.dutch-pile-wrap .dutch-card { --cw: 132px; --ch: 186px; }
+.dutch-pile-wrap .dutch-card { --cw: clamp(100px, 12.2vmin, 230px); --ch: calc(var(--cw) * 1.4); }
 
 /* Stos pokazuje dwie wierzchnie karty, lekko przesunięte - widać, co padło. */
 .dutch-discard-pile {
     position: relative;
-    --cw: 132px;
-    --ch: 186px;
+    --cw: clamp(100px, 12.2vmin, 230px);
+    --ch: calc(var(--cw) * 1.4);
     width: calc(var(--cw) + 12px);
     height: calc(var(--ch) + 14px);
 }
 
 .dutch-discard-pile .dutch-card {
-    --cw: 132px;
-    --ch: 186px;
+    --cw: clamp(100px, 12.2vmin, 230px);
+    --ch: calc(var(--cw) * 1.4);
     position: absolute;
     top: 0;
     left: 0;
@@ -3683,8 +3501,8 @@ body:not(.admin) .btn:focus-visible {
    Rozmiar sterowany zmiennymi --cw/--ch, więc ta sama karta skaluje się
    na stole, w ręce i w locie. */
 .dutch-card {
-    --cw: 64px;
-    --ch: 90px;
+    --cw: clamp(48px, 5.9vmin, 110px);
+    --ch: calc(var(--cw) * 1.4);
     position: relative;
     flex: 0 0 auto;
     width: var(--cw);
@@ -3856,7 +3674,7 @@ body:not(.admin) .btn:focus-visible {
     flex-wrap: wrap;
 }
 
-.dutch-card.dutch-mini { --cw: 42px; --ch: 60px; }
+.dutch-card.dutch-mini { --cw: clamp(32px, 3.9vmin, 72px); --ch: calc(var(--cw) * 1.4); }
 
 .dutch-seat-sum {
     font-weight: 900;
@@ -3921,7 +3739,7 @@ body:not(.admin) .btn:focus-visible {
     gap: 14px;
 }
 
-.dutch-hand .dutch-card { --cw: 96px; --ch: 134px; }
+.dutch-hand .dutch-card { --cw: clamp(70px, 8.9vmin, 165px); --ch: calc(var(--cw) * 1.4); }
 .dutch-hand .dutch-card.is-peekable,
 .dutch-hand .dutch-card.is-snap { cursor: pointer; }
 
@@ -3946,7 +3764,7 @@ body:not(.admin) .btn:focus-visible {
 }
 
 .dutch-drawn-label { color: var(--muted); }
-.dutch-drawn-card { --cw: 80px; --ch: 112px; }
+.dutch-drawn-card { --cw: clamp(60px, 7.4vmin, 135px); --ch: calc(var(--cw) * 1.4); }
 .dutch-drawn-pts { font-weight: 800; font-size: 1.1rem; }
 
 .dutch-controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -3992,7 +3810,7 @@ body:not(.admin) .btn:focus-visible {
 }
 
 .dutch-pick-cards { display: flex; gap: 8px; }
-.dutch-pick-card { --cw: 46px; --ch: 64px; cursor: pointer; }
+.dutch-pick-card { --cw: clamp(34px, 4.3vmin, 78px); --ch: calc(var(--cw) * 1.4); cursor: pointer; }
 .dutch-pick-card.is-selected { box-shadow: 0 0 0 3px var(--accent); }
 
 /* Walet: przyciski graczy do wskazania (zamianę losuje serwer). */
@@ -4026,19 +3844,19 @@ body:not(.admin) .btn:focus-visible {
 }
 
 .dutch-missnap-card {
-    --cw: 150px;
-    --ch: 210px;
+    --cw: clamp(112px, 13.9vmin, 260px);
+    --ch: calc(var(--cw) * 1.4);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
-.dutch-seen-card { --cw: 116px; --ch: 162px; }
+.dutch-seen-card { --cw: clamp(86px, 10.7vmin, 200px); --ch: calc(var(--cw) * 1.4); }
 
 /* Karta wylatująca z miejsca gracza na stos - leci w osobnej warstwie. */
 /* Lecąca karta - transformacją steruje GSAP, tu tylko warstwa i rozmiar. */
 .dutch-fly {
     position: fixed;
     z-index: 60;
-    --cw: 78px;
-    --ch: 110px;
+    --cw: clamp(58px, 7.2vmin, 132px);
+    --ch: calc(var(--cw) * 1.4);
     pointer-events: none;
     will-change: transform;
 }
@@ -4048,6 +3866,7 @@ body:not(.admin) .btn:focus-visible {
     .dutch-hand .dutch-card.is-target { animation: none; }
     .dutch-seat.is-turn { transform: none; }
     .dutch-fly { display: none; }
+    .dutch-missnap { animation: none; }
 }
 
 /* ============================================================================
@@ -4119,6 +3938,18 @@ body:not(.admin) .btn:focus-visible {
     gap: 0.5rem;
 }
 
+/* .reset-form ma margin-left: auto dla paska poziomego z v1 (.tv-bar-right) -
+   w tej pionowej kolumnie ten sam formularz ma się zachowywać jak reszta
+   przycisków, nie doklejać do prawej krawędzi. */
+.l2-side-foot .reset-form {
+    margin-left: 0;
+}
+
+.l2-side-foot .l2-ctrl,
+.l2-side-foot .reset-form button {
+    width: 100%;
+}
+
 /* ---------- górny pasek: logo + dołączanie ---------- */
 
 .l2-top {
@@ -4179,7 +4010,9 @@ body:not(.admin) .btn:focus-visible {
 .l2-url { color: #9aa0b8; font-size: clamp(0.65rem, 1.4vh, 0.9rem); }
 
 .l2-qr {
-    width: clamp(58px, 11vh, 118px);
+    /* Sufit podniesiony ze 118px do 190px - tyle miał kod w wersji 1,
+      skanowany z drugiego końca pokoju (P2-25 audytu). */
+    width: clamp(80px, 15vh, 190px);
     height: auto;
     border-radius: 10px;
     background: #fff;
@@ -4247,7 +4080,14 @@ body:not(.admin) .btn:focus-visible {
     filter: brightness(1.07);
     box-shadow: 0 26px 62px -12px var(--c), inset 0 1px 0 rgba(255, 255, 255, 0.32);
     z-index: 1;
-    outline: none;
+}
+
+/* Fokus musi zostać widoczny nawet bez przesunięcia - z klawiaturą albo przy
+   prefers-reduced-motion (który wyłącza transform niżej) samo podniesienie
+   karty nie wystarcza za wskaźnik fokusa (WCAG 2.4.7, P2-24 audytu). */
+.l2-panel:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
 }
 
 .l2-emoji {
@@ -4312,16 +4152,6 @@ body:not(.admin) .btn:focus-visible {
     font-size: clamp(0.82rem, 1.7vh, 1.1rem);
     overflow-wrap: anywhere;
 }
-
-.l2-standings {
-    color: #9aa0b8;
-    text-decoration: none;
-    font-weight: 700;
-    white-space: nowrap;
-    text-align: center;
-}
-
-.l2-standings:hover { color: #fff; }
 
 /* Przycisk pełnego ekranu - ten sam styl co link turnieju, ale jako <button>. */
 .l2-ctrl {
