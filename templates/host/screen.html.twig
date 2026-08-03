@@ -35,6 +35,18 @@
                     <p class="brand-tag">gramy razem!</p>
                 </div>
 
+                {% if resumedFrom %}
+                    {# Kod pokoju nigdy nie przezywa do "wroccie jutro" (caly stan
+                       zyje w Redisie z TTL) - wznowienie zaklada NOWY pokoj z NOWYM
+                       kodem. Bez tego komunikatu host mogl nie zauwazyc, ze to nie
+                       ten sam kod co poprzednio, i pokazac gosciom nieaktualny. #}
+                    <p class="resumed-banner">
+                        ↺ Wznowiono zapis „{{ resumedFrom }}” — to <strong>nowy kod</strong>,
+                        pokażcie go graczom. Kto grał wcześniej, niech wpisze swoją starą nazwę
+                        drużyny, żeby odzyskać punkty.
+                    </p>
+                {% endif %}
+
                 <div class="join-inline">
                     <div class="join-inline-text">
                         <p class="join-inline-lead">Dołącz do gry na swoim telefonie</p>

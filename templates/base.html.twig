@@ -6,8 +6,14 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="theme-color" content="#0b0d17">
+        <meta name="description" content="Gry towarzyskie na telewizor i telefony gości w tej samej sieci - bez zakładania kont.">
         <title>{% block title %}Nasze Gierki{% endblock %}</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.1em%22 font-size=%22104%22>🎲</text></svg>">
+        {# manifest.json/ikony siedzą w public/ (poza AssetMapperem) - potrzebują
+           stałych, nieodciśniętych adresów, żeby przeglądarka i system
+           je rozpoznały (P2-28 audytu, kamień 4). #}
+        <link rel="manifest" href="/manifest.json">
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 
         {% block stylesheets %}
             {# Tabler (Bootstrap 5) daje siatkę, odstępy i komponenty - zwłaszcza
@@ -35,7 +41,7 @@
     {# data-bs-theme: Tabler ma wbudowany tryb ciemny, a gra jest ciemna
        z założenia - jasny framework na telewizorze oślepiałby pokój. #}
     <body class="{% block body_class %}{% endblock %}" data-bs-theme="dark">
-        {# Nazwany blok, zeby admin/_layout.html.twig mogl go nadpisac pustym -
+        {# Nazwany blok, zeby admin/login.html.twig mogl go nadpisac pustym -
            inaczej ten loop konsumowalby app.flashes PRZED blokiem body, a
            wlasny, wyglosowany alert Tablera w panelu nigdy nie dostawalby
            wiadomosci (zawsze pusta lista - P2-27 audytu). #}

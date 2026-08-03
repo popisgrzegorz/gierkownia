@@ -74,4 +74,31 @@ final readonly class AdminAccess
     {
         return !$this->isLoggedIn($request);
     }
+
+    /**
+     * Bezpieczna sciezka powrotu po zalogowaniu - z pola formularza (POST)
+     * albo z parametru w adresie (GET, doklejony przy przekierowaniu na
+     * logowanie). Bez tego kazde logowanie ladowalo na sztywno w liscie
+     * kategorii, nawet gdy ktos chcial dostac sie np. do listy zapisanych
+     * turniejow - trzeba bylo klikac dalej recznie.
+     *
+     * Musi zaczynac sie od pojedynczego "/" i nie moze byc adresem zewnetrznym
+     * (protocol-relative "//" albo pelny "https://") - inaczej link do
+     * logowania z podstawionym ?next=https://obcy.pl przekierowywalby
+     * zalogowanego admina gdziekolwiek (open redirect).
+     */
+    public function safeNextPath(Request $request): ?string
+    {
+        $next = $request->request->get('next') ?? $request->query->get('next');
+
+        if (!\is_string($next) || '' === $next) {
+            return null;
+        }
+
+        if (!str_starts_with($next, '/') || str_starts_with($next, '//') || str_contains($next, '://')) {
+            return null;
+        }
+
+        return $next;
+    }
 }

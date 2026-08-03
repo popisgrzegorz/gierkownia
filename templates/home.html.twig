@@ -16,8 +16,14 @@
             <section class="home-card">
                 <h2>Na telewizorze</h2>
                 <p class="lead">Załóż pokój — na ekranie pojawi się kod i QR dla gości.</p>
-                <form method="post" action="{{ path('room_create') }}">
+                <form method="post" action="{{ path('room_create') }}" class="host-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                    {% if hostPasswordNeeded %}
+                        {# Tylko tutaj, raz - sesja zapamięta hosta i kolejne
+                           pokoje nie będą już o to pytać (HostAccess). #}
+                        <input type="password" name="hostPassword"
+                               placeholder="Hasło hosta" autocomplete="current-password" required>
+                    {% endif %}
                     <button type="submit" class="btn btn-primary btn-lg">Nowa gra</button>
                 </form>
                 <p class="home-resume">

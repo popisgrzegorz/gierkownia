@@ -19,5 +19,8 @@
 /.phpunit.cache/
 ###< phpunit/phpunit ###
 
+# Lint JS (package.json) - narzedzie deweloperskie, nie zaleznosc runtime.
+/node_modules/
+
 # Listy nagrań wyciągnięte parserem - dane cudzego katalogu, nie nasz kod.
 /*.txt

@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Panel — wylogowanie{% endblock %}
+{% block body_class %}admin{% endblock %}
+
+{% block body %}
+    <div class="page page-center">
+        <div class="container container-tight py-4">
+            <div class="card card-md">
+                <div class="card-body text-center">
+                    <h2 class="card-title">Wylogować z panelu?</h2>
+                    <p class="text-secondary">
+                        Dotyczy wspólnej sesji obu paneli treści.
+                    </p>
+                    <form method="post" action="{{ path('admin_logout') }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin') }}">
+                        <button type="submit" class="btn btn-primary w-100">Wyloguj</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

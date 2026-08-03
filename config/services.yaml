@@ -28,6 +28,8 @@ services:
             string $mediaDir: '%app.media_dir%'
             string $tournamentDir: '%app.tournament_dir%'
             string $adminPassword: '%env(ADMIN_PASSWORD)%'
+            string $hostPassword: '%env(HOST_PASSWORD)%'
+            string $projectDir: '%kernel.project_dir%'
 
     # Moduly gier wpinaja sie same: kazda usluga implementujaca GameInterface
     # dostaje tag i trafia do GameRegistry. Dodanie gry nie wymaga zmian tutaj.

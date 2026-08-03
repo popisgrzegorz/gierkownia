@@ -45,12 +45,24 @@ final readonly class AdminPanelGuard
             return;
         }
 
-        if (!$this->access->needsLogin($event->getRequest())) {
+        $request = $event->getRequest();
+
+        if (!$this->access->needsLogin($request)) {
             return;
         }
 
+        if (!$this->access->isEnabled()) {
+            $event->setResponse(new RedirectResponse($this->urls->generate('admin_login')));
+
+            return;
+        }
+
+        // Tylko GET ma sens jako powrot - POST po zalogowaniu i tak nie da sie
+        // odtworzyc samym przekierowaniem (metoda by nie pasowala).
+        $next = $request->isMethod('GET') ? $request->getRequestUri() : null;
+
         $event->setResponse(new RedirectResponse(
-            $this->urls->generate($this->access->isEnabled() ? 'admin_login' : 'admin_categories'),
+            $this->urls->generate('admin_login', array_filter(['next' => $next])),
         ));
     }
 }

@@ -55,16 +55,18 @@ vendor/bin/phpstan analyse          # analiza statyczna, poziom max
 - **„Jaka to melodia"**: kategorie z Postgresa, losowanie utworu po stronie serwera,
   buzzer z lockoutem (`SET NX`), automatyczna pauza muzyki po naciśnięciu,
   ocena hosta, dogrywka po złej odpowiedzi, odsłonięcie tytułu po rundzie.
-- **Panel treści** (`/admin`): kategorie, wgrywanie nagrań, hasła i karty kalambur.
+- **Panel treści** (`/panel`): kategorie, wgrywanie nagrań, hasła i karty kalambur.
 - **„Koło fortuny"**: gra turowa (`TurnManager`), koło losowane po stronie serwera,
   plansza hasła z polskim alfabetem, bank punktów per hasło, bankrut i stop,
   klawiatura liter na telefonie drużyny, która ma turę.
 
 ## Panel treści
 
-Wszystkie treści dodaje się w panelu pod **`/admin`**: kategorie, wgrywanie
+Wszystkie treści dodaje się w panelu pod **`/panel`**: kategorie, wgrywanie
 nagrań do melodii, hasła do koła i karty kalambur. Nie ma już importu z plików —
 baza jest jedynym źródłem prawdy, więc nic nie kasuje po cichu tego, co ktoś dodał.
+Adres **`/admin`** zostaje jako logowanie/wylogowanie — wspólne dla obu paneli,
+bo oba dzielą tę samą sesję i to samo hasło.
 
 ```bash
 # .env.local — bez hasła panel nie wpuszcza nikogo
@@ -198,7 +200,7 @@ src/Core/Buzzer/     arbiter buzzera (SET NX)
 src/Core/Score/      tablo
 src/Core/Redis/      typowany odczyt z Redisa
 src/Core/Http/       wymuszenie formatu JSON na trasach API
-src/Admin/           panel: dostęp, wgrywanie nagrań, zarządzanie treścią
+src/Admin/           dostęp do panelu (AdminAccess), typy treści, brama /panel
 src/Content/         katalog mediów
 src/Entity/          Category / Track / PuzzleWord / CharadeCard
 src/Core/Turn/       kolejność drużyn w grach turowych
@@ -207,7 +209,7 @@ src/Game/Kolo/       moduł „Koło fortuny": koło, plansza hasła, losowanie
 src/Command/         app:demo:seed
 src/Controller/      Room / Host / Player / Game / Media / Admin
 templates/game/      widoki modułów: game/{typ}/host, player, card
-templates/admin/     panel treści
+templates/admin/     logowanie/wylogowanie (panel treści jest w /panel, EasyAdmin)
 assets/controllers/  Stimulus: tablo hosta, panel melodii, buzzer telefonu
 assets/live/         nakładka na EventSource
 ```

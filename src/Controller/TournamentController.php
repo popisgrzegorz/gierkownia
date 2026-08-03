@@ -100,6 +100,11 @@ final class TournamentController extends AbstractController
      * Odsyla na logowanie panelu, jesli haslo administratora nie zostalo podane.
      * Zwraca null, gdy wszystko w porzadku i akcja moze isc dalej. Ta sama
      * konwencja co AdminController::guard().
+     *
+     * Doklejamy "next", zeby po zalogowaniu wrocic na LISTE TURNIEJOW, a nie
+     * na sztywno do panelu tresci - inaczej klikniecie "Wznow zapisany
+     * turniej" na stronie glownej ladowalo po zalogowaniu w zupelnie innym
+     * miejscu, a admin musial klikac dalej sam.
      */
     private function guard(Request $request): ?Response
     {
@@ -107,6 +112,12 @@ final class TournamentController extends AbstractController
             return $this->render('admin/disabled.html.twig');
         }
 
-        return $this->adminAccess->needsLogin($request) ? $this->redirectToRoute('admin_login') : null;
+        if ($this->adminAccess->needsLogin($request)) {
+            $next = $request->isMethod('GET') ? $request->getRequestUri() : null;
+
+            return $this->redirectToRoute('admin_login', array_filter(['next' => $next]));
+        }
+
+        return null;
     }
 }

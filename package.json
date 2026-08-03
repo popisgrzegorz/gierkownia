@@ -1,0 +1,13 @@
+{
+    "private": true,
+    "type": "module",
+    "description": "Lint dla assets/*.js - AssetMapper nie potrzebuje npm w runtime, to narzędzie tylko deweloperskie (P2 audytu, dług 4.2).",
+    "scripts": {
+        "lint": "eslint assets"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.8.0",
+        "globals": "^15.14.0"
+    }
+}

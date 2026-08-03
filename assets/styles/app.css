@@ -188,6 +188,13 @@ body:not(.admin) [role="button"]:focus-visible {
     gap: 0.6rem;
 }
 
+/* Formularz "Nowa gra" - zwykle samo haslo miejsce na jeden przycisk, ale
+   z bramka hosta (HostAccess) dochodzi pole hasla nad nim. */
+.host-form {
+    display: grid;
+    gap: 0.6rem;
+}
+
 .home-games {
     display: flex;
     flex-wrap: wrap;
@@ -353,6 +360,19 @@ body:not(.admin) [role="button"]:focus-visible {
     display: flex;
     align-items: center;
     gap: clamp(0.7rem, 2vmin, 1.6rem);
+}
+
+/* Komunikat "to nowy kod" po wznowieniu zapisanego turnieju - widoczny, ale
+   nie tak alarmujacy jak .flash (czerwony blad): to informacja, nie problem. */
+.resumed-banner {
+    margin: 0 0 clamp(0.5rem, 1.5vh, 1rem);
+    padding: 0.7em 1.1em;
+    border-radius: 12px;
+    background: rgba(245, 165, 36, 0.14);
+    border: 1px solid rgba(245, 165, 36, 0.4);
+    color: var(--fg);
+    font-size: clamp(0.8rem, 1.8vmin, 1.15rem);
+    text-align: center;
 }
 
 .join-inline-text {

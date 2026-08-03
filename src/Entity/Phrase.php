@@ -72,6 +72,22 @@ class Phrase
         return $this->category;
     }
 
+    /**
+     * Zmiana kategorii z panelu (formularz zawsze wysyla ja jako pole
+     * mapowane, nawet gdy zostaje bez zmian) - bez tego Symfony Form nie ma
+     * jak zapisac wyboru z powrotem ("Could not determine access type").
+     */
+    public function setCategory(Category $category): void
+    {
+        if ($category === $this->category) {
+            return;
+        }
+
+        $this->category->removePhrase($this);
+        $this->category = $category;
+        $category->addPhrase($this);
+    }
+
     public function getPhrase(): string
     {
         return $this->phrase;

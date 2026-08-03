@@ -6,6 +6,8 @@ namespace App\Entity;
 
 use App\Repository\TrackRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * Utwor do "Jaka to melodia".
@@ -93,6 +95,22 @@ class Track
         return $this->category;
     }
 
+    /**
+     * Zmiana kategorii z panelu (formularz zawsze wysyla ja jako pole
+     * mapowane, nawet gdy zostaje bez zmian) - bez tego Symfony Form nie ma
+     * jak zapisac wyboru z powrotem ("Could not determine access type").
+     */
+    public function setCategory(Category $category): void
+    {
+        if ($category === $this->category) {
+            return;
+        }
+
+        $this->category->removeTrack($this);
+        $this->category = $category;
+        $category->addTrack($this);
+    }
+
     public function getPath(): ?string
     {
         return $this->path;
@@ -125,6 +143,28 @@ class Track
     public function hasAudio(): bool
     {
         return null !== $this->path || null !== $this->sourceUrl;
+    }
+
+    /**
+     * Zrodlo dzwieku jest jedno z dwoch, nigdy zero, nigdy oba naraz - inaczej
+     * nie wiadomo, co faktycznie zagrac (albo nie ma czego).
+     */
+    #[Assert\Callback]
+    public function validateAudioSource(ExecutionContextInterface $context): void
+    {
+        if (null !== $this->path && null !== $this->sourceUrl) {
+            $context->buildViolation('Wybierz plik z nagraniem albo podaj link.')
+                ->atPath('sourceUrl')
+                ->addViolation();
+
+            return;
+        }
+
+        if (null === $this->path && null === $this->sourceUrl) {
+            $context->buildViolation('Wybierz plik z nagraniem albo podaj link.')
+                ->atPath('path')
+                ->addViolation();
+        }
     }
 
     public function getTitle(): string

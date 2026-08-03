@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Core\Game\GameRegistry;
 use App\Core\Realtime\Event;
 use App\Core\Realtime\Publisher;
+use App\Core\Room\HostAccess;
 use App\Core\Room\RoomAccess;
 use App\Core\Room\RoomManager;
 use App\Core\Room\TeamNameTakenException;
@@ -36,11 +37,12 @@ final class RoomController extends AbstractController
         private readonly RateLimiterFactory $roomJoinLimiter,
         private readonly RateLimiterFactory $roomStateLimiter,
         private readonly GameRegistry $registry,
+        private readonly HostAccess $hostAccess,
     ) {
     }
 
     #[Route('/', name: 'home', methods: ['GET'])]
-    public function home(): Response
+    public function home(Request $request): Response
     {
         // Lista gier idzie z rejestru, nie z reki - strona glowna obiecywala
         // "wkrotce" grom, ktore juz dawno graja, i nie znala kilku nowszych
@@ -50,6 +52,10 @@ final class RoomController extends AbstractController
                 static fn ($game): array => ['type' => $game::type(), 'name' => $game->name()],
                 array_values($this->registry->all()),
             ),
+            // Haslo pytamy tylko, gdy jest wlaczone (HOST_PASSWORD niepuste)
+            // i ta przegladarka jeszcze go nie podala - raz zapamietane
+            // w sesji, kolejne pokoje zakladaja sie bez ponownego pytania.
+            'hostPasswordNeeded' => $this->hostAccess->needsLogin($request),
         ]);
     }
 
@@ -60,6 +66,17 @@ final class RoomController extends AbstractController
             $this->addFlash('error', 'Sesja wygasła - odśwież stronę i spróbuj ponownie.');
 
             return $this->redirectToRoute('home');
+        }
+
+        // Bramka na ZALOZENIE pokoju (zostanie hostem) - osobna od tokenu hosta
+        // istniejacego juz pokoju (RoomAccess). Publiczna domena bez tego
+        // wpuszczalaby kazdego, kto trafi na strone glowna.
+        if ($this->hostAccess->needsLogin($request)) {
+            if (!$this->hostAccess->login($request, (string) $request->request->get('hostPassword', ''))) {
+                $this->addFlash('error', 'Nieprawidłowe hasło.');
+
+                return $this->redirectToRoute('home');
+            }
         }
 
         $room = $this->rooms->create();

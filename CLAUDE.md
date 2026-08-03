@@ -19,7 +19,7 @@ Rozmowa jest po polsku; komentarze w kodzie też.
 | 1. Rdzeń pokoju | **gotowy** |
 | 2. Silnik gry | **gotowy** |
 | 3. „Jaka to melodia" | **gotowy**, grywalny (dwa warianty: buzzer i 1 z 4) |
-| 4. PWA | **nie zaczęty** — patrz decyzje niżej |
+| 4. PWA | **instalowalna** (manifest, ikony, service worker bez cache'owania) — offline w LAN to osobna, otwarta decyzja, patrz niżej |
 | 5. „Koło fortuny" | **gotowy**, grywalny |
 | 6. Kalambury | **gotowy**, grywalny |
 | 7. Przyciski fizyczne | **nie zaczęty** |
@@ -27,9 +27,17 @@ Rozmowa jest po polsku; komentarze w kodzie też.
 | Dutch (Cabo) | **backend gotowy i przetestowany**, frontend niesprawdzony na żywo (poza planem §13) |
 | 8. Panel treści | **gotowy** (zamiast `app:deck:sync` z YAML) |
 
-Ponadto: panel administracyjny `/admin`, którego spec nie przewidywała.
+Ponadto: panel administracyjny `/panel` (EasyAdmin), którego spec nie przewidywała —
+`/admin` zostaje jako wspólne logowanie/wylogowanie.
 
-309 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
+381 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
+
+**Pełny audyt logiki, bezpieczeństwa i wyglądu** ([`AUDYT-2026-07.md`](AUDYT-2026-07.md))
+i wdrożenie wszystkich znalezisk z Bloków 0–3 (bezpieczeństwo produkcyjne, wyścigi
+i błędy psujące rozgrywkę, stabilność/CSRF/rate limiting, wygląd i dostępność) —
+patrz sekcje „Decyzje odbiegające" i „Pułapki" niżej za szczegółami tego, co się
+zmieniło. Blok 4 (dług) też zrobiony: lint JS, podstawy PWA, ta aktualizacja
+dokumentacji.
 
 ---
 
@@ -60,6 +68,7 @@ docker compose up -d                                   # redis, postgres, mercur
 # .env.local — nie trafia do repo
 php -r 'echo "APP_SECRET=", bin2hex(random_bytes(16)), PHP_EOL;' >> .env.local
 echo 'ADMIN_PASSWORD=wybierz-haslo' >> .env.local
+echo 'HOST_PASSWORD=wybierz-inne-haslo' >> .env.local
 
 php bin/console doctrine:database:create --if-not-exists
 php bin/console doctrine:migrations:migrate --no-interaction
@@ -84,6 +93,9 @@ wartości poprzedniej maszyny.
 ```bash
 php bin/phpunit                                        # wymaga Redisa i bazy testowej
 php -d memory_limit=1G vendor/bin/phpstan analyse      # poziom max
+
+npm install                                            # tylko lint JS - AssetMapper go nie potrzebuje
+npm run lint                                           # eslint assets/ (assets/vendor/ pominięty - to Stimulus/Turbo/GSAP)
 ```
 
 Gdyby `composer install` sypał się na receptach Flexa („could not be downloaded",
@@ -98,6 +110,7 @@ W `.env.local` (nie trafia do repo):
 ```
 APP_SECRET=<losowy hex>
 ADMIN_PASSWORD=<hasło do panelu; bez niego panel nie wpuszcza nikogo>
+HOST_PASSWORD=<hasło do założenia pokoju; puste = zakładanie pokoju otwarte dla każdego>
 ```
 
 W `.env` (trafia do repo, bo `docker compose` czyta **tylko** ten plik):
@@ -153,9 +166,13 @@ src/Core/Turn/       kolejność drużyn
 src/Core/Score/      tablo
 src/Core/Redis/      typowany odczyt z Redisa
 src/Core/Http/       wymuszenie JSON na trasach API
-src/Admin/           panel: dostęp, wgrywanie nagrań, zarządzanie treścią
-src/Content/         katalog mediów, wspólny słownik haseł i talia nagrań
-                     (PhraseDeck, Slownik, TrackDeck)
+src/Admin/           dostęp do panelu (AdminAccess), typy treści (ContentTypes),
+                     brama /panel (AdminPanelGuard)
+src/Controller/Admin/ panel treści na EasyAdminie (/panel): Category/Track/Phrase
+                     CrudController + Dashboard
+src/Content/         katalog mediów, czyszczenie plików po skasowaniu nagrania
+                     (MediaLibrary, TrackAudioCleaner), wspólny słownik haseł
+                     i talia nagrań (PhraseDeck, Slownik, TrackDeck)
 src/Entity/          Category / Track / Phrase (Track: plik na dysku ALBO link)
 src/Game/Melodia/    moduł „Jaka to melodia" (buzzer)
 src/Game/MelodiaQuiz/ moduł „Jaka to melodia — 1 z 4"
@@ -207,6 +224,19 @@ pokoju i tak żyje w Redisie z TTL, więc weryfikacja przy Redisie daje
 unieważnienie przy resecie za darmo. Logika w `src/Core/Room/RoomAccess.php`.
 **Tokeny Mercure to osobna sprawa i tam JWT jest** — podpisany token subskrypcji
 ogranicza telefon do jego własnych topików (`src/Core/Realtime/Subscription.php`).
+
+**`HostAccess` — osobne hasło na ZAŁOŻENIE pokoju** (`HOST_PASSWORD`, wzorowane
+na `AdminAccess`). Gra stoi pod publiczną domeną, więc bez tego każdy, kto
+trafi na stronę główną, mógł kliknąć „Nowa gra" i zostać hostem. Bramka
+sprawdza się **wyłącznie** przy `POST /room` — token hosta istniejącego już
+pokoju (`RoomAccess`) to zupełnie inna sprawa i tej bramki nie dotyczy, więc
+powrót na już założony ekran hosta nigdy o nie pyta. Puste `HOST_PASSWORD`
+(domyślny stan w `.env`) wyłącza bramkę całkowicie - zakładanie pokoju zostaje
+otwarte jak przed tą zmianą. Hasło pyta się raz na przeglądarkę: pierwsza
+„Nowa gra" zapamiętuje sesję (`session->migrate(true)`, jak w adminie), kolejne
+pokoje z tego samego urządzenia zakładają się już bez pytania. Osobne od
+`ADMIN_PASSWORD` świadomie - hostowanie imprezy i zarządzanie treścią to różne
+uprawnienia, jeden sekret nie powinien otwierać obu.
 
 **Adres huba z bieżącego żądania zamiast `MERCURE_PUBLIC_URL`.** Wbudowane
 `Symfony\Component\Mercure\Authorization` wywala się, gdy host żądania różni się
@@ -351,6 +381,86 @@ zabuzzował) i `rearm(judging→armed)` (zła odpowiedź, utwór wraca dla reszt
 najczęstszy przebieg rundy). Koło: `hand_over(next_team→next_team)`.
 W kole `next_team` znaczy „czyjaś tura, czeka na zakręcenie" i wchodzi się w niego
 też po **trafionej** literze — różnica siedzi w `TurnManagerze`, nie w stanie.
+Kalambury: `guessed` przyjmuje jako źródło `acting` **i** `timeout` — host może
+kliknąć „Zgadnięto" tuż po tym, jak zegar TV już wysłał `timeout`; bez tego
+punkt nie szedł do nikogo, mimo że ktoś naprawdę zgadł.
+
+**`RoomLock` — zamek Redisowy (`SET NX`) wokół `GameEngine::start/handle`**
+i akcji kończącej grę (`GameController::stop`). Backend jest wieloprocesowy pod
+PHP-FPM, więc dwa równoległe żądania czytające ten sam stan gry (np. dwa
+dorzucenia w Dutchu, dwa kliknięcia „Zmień grę") potrafiły się zgubić nawzajem —
+`GameEngineRaceTest` odpala to naprawdę, sześcioma procesami na raz. `stop()`
+w `GameEngine` **nie ma własnego zamka** — zagnieżdżenie dwóch blokad z tego
+samego żądania (kontroler już trzyma zamek na czas zaliczenia turnieju + stop)
+skończyłoby się zakleszczeniem.
+
+**CSRF tylko na klasycznych formularzach, nie na akcjach gry.** `SameSite=Lax`
+nie chroni przed innym serwisem pod tym samym site (`*.j33.pl`, różne
+subdomeny) — ale to dotyczy wyłącznie formularzy powodujących pełną nawigację
+POST-em (`<form method="post">`). Fetch z obcej (choć tej samej site) strony
+i tak nie dołączy ciasteczka bez zgody CORS, więc akcje gry (`/room/{code}/game/*`,
+wysyłane fetchem) zostają bez tokenu — dodanie go objęłoby ~15 kontrolerów JS
+bez realnego zysku. Token generuje `csrf_token('room')` (pokój/gra/turniej) albo
+`csrf_token('admin')` (panel + wznowienie turnieju, bo chroni je to samo hasło) —
+sprawdzany przez `isCsrfTokenValid()` w każdej z 14 chronionych akcji.
+
+**Rate limiting per IP** (`symfony/rate-limiter`, `config/packages/rate_limiter.yaml`):
+`admin_login` (10/15 min — hasło słownikowe), `room_join` (30/min — prawdziwa
+impreza dołącza kilkanaście telefonów na minutę, limit łapie skrypt zasypujący
+pokój tysiącami drużyn), `room_state` (60/min — kod pokoju to 4 litery, ok. 234 tys.
+kombinacji, bez limitu enumeracja zajmuje ~40 min). Magazyn liczników to
+domyślny `cache.app` (plik na dysku, wspólny dla workerów PHP-FPM) — to nie stan
+gry, więc nie musi siedzieć w Redisie. **W testach każdy przypadek dotykający
+tych tras używa losowego `REMOTE_ADDR`** — magazyn przeżywa między osobnymi
+uruchomieniami `phpunit`, więc dzielony adres psuje wynik w zależności od tego,
+ile razy wcześniej odpalono testy.
+
+**Przejęcie drużyny przez wpisanie jej nazwy wymaga dowodu.** `RoomManager::join()`
+oddawał cudzą drużynę każdemu, kto trafił jej nazwę (widoczną na ekranie hosta) —
+sam telefon bez żadnego tokenu tego pokoju. Teraz odzyskanie nazwy wymaga albo
+ważnego ciasteczka z tego pokoju (`knownDevice`), albo bycia **pierwszym**
+zgłoszeniem po drużynie odtworzonej z wznowionego turnieju (`RoomKeys::unclaimedTeams` —
+zbiór Redisowy, `SREM` przy pierwszym trafieniu). To drugie jest konieczne:
+wznowienie zakłada **nowy** pokój z nowym kodem, więc żadne ciasteczko z wczoraj
+nie może pasować, a mimo to gracz musi móc wrócić pod swoją nazwą.
+
+**Mercure: `/host/{code}/tablo` poszerza topiki, gdy pyta o nie sam host.**
+Ciasteczko `mercureAuthorization` jest jedno na przeglądarkę (nazwa i ścieżka na
+sztywno w protokole Mercure) — gdyby host otworzył tablicę wyników w drugiej
+karcie z węższym zestawem topików niż ekran główny, nadpisałby ciasteczko i po
+najbliższym reconnekcie TV przestałby dostawać prywatny topik hosta (podgląd
+hasła) bez żadnego komunikatu. Anonimowy widz (skądinąd cały sens `/tablo` —
+punkty są jawne, nie trzeba tokenu) dostaje wciąż tylko wąski, publiczny topik.
+
+**Jeden panel treści (`/panel`, EasyAdmin), nie dwa.** Poprzednia sesja zostawiła
+`/panel` i stary `/admin` współistniejące — `/admin` obsługiwał jedyną rzecz,
+której EasyAdmin jeszcze nie umiał: wgrywanie plików audio. Domknięte: nowe pliki
+lądują pod `var/media/{RRRR}/{MM}/{slug}-{contenthash}.{rozszerzenie}` (wg daty
+wgrania, decyzja użytkownika — nie wg kategorii, bo `FileField::setUploadedFileNamePattern()`
+przyjmuje closure z encją, ale ta jest przechwytywana PRZED wypełnieniem
+formularza, więc `category` nie musi być jeszcze ustawiona; wzorzec trzyma się
+wyłącznie placeholderów zależnych od samego pliku). `Track::validateAudioSource`
+i `Category::validateGames` (oba `#[Assert\Callback]`) przenoszą na encje reguły,
+które wcześniej pilnował wyłącznie stary `ContentManager` — "plik ALBO link,
+nigdy oba, nigdy żadne" i "kategoria potrzebuje choć jednej gry"; regułę "melodia
+= zawsze dokładnie `['melodia']`" **normalizuje cicho kontroler**
+(`CategoryCrudController::normalizeGames()`), bo to nie błąd użytkownika, więc
+nie ma prawa wyjść jako czerwony komunikat walidacji. `TrackAudioCleaner`
+(`src/Content/`) zastąpił `AudioUploader::delete()` i
+`ContentManager::deleteAudioIfUnused()` — jedno miejsce, wołane zarówno przy
+kasowaniu nagrania, jak i całej kategorii z nagraniami w środku. `/admin` zostaje
+wyłącznie jako `login()`/`logout()` — wspólna sesja i wspólne hasło dla obu
+adresów, `AdminPanelGuard` odsyła tam kogokolwiek niezalogowanego pod `/panel`.
+
+**Przy okazji znaleziony i naprawiony bug sprzed tej sesji:** ani `Track`, ani
+`Phrase` nie miały `setCategory()` — formularz EasyAdmina do zmiany kategorii
+(pole `AssociationField`) wywalał się na "Could not determine access type for
+property category" przy każdym submicie, bo Symfony Form zawsze wywołuje setter
+dla pola mapowanego, nawet gdy wybór się nie zmienił. Dotyczyło to też **już
+istniejącego** `PhraseCrudController` (formularz nowego hasła), nie tylko nowego
+`TrackCrudController` — nikt wcześniej nie przeklikał NEW hasła na żywo. Oba
+settery aktualizują teraz też odwrotną kolekcję (`Category::addTrack`/`addPhrase`
+i `removeTrack`/`removePhrase`), żeby stara kategoria nie trzymała sieroty.
 
 ---
 
@@ -418,6 +528,7 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 
 - PHP 8.3, `declare(strict_types=1)`, typy wszędzie, PSR-12, PHPStan `max`.
   Nie tłum błędów analizy `@phpstan-ignore` ani baseline'em — napraw przyczynę.
+- JS: `npm run lint` (ESLint, `eslint.config.js`) po każdej zmianie w `assets/`.
 - Komentarze wyjaśniają **dlaczego**, nie co robi kod. Bez komentarzy oczywistych.
 - Testy: prawdziwy Redis i prawdziwy Postgres, bez atrap. To właśnie atomowość
   Redisa jest tym, co testujemy — atrapa potwierdzałaby tylko, że umiemy pisać atrapy.
@@ -435,10 +546,14 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 
 - ~~**HTTPS a PWA (kamień 4).**~~ **Rozstrzygnięte przez przenosiny:** gra stoi
   za `nginx-proxy-manager` z certyfikatem Let's Encrypt, więc service worker ma
-  wymagane HTTPS i kamień 4 nie jest już niczym blokowany. Zostaje pytanie
-  odwrotne: czy gra ma nadal działać **bez internetu** w LAN — bo wtedy pod
-  adresem IP HTTPS-a nie ma i PWA się nie zarejestruje. Tryb LAN jest wciąż
-  wspierany konfiguracją (`APP_BIND=0.0.0.0`, `MERCURE_PUBLIC_PORT=3010`).
+  wymagane HTTPS i kamień 4 nie jest już niczym blokowany. Podstawy PWA są
+  gotowe (`public/manifest.json`, `public/sw.js`, ikony 192/512 + apple-touch) —
+  aplikacja instaluje się na ekran, ale worker **niczego nie cache'uje**
+  (`fetch` leci prosto do sieci). Zostaje pytanie odwrotne: czy gra ma nadal
+  działać **bez internetu** w LAN — cache'owanie Tablera (z CDN) albo assetów
+  gry przesądziłoby to bez rozmowy, więc worker świadomie tego nie robi.
+  Pod adresem IP bez TLS worker i tak by się nie zarejestrował. Tryb LAN jest
+  wciąż wspierany konfiguracją (`APP_BIND=0.0.0.0`, `MERCURE_PUBLIC_PORT=3010`).
 - ~~**Timer a rozjazd zegarów (§8).**~~ **Rozstrzygnięte przy kalamburach:**
   event niesie parę `{deadline, serverNow}`, telefon liczy z niej offset zegara,
   a o wygaśnięciu i tak decyduje serwer (`GameTimer::expired()`).
@@ -447,7 +562,8 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 
 ### Następne kroki
 
-1. **PWA (kamień 4)** — po decyzji o trybie LAN.
+1. **Cache offline w PWA** — dopiero po decyzji o trybie LAN (patrz wyżej);
+   instalowalność sama w sobie już działa.
 2. **Przyciski fizyczne (kamień 7)**.
 3. ~~**Państwa-Miasta**~~ — **gotowe**. Kafelek „wkrótce" zniknął sam, bo lista
    filtruje się po zarejestrowanych typach — moduł nie dotknął rdzenia ani
@@ -457,7 +573,7 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 ### Znane braki i długi
 
 - **Frontend Dutcha nie był puszczony na żywo w przeglądarce.** Backend przechodzi
-  26 testów przez prawdziwy silnik i Redis (tajność rąk, tury, punktacja, kara,
+  28 testów przez prawdziwy silnik i Redis (tajność rąk, tury, punktacja, kara,
   odsłonięcie, narastanie rankingu), a kontrolery/szablony trzymają się wzorca
   pozostałych gier i przechodzą lint + rejestrację AssetMappera — ale pętli tur
   na dwóch telefonach + TV jeszcze nikt nie przeklikał. To pierwsza rzecz do
@@ -480,7 +596,7 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
   *pokazać* (kalambury); koło używa go tylko do sortowania. Hasło łatwe do
   pokazania bywa nudne na planszy i odwrotnie — jeśli zacznie przeszkadzać,
   trzeba drugiego pola albo tagów.
-- **Brak testów funkcjonalnych HTTP** (WebTestCase). Ścieżki przez kontrolery
-  sprawdzałem ręcznie curl-em; logika ma testy jednostkowe i integracyjne.
 - **Kategorie nie mają zmiany kolejności pozycji w panelu** — `position` istnieje
   w encjach i jest respektowane, ale UI go nie wystawia.
+- **Ikony PWA są tymczasowe** — wygenerowana gwiazda z logotypu, nie prawdziwy
+  branding. Wystarcza do instalowalności, ale warto podmienić na docelowy design.

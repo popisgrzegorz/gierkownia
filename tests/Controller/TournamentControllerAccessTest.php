@@ -24,7 +24,28 @@ final class TournamentControllerAccessTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/turnieje');
 
-        self::assertResponseRedirects('/admin/login');
+        // ?next=/turnieje - zeby po zalogowaniu wrocic tu, a nie do panelu tresci.
+        self::assertResponseRedirects('/admin/login?next=/turnieje');
+    }
+
+    /**
+     * Sedno tego zgloszenia: klikniecie "Wznow zapisany turniej" na stronie
+     * glownej ladowalo po zalogowaniu w panelu tresci, nie na liscie
+     * turniejow - admin musial klikac dalej sam.
+     */
+    public function testLoggingInFromTheTournamentGateReturnsToTheTournamentList(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/turnieje');
+        $location = (string) $client->getResponse()->headers->get('Location');
+
+        $crawler = $client->request('GET', $location);
+        $token = (string) $crawler->filter('input[name="_csrf_token"]')->attr('value');
+        self::assertCount(1, $crawler->filter('input[name="next"]'), 'Formularz logowania musi przeniesc "next" dalej.');
+
+        $client->submitForm('Wejdź', ['password' => self::ADMIN_PASSWORD]);
+
+        self::assertResponseRedirects('/turnieje');
     }
 
     public function testAnonymousCannotRestoreASavedTournament(): void

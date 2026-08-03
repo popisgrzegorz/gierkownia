@@ -8,6 +8,8 @@ use App\Repository\CategoryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * Kategoria tresci - to, co host wybiera na starcie gry.
@@ -138,6 +140,21 @@ class Category
     public function usableIn(string $gameType): bool
     {
         return \in_array($gameType, $this->games, true);
+    }
+
+    /**
+     * Bez zadnej gry kategoria jest niewidoczna wszedzie - nikt by jej nie
+     * zobaczyl. Regule "melodia = zawsze dokladnie ['melodia']" pilnuje
+     * kontroler panelu (normalizacja, nie blad usera), nie ten walidator.
+     */
+    #[Assert\Callback]
+    public function validateGames(ExecutionContextInterface $context): void
+    {
+        if ([] === $this->games) {
+            $context->buildViolation('Wybierz przynajmniej jedną grę - inaczej nikt tej kategorii nie zobaczy.')
+                ->atPath('games')
+                ->addViolation();
+        }
     }
 
     /** @return Collection<int, Track> */

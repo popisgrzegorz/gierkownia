@@ -185,6 +185,21 @@ final readonly class RoomManager
         $this->redis->expire($seqKey, $this->roomTtl);
     }
 
+    /**
+     * Odnotowuje, ze pokoj powstal ze wznowienia zapisu - host dostaje na
+     * ekranie wyrazny komunikat, ze to NOWY kod (TournamentArchive::restore).
+     */
+    public function markResumed(string $code, string $savedName): void
+    {
+        $this->redis->setex(RoomKeys::resumedFrom($code), $this->roomTtl, $savedName);
+    }
+
+    /** Nazwa zapisu, z ktorego powstal ten pokoj - null, gdy pokoj zalozono normalnie. */
+    public function resumedFromName(string $code): ?string
+    {
+        return $this->read->string(RoomKeys::resumedFrom($code));
+    }
+
     /** @return list<Team> */
     public function teams(string $code): array
     {

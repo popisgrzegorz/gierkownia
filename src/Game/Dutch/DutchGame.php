@@ -889,11 +889,9 @@ final class DutchGame extends AbstractGame
             'peekLimit' => self::PEEK_LIMIT,
             'peekedCards' => $peekedCards,
             'drawn' => $drawn,
-            // Czy dobrana karta to dama (można zagrać jej moc) i czy właśnie
-            // trwa wskazywanie karty do podejrzenia - jedno i drugie tylko dla
-            // gracza w swojej turze.
-            // Moc dobranej karty (peek_own / peek_other / null) - telefon pokaże
-            // odpowiedni przycisk. I jaka moc właśnie czeka na wskazanie celu.
+            // Moc dobranej karty (peek_own / swap / null, patrz Karty::power) -
+            // telefon pokaże odpowiedni przycisk. I jaka moc właśnie czeka
+            // na wskazanie celu (tylko dla gracza w swojej turze).
             'drawnPower' => null !== $drawn && null !== $drawnId ? Karty::power($drawnId) : null,
             'power' => $this->turn($room) === $team->id ? $this->pendingPower($room) : null,
             // Kształt własnej ręki - telefon wie, gdzie ma karty (do dorzucania,

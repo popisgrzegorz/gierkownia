@@ -116,6 +116,25 @@ final class TournamentArchiveTest extends TestCase
     }
 
     /**
+     * Kod pokoju nigdy nie przezywa do "wroccie jutro" (caly stan zyje
+     * w Redisie z TTL) - wznowienie zawsze zaklada NOWY kod. Host musi
+     * dostac wyrazny sygnal, ze to nie ten sam kod co poprzednio, zeby nie
+     * pokazac gosciom nieaktualnego. Zwykle zalozony pokoj takiego znacznika
+     * nie ma w ogole.
+     */
+    public function testRestoredRoomIsMarkedWithTheArchiveNameNormalRoomsAreNot(): void
+    {
+        $room = $this->rooms->create();
+        self::assertNull($this->rooms->resumedFromName($room->code));
+
+        $id = $this->archive->save($room, 'Wieczór u Kasi');
+        $this->redis->flushdb();
+        $restored = $this->archive->restore($id);
+
+        self::assertSame('Wieczór u Kasi', $this->rooms->resumedFromName($restored->code));
+    }
+
+    /**
      * Pierwsze zadanie z pasujaca nazwa odbiera odtworzona druzyne bez dowodu -
      * ale kolejne juz nie moze, bo miejsce jest zajete. Inaczej ktokolwiek,
      * kto zna imie z wczorajszej imprezy, moglby przejac czyjs dorobek

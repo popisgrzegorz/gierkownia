@@ -5,18 +5,25 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Admin\ContentTypes;
+use App\Content\TrackAudioCleaner;
 use App\Entity\Category;
+use App\Repository\CategoryRepository;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /** @extends AbstractCrudController<\App\Entity\Category> */
 class CategoryCrudController extends AbstractCrudController
 {
+    public function __construct(
+        private readonly CategoryRepository $categories,
+        private readonly TrackAudioCleaner $cleaner,
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Category::class;
@@ -72,26 +79,41 @@ class CategoryCrudController extends AbstractCrudController
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if ('' === $entityInstance->getSlug()) {
-            $entityInstance->setSlug($this->uniqueSlug($entityManager, $entityInstance->getName()));
+            $entityInstance->setSlug($this->categories->uniqueSlugFor($entityInstance->getName()));
         }
+
+        $this->normalizeGames($entityInstance);
 
         parent::persistEntity($entityManager, $entityInstance);
     }
 
-    private function uniqueSlug(EntityManagerInterface $entityManager, string $name): string
+    /** @param Category $entityInstance */
+    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
-        $base = (new AsciiSlugger('pl'))->slug($name)->lower()->toString();
-        $base = '' === $base ? 'kategoria' : $base;
+        $this->normalizeGames($entityInstance);
 
-        $repository = $entityManager->getRepository(Category::class);
-        $slug = $base;
+        parent::updateEntity($entityManager, $entityInstance);
+    }
 
-        // Dwie kategorie o tej samej nazwie to normalna sytuacja przy dwoch grach,
-        // a slug jest unikalny w calej tabeli.
-        for ($suffix = 2; null !== $repository->findOneBy(['slug' => $slug]); ++$suffix) {
-            $slug = $base.'-'.$suffix;
+    /** @param Category $entityInstance */
+    public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        foreach ($entityInstance->getTracks() as $track) {
+            $this->cleaner->deleteIfUnused($track);
         }
 
-        return $slug;
+        parent::deleteEntity($entityManager, $entityInstance);
+    }
+
+    /**
+     * Kategoria z nagraniami ma dokladnie jednego odbiorce - nie ma o czym
+     * decydowac, wiec zaznaczenia w polu "Gry" (widocznym, bo obsluguje tez
+     * hasla) i tak nic tu nie zmieniaja.
+     */
+    private function normalizeGames(Category $category): void
+    {
+        if (Category::KIND_MELODIA === $category->getKind()) {
+            $category->setGames(['melodia']);
+        }
     }
 }

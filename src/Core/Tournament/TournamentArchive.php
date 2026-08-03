@@ -127,6 +127,7 @@ final readonly class TournamentArchive
         $room = $this->rooms->create();
         $this->rooms->restoreTeams($room->code, $snapshot['teams']);
         $this->tournament->import($room->code, $snapshot['games']);
+        $this->rooms->markResumed($room->code, $snapshot['name']);
 
         return $room;
     }

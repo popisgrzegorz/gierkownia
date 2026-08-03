@@ -58,6 +58,17 @@ final class RoomKeys
         return sprintf('room:%s:tournament', $code);
     }
 
+    /**
+     * Znacznik "ten pokoj powstal ze wznowienia zapisanego turnieju" - host
+     * dostaje na ekranie wyrazny komunikat, ze kod jest NOWY i trzeba go
+     * pokazac graczom od nowa (TournamentArchive::restore). Zyje razem
+     * z pokojem, wiec nie trzeba go osobno sprzatac.
+     */
+    public static function resumedFrom(string $code): string
+    {
+        return sprintf('room:%s:resumed', $code);
+    }
+
     public static function scorePattern(string $code): string
     {
         return sprintf('room:%s:score:*', $code);

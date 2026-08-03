@@ -83,6 +83,11 @@ final class HostController extends AbstractController
             // z boku pokazuje surowy wynik biezacej gry, turniej sumuje miejsca.
             'tournament' => $this->tournament->standings($room),
             'playedGames' => $this->tournament->playedGames($room->code),
+            // Ten pokoj powstal ze wznowienia zapisu - host musi wiedziec, ze
+            // kod jest NOWY i trzeba go pokazac graczom od nowa (patrz
+            // TournamentArchive::restore - kod pokoju nigdy nie przezywa
+            // do "wroccie jutro", bo caly stan zyje w Redisie z TTL).
+            'resumedFrom' => $this->rooms->resumedFromName($room->code),
         ]);
 
         $response->headers->setCookie($this->subscription->cookie($request, $topics));

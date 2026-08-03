@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\Category;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /** @extends ServiceEntityRepository<Category> */
 class CategoryRepository extends ServiceEntityRepository
@@ -73,5 +74,24 @@ class CategoryRepository extends ServiceEntityRepository
         $existing = $this->findOneBySlug($slug);
 
         return null === $existing || $existing->getId() === $exceptId;
+    }
+
+    /**
+     * Slug z nazwy, unikalny w calej tabeli - jedno miejsce zamiast osobnej
+     * kopii w kazdym miejscu, ktore tworzy kategorie.
+     */
+    public function uniqueSlugFor(string $name): string
+    {
+        $base = (new AsciiSlugger('pl'))->slug($name)->lower()->toString();
+        $base = '' === $base ? 'kategoria' : mb_substr($base, 0, 56);
+
+        $slug = $base;
+        $suffix = 1;
+
+        while (!$this->isSlugFree($slug)) {
+            $slug = sprintf('%s-%d', $base, ++$suffix);
+        }
+
+        return $slug;
     }
 }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Admin\AdminAccess;
 use App\Core\Room\RoomManager;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
@@ -62,46 +62,27 @@ final class CsrfProtectionTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testAdminCreatingACategoryWithoutATokenIsRejected(): void
-    {
-        $client = static::createClient();
-        $this->logInAsAdmin($client);
-
-        $client->request('POST', '/admin/kategoria', ['name' => 'Test', 'kind' => 'hasla']);
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
-    public function testAdminCreatingACategoryWithAValidTokenSucceeds(): void
-    {
-        $client = static::createClient();
-        $crawler = $this->logInAsAdmin($client);
-        $token = (string) $crawler->filter('input[name="_csrf_token"]')->attr('value');
-
-        $client->request('POST', '/admin/kategoria', [
-            'name' => 'Test CSRF',
-            'kind' => 'hasla',
-            '_csrf_token' => $token,
-        ]);
-
-        self::assertResponseRedirects();
-    }
-
     /**
-     * IP losowe: limiter logowania (P2-7) zyje w pliku na dysku i przezywa
-     * miedzy osobnymi uruchomieniami PHPUnit - dzielony adres dawalby
-     * falszywe 429 po kilku kolejnych przebiegach tego pliku testow.
+     * Panel /panel (EasyAdmin) chroni formularze wlasnym CSRF-em Symfony Form
+     * (ten sam mechanizm, ktory chroni kazdy inny formularz w aplikacji) -
+     * nie doszywalismy tu niczego recznie, ale warto miec prawdziwy test HTTP
+     * zamiast polegac wylacznie na czytaniu zrodel EasyAdmina.
      */
-    private function logInAsAdmin(KernelBrowser $client): \Symfony\Component\DomCrawler\Crawler
+    public function testPanelCreatingACategoryWithoutATokenIsRejected(): void
     {
+        $client = static::createClient();
+        $client->disableReboot();
         $ip = sprintf('10.%d.%d.%d', random_int(1, 254), random_int(1, 254), random_int(1, 254));
+        static::getContainer()->set(AdminAccess::class, new AdminAccess(self::ADMIN_PASSWORD));
 
-        $crawler = $client->request('GET', '/admin/login', server: ['REMOTE_ADDR' => $ip]);
+        $client->request('GET', '/admin/login', server: ['REMOTE_ADDR' => $ip]);
         $client->submitForm('Wejdź', ['password' => self::ADMIN_PASSWORD], 'POST', ['REMOTE_ADDR' => $ip]);
 
-        // Kategorie tez maja formularz z tym samym tokenem "admin" - wystarczy
-        // wyciagnac go z listy kategorii zamiast osobno z ekranu logowania,
-        // zeby uzyc go po zalogowaniu (token pozostaje wazny w tej samej sesji).
-        return $client->request('GET', '/admin', server: ['REMOTE_ADDR' => $ip]);
+        $client->request('GET', '/panel/category/new');
+        $client->request('POST', '/panel/category/new', [
+            'Category' => ['name' => 'Bez tokenu', 'kind' => 'hasla', '_token' => 'zly-token'],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
     }
 }
