@@ -161,8 +161,12 @@ export default class extends Controller {
             button.disabled = this.guessed.has(button.dataset.letter);
         });
 
+        // Zamach działa na przytrzymanie, czego sam przycisk nie zdradza komuś,
+        // kto widzi go pierwszy raz (stuknięcie też kręci, ale słabo).
+        const spinHint = 'Twoja kolej — przytrzymaj przycisk i puść. Im dłużej, tym mocniejszy zamach.';
+
         this.noteTarget.textContent = this.myTurnValue
-            ? { spinning: 'Koło się kręci…', pick_letter: 'Podaj literę!', next_team: 'Twoja kolej — kręć!' }[this.stateValue] ?? 'Twoja kolej'
+            ? { spinning: 'Koło się kręci…', pick_letter: 'Podaj literę!', idle: spinHint, next_team: spinHint }[this.stateValue] ?? 'Twoja kolej'
             : 'Teraz gra inna drużyna.';
     }
 

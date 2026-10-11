@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { softNavigate } from '../soft_nav.js';
+import { confirmDialog } from '../confirm.js';
 
 /**
  * Wysyła formularz bez pełnego przeładowania strony (patrz soft_nav.js).
@@ -23,11 +24,14 @@ export default class extends Controller {
         const form = event.currentTarget;
         const question = form.dataset.confirm;
 
-        if (question && !window.confirm(question)) {
+        // submitting ustawiamy PRZED oczekiwaniem na okno: drugi klik, gdy pytanie
+        // wisi na ekranie, nie ma otworzyć drugiego.
+        this.submitting = true;
+
+        if (question && !(await confirmDialog(question))) {
+            this.submitting = false;
             return;
         }
-
-        this.submitting = true;
 
         try {
             await softNavigate(form.action, {

@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import gsap from 'gsap';
 import { sfx } from '../audio/sfx.js';
+import { confirmDialog } from '../confirm.js';
 import { paint, blank, create } from '../dutch/cards.js';
 
 /**
@@ -133,7 +134,7 @@ export default class extends Controller {
     async usePower() {
         // Walet jest nieodwracalny: zrzucasz go i losujesz zamianę - dopytujemy.
         if ('swap' === this.m.drawnPower
-            && !window.confirm('Zagrać waleta? Zrzucisz go i wskażesz dwóch graczy — zamienię im losowo po jednej karcie.')) {
+            && !(await confirmDialog('Zagrać waleta? Zrzucisz go i wskażesz dwóch graczy — zamienię im losowo po jednej karcie.', { confirmLabel: 'Zagraj' }))) {
             return;
         }
 
@@ -174,15 +175,18 @@ export default class extends Controller {
             return;
         }
 
+        // currentTarget znika po pierwszym await - zapamiętujemy kartę przed oknem.
+        const card = event.currentTarget;
+
         // Dotknięcie karty od razu ją podmienia, a o przypadkowy tap na telefonie
         // nietrudno - dopytujemy, żeby nikt nie zamienił karty przez pomyłkę.
-        if (!window.confirm(`Podmienić tę zakrytą kartę na dobraną (${this.m.drawn.label})?`)) {
+        if (!(await confirmDialog(`Podmienić tę zakrytą kartę na dobraną (${this.m.drawn.label})?`, { confirmLabel: 'Podmień' }))) {
             return;
         }
 
         // Zamieniana karta (zakryta) wylatuje w górę - reszta ląduje na stole na TV.
-        this.#throwUp(event.currentTarget, null);
-        await this.#send('swap', { slot: Number(event.currentTarget.dataset.slot) });
+        this.#throwUp(card, null);
+        await this.#send('swap', { slot: Number(card.dataset.slot) });
     }
 
     /**

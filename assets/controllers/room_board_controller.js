@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { MercureStream } from '../live/mercure_stream.js';
+import { confirmDialog } from '../confirm.js';
 
 /**
  * sessionStorage bywa niedostepny (prywatne okno Safari, przegladarki TV
@@ -282,7 +283,7 @@ export default class extends Controller {
 
         const name = tile.querySelector('.team-name')?.textContent?.trim() ?? 'tę drużynę';
 
-        if (!window.confirm(`Usunąć „${name}” z pokoju? Straci dostęp do gry na swoim telefonie.`)) {
+        if (!(await confirmDialog(`Usunąć „${name}” z pokoju? Straci dostęp do gry na swoim telefonie.`, { confirmLabel: 'Usuń' }))) {
             return;
         }
 

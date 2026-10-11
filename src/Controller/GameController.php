@@ -224,15 +224,31 @@ final class GameController extends AbstractController
      */
     private function actor(Request $request, string $code): Actor
     {
-        if ($this->access->isHost($request, $code)) {
-            return Actor::host();
+        $isHost = $this->access->isHost($request, $code);
+        $team = $this->access->team($request, $code);
+
+        // Jedna przegladarka bywa i hostem, i druzyna (host otwiera w drugiej
+        // karcie wlasny telefon-kontroler). Bez rozstrzygniecia host wygrywal
+        // zawsze i kazda akcja druzyny konczyla sie odmowa, bez slowa wyjasnienia
+        // dla grajacego. O roli decyduje strona, z ktorej leci zadanie.
+        if ($isHost && null !== $team) {
+            return $this->cameFromPlayerPage($request, $code) ? Actor::team($team) : Actor::host();
         }
 
-        $team = $this->access->team($request, $code);
+        if ($isHost) {
+            return Actor::host();
+        }
 
         return null !== $team
             ? Actor::team($team)
             : throw new AccessDeniedHttpException('Nie rozpoznano ani hosta, ani druzyny.');
+    }
+
+    private function cameFromPlayerPage(Request $request, string $code): bool
+    {
+        $path = parse_url((string) $request->headers->get('Referer'), \PHP_URL_PATH);
+
+        return \is_string($path) && str_starts_with($path, "/play/{$code}");
     }
 
     /** @return array<string, mixed> */
