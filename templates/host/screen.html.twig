@@ -24,6 +24,7 @@
           data-controller="room-board sfx tournament"
           data-room-board-hub-value="{{ hubUrl }}"
           data-room-board-code-value="{{ room.code }}"
+          data-room-board-in-game-value="{{ gameType ? 'true' : 'false' }}"
           data-room-board-remove-team-url-value="{{ path('room_remove_team', {code: room.code}) }}">
 
         {# Poczekalnia dostaje pełny nagłówek z makiety (_other/layout2.png):

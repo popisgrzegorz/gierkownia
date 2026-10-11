@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { MercureStream } from '../live/mercure_stream.js';
 import { confirmDialog } from '../confirm.js';
+import { softNavigate } from '../soft_nav.js';
 
 /**
  * sessionStorage bywa niedostepny (prywatne okno Safari, przegladarki TV
@@ -40,7 +41,7 @@ const safeStorage = {
 export default class extends Controller {
     static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel', 'standingsModal',
         'focusMenu', 'teamsToggleLabel'];
-    static values = { hub: String, code: String, removeTeamUrl: String };
+    static values = { hub: String, code: String, removeTeamUrl: String, inGame: Boolean };
 
     connect() {
         /** Trwające przewijanie licznika - jedno na kafelek drużyny. */
@@ -312,6 +313,15 @@ export default class extends Controller {
                 break;
             case 'reset':
                 this.#resetScores();
+                break;
+            case 'phase':
+                // Host kończy grę na jednym ekranie (np. TV), a drugi (tablet w
+                // kalamburach rysowanych) wisiał na starym widoku gry, dopóki ktoś
+                // go nie przeładował. Ekran z trwającą grą wraca więc sam do wyboru
+                // gry. Miękko, żeby pełny ekran przetrwał (patrz soft_nav.js).
+                if ('lobby' === event.state && this.inGameValue) {
+                    softNavigate();
+                }
                 break;
             case 'team_removed':
                 this.#removeTeamTile(event.teamId);
