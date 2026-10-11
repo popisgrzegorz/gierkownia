@@ -9,6 +9,9 @@ export default class extends Controller {
     static targets = ['score', 'connection', 'waiting', 'removedOverlay'];
     static values = { hub: String, team: String, game: String };
 
+    /** Po tylu ms w tle stan telefonu uznajemy za mogący być nieaktualnym. */
+    static STALE_AFTER_MS = 20000;
+
     connect() {
         // Czy EventSource już raz się otworzył - drugie 'online' znaczy, że
         // połączenie się zerwało i wróciło. Hub Mercure nie ma historii
@@ -23,9 +26,32 @@ export default class extends Controller {
             onState: (state) => this.#showConnection(state),
         });
         this.stream.connect();
+
+        // Zablokowany ekran albo karta w tle: system usypia gniazdo SSE, a połączenie
+        // wciąż wygląda na otwarte, więc eventy z tej przerwy przepadają BEZ błędu
+        // (nie zadziała tu przeładowanie po reconnect z #showConnection). Po powrocie
+        // z dłuższej nieobecności dociągamy stan od nowa. Krótkie wyjście
+        // (np. przełączenie na chwilę do innej aplikacji) niczego nie przeładowuje,
+        // żeby nie skasować słowa, które gracz właśnie pisze.
+        this.hiddenAt = null;
+        this.onVisibility = () => {
+            if (document.hidden) {
+                this.hiddenAt = Date.now();
+
+                return;
+            }
+
+            if (null !== this.hiddenAt && Date.now() - this.hiddenAt > this.constructor.STALE_AFTER_MS) {
+                window.location.reload();
+            }
+
+            this.hiddenAt = null;
+        };
+        document.addEventListener('visibilitychange', this.onVisibility);
     }
 
     disconnect() {
+        document.removeEventListener('visibilitychange', this.onVisibility);
         this.stream?.disconnect();
     }
 
