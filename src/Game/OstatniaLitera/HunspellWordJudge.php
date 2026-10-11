@@ -20,7 +20,12 @@ final readonly class HunspellWordJudge implements WordJudge
     public function isKnown(string $word): bool
     {
         try {
-            $process = new Process(['hunspell', '-d', 'pl_PL', '-l']);
+            // -i utf-8: PHP-FPM i cron startuja z LANG=C, a w tej lokalizacji hunspell
+            // tnie wyrazy na kazdej polskiej literze ("straz" -> "stra"). Slowa
+            // typu "waz" czy "zolw" przechodzily tylko dlatego, ze okruchy ("w")
+            // sa poprawne, a "straz" trafialo do sedziego. Kodowanie wejscia
+            // podajemy wprost, zamiast liczyc na lokalizacje maszyny.
+            $process = new Process(['hunspell', '-d', 'pl_PL', '-i', 'utf-8', '-l']);
             $process->setInput($word);
             $process->run();
         } catch (\Throwable) {

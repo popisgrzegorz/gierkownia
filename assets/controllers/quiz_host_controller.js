@@ -372,7 +372,9 @@ export default class extends Controller {
             idle: 0 < (view.picked ?? []).length ? idleHint : 'Zaznacz kategorie i naciśnij „Graj”.',
             ready: 'Odpowiedzi na ekranie. Startuj, gdy wszyscy patrzą.',
             answering: 'Drużyny wybierają na telefonach. Runda kończy się sama, gdy odpowiedzą wszyscy.',
-            results: nobodyWon ? 'Nikt nie trafił — możesz puścić ten sam utwór jeszcze raz.' : '',
+            // Bez początku o tym, że nikt nie trafił: komunikat stoi wyżej razem z
+            // tytułem, a powtórka zajmowała dodatkową linię i wypychała panel.
+            results: nobodyWon ? 'Możesz puścić ten sam utwór jeszcze raz.' : '',
         }[view.state] ?? '';
     }
 

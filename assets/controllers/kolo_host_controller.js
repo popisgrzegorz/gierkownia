@@ -94,6 +94,10 @@ export default class extends Controller {
     #onServerEvent(event) {
         switch (event.type) {
             case 'wheel_result':
+                // Nowy zakręt: komunikat po poprzednim („BANKRUT!", „Litery A nie ma")
+                // nie opisuje już tego, co zaraz wypadnie, a zostawał nad
+                // przyciskami także po kolejnych zakrętach.
+                this.eventTarget.textContent = '';
                 // Serwer już zna wynik; animacja go tylko pokazuje, a po jej
                 // zakończeniu meldujemy zatrzymanie i gra rusza dalej.
                 this.#startSpin(event.index, event.power);
