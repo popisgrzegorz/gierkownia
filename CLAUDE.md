@@ -377,13 +377,14 @@ albo przyimek, więc odsłonięcie go oddaje cały wyraz i nie mówi nic o haśl
 Raz na kartę: druga podpowiedź zamieniłaby kalambury w zgadywankę z planszy.
 Punktacji nie zmienia, bo o podpowiedź i tak prosi ten, kto już utknął.
 
-**Tabler (Bootstrap 5) z CDN-u zamiast pełnej autonomii offline** (§15). Własny
-CSS wymagał ręcznego dopieszczania każdego breakpointu, a widok telefonu i tak
-wychodził słaby. Skoro gra stoi pod publiczną domeną z certyfikatem, internet
-jest warunkiem wejścia — więc zależność z sieci przestała być realnym ryzykiem.
-**Konsekwencja:** impreza bez internetu = strona bez styli. Powrót do trybu LAN
-oznacza ściągnięcie `tabler.min.css` do `assets/styles/vendor/` i podmianę
-jednego `<link>` w `base.html.twig`. Wersja jest pinowana (1.4.0), nie `@latest`.
+**Tabler (Bootstrap 5) zamiast własnego CSS-a, lokalnie.** Własny CSS wymagał
+ręcznego dopieszczania każdego breakpointu, a widok telefonu i tak wychodził
+słaby. Początkowo Tabler szedł z CDN-u (gra stała tylko pod publiczną domeną);
+po wdrożeniu w LAN leży w repo: `assets/styles/vendor/tabler.min.css` (wersja
+pinowana 1.4.0, bez source mapy), a czcionki w `assets/fonts/` z opisem
+`assets/styles/fonts.css`. Dzięki temu **strona nie wymaga internetu** — ani
+w LAN, ani za proxy. Nowy font dodawaj jako woff2 w podzbiorach `latin` +
+`latin-ext` (tylko ten drugi ma „ąćęłńśźż").
 
 **Panel zamiast `app:deck:sync` z YAML** (§13.8). Import z pliku kasował pozycje,
 których w pliku nie było — przy panelu oznaczałoby to ciche kasowanie ręcznej
@@ -774,7 +775,7 @@ hosta - z dołu tej kolumny do paska u góry.
 `assets/styles/gierkownia.css`, ładowanym PO `app.css` - app.css trzyma układ
 (siatki pilnujące, żeby gra mieściła się w TV), gierkownia.css wygląd: tło
 „salon wieczorem” z samych gradientów, fonty Baloo 2 / Nunito / Caveat (**nie** Lilita One z makiety - nie ma polskich liter z ogonkami; nowy font zawsze sprawdź na „ąćęłńóśźż”)
-(Google Fonts, z sieci jak Tabler - bez internetu spadają do systemowych),
+(woff2 lokalnie w `assets/fonts/`, patrz `assets/styles/fonts.css`),
 przyciski z grubym spodem, fioletowe panele. Logo to tekst + inline SVG
 (`templates/_brand/logo.html.twig`, wariant `small`). Każda gra ma kolorową
 ilustrację `templates/game/{typ}/art.html.twig` (zapas: `game/_art.html.twig`) -
@@ -1013,8 +1014,8 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
   gotowe (`public/manifest.json`, `public/sw.js`, ikony 192/512 + apple-touch) —
   aplikacja instaluje się na ekran, ale worker **niczego nie cache'uje**
   (`fetch` leci prosto do sieci). Zostaje pytanie odwrotne: czy gra ma nadal
-  działać **bez internetu** w LAN — cache'owanie Tablera (z CDN) albo assetów
-  gry przesądziłoby to bez rozmowy, więc worker świadomie tego nie robi.
+  działać **bez internetu** w LAN — cache'owanie assetów
+  gry przesądziłoby to bez rozmowy (Tabler i czcionki są już lokalnie), więc worker świadomie tego nie robi.
   Pod adresem IP bez TLS worker i tak by się nie zarejestrował. Tryb LAN jest
   wciąż wspierany konfiguracją (`APP_BIND=0.0.0.0`, `MERCURE_PUBLIC_PORT=3010`).
 - ~~**Timer a rozjazd zegarów (§8).**~~ **Rozstrzygnięte przy kalamburach:**

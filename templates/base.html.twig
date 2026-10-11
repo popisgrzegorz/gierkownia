@@ -23,24 +23,18 @@
                Wersja PINOWANA, nie @latest: wydanie w górę potrafi przestawić
                układ bez uprzedzenia, a tego nikt nie chce odkryć przy stole.
 
-               UWAGA: to jedyna zależność z sieci w runtime. Świadome odstępstwo
-               od spec §15 - gra stoi pod publiczną domeną, więc internet i tak
-               jest warunkiem wejścia. Gdyby wróciła praca w LAN bez internetu,
-               ściągnij ten plik do assets/styles/vendor/ i podmień href. #}
-            <link rel="stylesheet"
-                  href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
+               Plik leży lokalnie w assets/styles/vendor/ (wersja 1.4.0), więc gra
+               nie potrzebuje internetu - ani w LAN, ani za proxy. #}
+            <link rel="stylesheet" href="{{ asset('styles/vendor/tabler.min.css') }}">
             {# Nasz CSS po Tablerze - dopowiada to, czego framework nie umie:
                skalę czytelną z 3 metrów na telewizorze i pełnoekranowy buzzer. #}
             <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
             {# Fonty: Baloo 2 (tytuły, logo), Nunito (tekst), Caveat (odręczne
                dopiski) - wszystkie z pełnym polskim alfabetem. Makieta miała
                Lilita One, ale ta nie ma „ą ć ę ń ś ź ż”: przeglądarka
-               dociągała je z innej czcionki i tytuły wyglądały na zepsute. Z sieci, jak Tabler - gra i tak stoi
-               pod publiczną domeną; bez internetu spadają do systemowych. #}
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link rel="stylesheet"
-                  href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800;900&display=swap">
+               dociągała je z innej czcionki i tytuły wyglądały na zepsute. Pliki woff2 leżą w assets/fonts/ (latin + latin-ext),
+               opisane w styles/fonts.css. #}
+            <link rel="stylesheet" href="{{ asset('styles/fonts.css') }}">
             {# Motyw „Gierkownia” (makieta var/gierkownia.png) - nadpisuje
                app.css tam, gdzie zmienia wygląd ekranu TV i strony startowej. #}
             <link rel="stylesheet" href="{{ asset('styles/gierkownia.css') }}">
