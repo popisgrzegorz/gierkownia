@@ -10,7 +10,7 @@
         "doctrine/doctrine-bundle": "^2.18",
         "doctrine/doctrine-migrations-bundle": "^3.7",
         "doctrine/orm": "^3.6",
-        "easycorp/easyadmin-bundle": "^5.3",
+        "easycorp/easyadmin-bundle": "^5.6.1",
         "endroid/qr-code": "^6.0",
         "predis/predis": "^3.5",
         "symfony/asset": "7.4.*",
