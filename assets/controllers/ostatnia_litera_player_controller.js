@@ -14,6 +14,9 @@ export default class extends Controller {
     /** Miekkie spolgloski koncowe i ich dwuznak - sama podpowiedz, walidacja jest po stronie serwera. */
     static DIGRAPHS = { ń: 'NI', ć: 'CI', ś: 'SI', ź: 'ZI' };
 
+    /** Żadne polskie słowo nie zaczyna się na „ą" - po nim wymagane jest „a" (patrz serwer, NASAL_FALLBACKS). */
+    static NASALS = { ą: 'a', ę: 'e' };
+
     connect() {
         this.offset = 0;
         this.lastWord = null;
@@ -102,6 +105,9 @@ export default class extends Controller {
                 break;
 
             case 'game_over':
+                // Błąd z ostatniej tury („Słowo musi zaczynać się na „Ą"") zostawał pod
+                // napisem o końcu gry.
+                this.errorTarget.textContent = '';
                 this.winnerValue = event.winner ?? '';
                 clearInterval(this.ticker);
                 this.clockTarget.hidden = true;
@@ -175,7 +181,7 @@ export default class extends Controller {
         const last = this.lastWord.slice(-1).toLowerCase();
         const pair = this.constructor.DIGRAPHS[last];
 
-        return pair ? `${last.toUpperCase()} / ${pair}` : last.toUpperCase();
+        return pair ? `${last.toUpperCase()} / ${pair}` : (this.constructor.NASALS[last] ?? last).toUpperCase();
     }
 
     /**
@@ -191,7 +197,7 @@ export default class extends Controller {
 
         const last = this.lastWord.slice(-1).toLowerCase();
         const pair = this.constructor.DIGRAPHS[last];
-        const prefill = pair ?? last.toUpperCase();
+        const prefill = pair ?? (this.constructor.NASALS[last] ?? last).toUpperCase();
 
         this.inputTarget.value = prefill;
         this.inputTarget.setSelectionRange(prefill.length, prefill.length);

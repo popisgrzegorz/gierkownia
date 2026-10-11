@@ -300,6 +300,16 @@ export default class extends Controller {
     }
 
     #handle(event) {
+        // Koniec gry z innego urządzenia: ekran gry wraca do lobby i NIE dostaje
+        // tego zdarzenia, bo każdy panel gry odpowiadał na 'phase' zapytaniem o
+        // widok gry, którego już nie ma (400 w logu przy każdej zmianie gry).
+        if ('phase' === event.type && 'lobby' === event.state && this.inGameValue) {
+            // Miękko, żeby pełny ekran przetrwał (patrz soft_nav.js).
+            softNavigate();
+
+            return;
+        }
+
         // Jeden strumień SSE na ekran: panel gry (melodia, koło) słucha tego
         // zdarzenia zamiast otwierać hubowi drugie połączenie.
         window.dispatchEvent(new CustomEvent('gierki:event', { detail: event }));
@@ -313,15 +323,6 @@ export default class extends Controller {
                 break;
             case 'reset':
                 this.#resetScores();
-                break;
-            case 'phase':
-                // Host kończy grę na jednym ekranie (np. TV), a drugi (tablet w
-                // kalamburach rysowanych) wisiał na starym widoku gry, dopóki ktoś
-                // go nie przeładował. Ekran z trwającą grą wraca więc sam do wyboru
-                // gry. Miękko, żeby pełny ekran przetrwał (patrz soft_nav.js).
-                if ('lobby' === event.state && this.inGameValue) {
-                    softNavigate();
-                }
                 break;
             case 'team_removed':
                 this.#removeTeamTile(event.teamId);

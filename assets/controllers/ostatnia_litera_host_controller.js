@@ -18,6 +18,9 @@ export default class extends Controller {
     /** Miekkie spolgloski koncowe i ich dwuznak - sama podpowiedz na ekranie, nie walidacja. */
     static DIGRAPHS = { ń: 'NI', ć: 'CI', ś: 'SI', ź: 'ZI' };
 
+    /** Żadne polskie słowo nie zaczyna się na „ą" - po nim wymagane jest „a" (patrz serwer, NASAL_FALLBACKS). */
+    static NASALS = { ą: 'a', ę: 'e' };
+
     connect() {
         this.offset = 0;
         this.teams = new Map(
@@ -123,11 +126,15 @@ export default class extends Controller {
             ? `Start: ${view.startingPoints} pkt — próg zwycięstwa: ${view.winThreshold} pkt`
             : '';
 
-        this.letterTarget.textContent = this.#requiredLetterDisplay(view.lastWord);
+        // „Zagraj ponownie" zostawia w stanie dane skończonej gry (start() i tak
+        // zeruje wszystko), więc w idle nie pokazujemy ani liter, ani łańcucha słów.
+        const idle = 'idle' === view.state;
+
+        this.letterTarget.textContent = this.#requiredLetterDisplay(idle ? null : view.lastWord);
         this.turnTarget.textContent = 'playing' === view.state && view.turn
             ? `Teraz: ${this.#teamName(view.turn)}`
             : '';
-        this.#renderWordChain(view.usedWords ?? []);
+        this.#renderWordChain(idle ? [] : (view.usedWords ?? []));
 
         this.judgePanelTarget.hidden = 'judging' !== view.state;
 
@@ -154,8 +161,10 @@ export default class extends Controller {
     }
 
     #renderTeams(view) {
+        // W idle (po „Zagraj ponownie") wyniki i „odpadła" są jeszcze z poprzedniej gry.
+        const idle = 'idle' === view.state;
         const points = view.points ?? {};
-        const eliminated = new Set(view.eliminated ?? []);
+        const eliminated = new Set(idle ? [] : (view.eliminated ?? []));
 
         const items = (view.teams ?? []).map((team) => {
             const li = document.createElement('li');
@@ -169,7 +178,7 @@ export default class extends Controller {
 
             const score = document.createElement('span');
             score.className = 'ol-team-credits';
-            score.textContent = eliminated.has(team.id) ? 'odpadła' : `${points[team.id] ?? 0} pkt`;
+            score.textContent = idle ? '—' : (eliminated.has(team.id) ? 'odpadła' : `${points[team.id] ?? 0} pkt`);
 
             li.append(name, score);
 
@@ -251,7 +260,7 @@ export default class extends Controller {
         const last = lastWord.slice(-1).toLowerCase();
         const pair = this.constructor.DIGRAPHS[last];
 
-        return pair ? `${last.toUpperCase()} / ${pair}` : last.toUpperCase();
+        return pair ? `${last.toUpperCase()} / ${pair}` : (this.constructor.NASALS[last] ?? last).toUpperCase();
     }
 
     #teamName(teamId) {

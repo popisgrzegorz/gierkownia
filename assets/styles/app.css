@@ -832,7 +832,9 @@ body:not(.admin) .tv-bar-right .btn-icon {
     width: 1.5rem;
     height: 1.5rem;
     font-size: 0.75rem;
-    opacity: 0;
+    /* Wcześniej 0 do najechania myszą: na TV z pilotem i na dotyku ✕ było
+       nie do znalezienia. Zostaje przygaszone, a przy najechaniu pełne. */
+    opacity: 0.65;
 }
 
 .tv-teams .team:hover .team-remove,

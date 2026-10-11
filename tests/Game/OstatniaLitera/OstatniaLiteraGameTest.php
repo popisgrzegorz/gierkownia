@@ -47,7 +47,7 @@ final class OstatniaLiteraGameTest extends RedisTestCase
     /** Musi zgadzac sie z OstatniaLiteraGame::TIMEOUT_PENALTY (prywatna, wiec zdublowana tutaj). */
     private const TIMEOUT_PENALTY = 2;
     /** @var list<string> */
-    private const KNOWN_WORDS = ['kot', 'tor', 'rak', 'kod', 'dom', 'mak', 'koń', 'niebo'];
+    private const KNOWN_WORDS = ['kot', 'tor', 'rak', 'kod', 'dom', 'mak', 'koń', 'niebo', 'arbuz', 'ekran'];
 
     private GameEngine $engine;
     private GameState $gameState;
@@ -239,6 +239,42 @@ final class OstatniaLiteraGameTest extends RedisTestCase
         $this->team($this->alfa, 'submit', ['word' => 'niebo']);
 
         self::assertSame('niebo', $this->engine->hostView($this->room)['lastWord']);
+    }
+
+    /**
+     * Zadne polskie slowo nie zaczyna sie na "ą", a "gęślą" konczy sie na "ą":
+     * bez tej reguly gra stawala - obie druzyny traciły punkty za spoznienie
+     * do konca partii (wynik na minusie).
+     */
+    public function testAfterANasalVowelTheBaseLetterStartsTheNextWord(): void
+    {
+        $this->start();
+        $this->forceLastWord('gęślą');
+
+        $this->team($this->alfa, 'submit', ['word' => 'arbuz']);
+
+        self::assertSame('arbuz', $this->engine->hostView($this->room)['lastWord']);
+    }
+
+    public function testAfterTheNasalEThePlainEStartsTheNextWord(): void
+    {
+        $this->start();
+        $this->forceLastWord('sprawę');
+
+        $this->team($this->alfa, 'submit', ['word' => 'ekran']);
+
+        self::assertSame('ekran', $this->engine->hostView($this->room)['lastWord']);
+    }
+
+    public function testAfterANasalVowelAnotherLetterIsStillRefusedAndTheMessageNamesTheBaseLetter(): void
+    {
+        $this->start();
+        $this->forceLastWord('gęślą');
+
+        $this->expectException(IllegalActionException::class);
+        $this->expectExceptionMessage('„A”');
+
+        $this->team($this->alfa, 'submit', ['word' => 'rak']);
     }
 
     public function testSubmitRefusesAnAlreadyUsedWordCaseInsensitively(): void
