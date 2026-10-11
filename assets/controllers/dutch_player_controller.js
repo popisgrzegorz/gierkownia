@@ -105,6 +105,12 @@ export default class extends Controller {
             return;
         }
 
+        // Pomyłka kosztuje punkty karne, a przycisk stoi tuż pod „Dobierz kartę" -
+        // tak samo jak przy waleciu i podmianie, dopytujemy.
+        if (!(await confirmDialog('Zawołać „Dutch”? Jeśli ktoś ma niższy wynik, dostaniesz 5 punktów karnych.', { confirmLabel: 'Zawołaj' }))) {
+            return;
+        }
+
         button.disabled = true;
 
         try {

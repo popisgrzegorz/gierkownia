@@ -2,11 +2,17 @@
    game_view jest dla hosta, więc telefon dalej żyje wyłącznie z eventów. #}
 <p class="game-tab c-bg-ostatnia-litera">OSTATNIA LITERA</p>
 
+{# Nazwy drużyn na telefon: po końcu gry gracz ma zobaczyć, KTO wygrał, a nie tylko
+   że gra się skończyła (event game_over niesie samo id zwycięzcy). #}
+{% set names = {} %}
+{% for t in game.teams %}{% set names = names|merge({(t.id): t.name}) %}{% endfor %}
 <div class="ostatnia-litera-player"
      data-controller="ostatnia-litera-player"
      data-team-id="{{ team.id }}"
      data-ostatnia-litera-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
      data-ostatnia-litera-player-state-value="{{ game.state }}"
+     data-ostatnia-litera-player-winner-value="{{ game.winner ?? '' }}"
+     data-ostatnia-litera-player-team-names-value="{{ names|json_encode }}"
      data-ostatnia-litera-player-my-turn-value="{{ game.myTurn ? 'true' : 'false' }}">
 
     {# Litera obok zegara, nie osobno nad polem - zegar zostaje w widoku nawet

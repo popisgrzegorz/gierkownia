@@ -764,7 +764,10 @@ body.host .gk-players .team-remove {
     background: var(--err);
     color: #fff;
     font-size: 0.75em;
-    opacity: 0;
+    /* Wcześniej niewidoczny do najechania myszą - na TV z pilotem (i na
+       dotyku) nie ma najechania, więc ✕ był nie do znalezienia. Zostaje
+       dyskretny, a przy najechaniu/fokusie pełny. */
+    opacity: 0.7;
 }
 
 body.host .gk-players .team:hover .team-remove,

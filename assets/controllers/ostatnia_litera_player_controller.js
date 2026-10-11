@@ -9,7 +9,7 @@ import { Controller } from '@hotwired/stimulus';
  */
 export default class extends Controller {
     static targets = ['letter', 'clock', 'clockValue', 'inputRow', 'input', 'note', 'error'];
-    static values = { actionUrl: String, state: String, myTurn: Boolean };
+    static values = { actionUrl: String, state: String, myTurn: Boolean, winner: String, teamNames: Object };
 
     /** Miekkie spolgloski koncowe i ich dwuznak - sama podpowiedz, walidacja jest po stronie serwera. */
     static DIGRAPHS = { ń: 'NI', ć: 'CI', ś: 'SI', ź: 'ZI' };
@@ -97,6 +97,7 @@ export default class extends Controller {
                 break;
 
             case 'game_over':
+                this.winnerValue = event.winner ?? '';
                 clearInterval(this.ticker);
                 this.clockTarget.hidden = true;
                 this.myTurnValue = false;
@@ -107,6 +108,7 @@ export default class extends Controller {
                 break;
 
             case 'reset':
+                this.winnerValue = '';
                 this.stateValue = 'idle';
                 this.myTurnValue = false;
                 this.lastWord = null;
@@ -140,8 +142,23 @@ export default class extends Controller {
             idle: 'Zaraz zaczynamy.',
             playing: this.myTurnValue ? 'Twoja kolej — pisz!' : 'Czekaj na swoją kolej.',
             judging: this.myTurnValue ? 'Sędzia sprawdza twoje słowo…' : 'Sędzia sprawdza słowo przeciwnika…',
-            finished: 'Koniec gry.',
+            finished: this.#finishedNote(),
         }[this.stateValue] ?? '';
+    }
+
+    /** Kto wygrał - telefon pokazywał samo „Koniec gry", a wynik był tylko w nagłówku. */
+    #finishedNote() {
+        if (!this.winnerValue) {
+            return 'Koniec gry.';
+        }
+
+        if (this.winnerValue === this.element.dataset.teamId) {
+            return 'Koniec gry — wygraliście! 🏆';
+        }
+
+        const name = this.teamNamesValue[this.winnerValue];
+
+        return name ? `Koniec gry — wygrywa ${name}.` : 'Koniec gry.';
     }
 
     /** Podpowiedź na ekranie - sama walidacja słowa jest po stronie serwera. */
