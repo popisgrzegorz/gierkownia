@@ -2556,3 +2556,32 @@ body.host .vinyl-arm-tube rect:nth-of-type(2) {
 body.host .vinyl-arm-tube rect:nth-of-type(3) {
     fill: var(--gk-yellow);
 }
+
+/* ---------- okno potwierdzenia (assets/confirm.js) ---------- */
+.gk-confirm {
+    max-width: min(34rem, calc(100vw - 2rem));
+    padding: 1.6rem 1.8rem;
+    border: 2px solid var(--gk-panel-border);
+    border-radius: 1.2rem;
+    background: var(--gk-bg);
+    color: var(--gk-text);
+    font-family: var(--gk-body);
+    box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.6);
+}
+
+.gk-confirm::backdrop {
+    background: rgba(8, 5, 28, 0.72);
+}
+
+.gk-confirm__text {
+    margin: 0 0 1.4rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.gk-confirm__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.8rem;
+}
