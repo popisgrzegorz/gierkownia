@@ -48,6 +48,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Prawdziwy sedzia slow (HunspellWordJudgeTest); bez tych pakietow test
+      # jest pomijany i regresja slownika przeszlaby niezauwazona.
+      - name: Hunspell z polskim slownikiem
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq hunspell hunspell-pl
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
