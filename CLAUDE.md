@@ -270,6 +270,21 @@ nie pustym stringiem: unikalny indeks `(category_id, path)` przepuszcza wiele
 NULL-i, ale nie dwa puste stringi. **Konsekwencja:** utwór umiera, gdy źródło
 przeniesie plik albo zablokuje odtwarzanie z obcej strony — pliku nie mamy.
 
+**Nagrania z Deezera: 30-sekundowe fragmenty, pobierane do pliku.**
+`app:melodia:wyszukaj lista.txt -k "Kategoria"` bierze listę „wykonawca - tytuł",
+szuka każdego utworu w publicznym API Deezera (bez klucza) i zapisuje jego podgląd
+(`preview`, 30 s mp3) jako **zwykły plik** w `var/media/deezer/{id}.mp3`. Świadomie
+nie linkujemy: adresy podglądów są podpisane i wygasają po jakimś czasie, a plik
+u nas działa też bez internetu. YouTube odpada: `<audio>` nie zagra filmu, osadzony
+player pokazuje obraz (zdradza odpowiedź) i wymaga sieci, a ściąganie dźwięku łamie
+regulamin. Fragmenty są do podglądu — **użytek domowy, nie publiczne granie**.
+Dopasowanie (`DeezerClient::matches`) ignoruje ozdobniki („(2011 Remaster)",
+„feat.") i wymaga tego samego tytułu i wykonawcy — zła piosenka w quizie jest
+gorsza niż brak; wersja live/remix wchodzi tylko, gdy nie ma studyjnej. Część
+polskich utworów w Deezerze nie ma wcale albo tylko w wersji live — komenda
+raportuje braki (`--podglad` = tylko wyszukaj). Powtórzenie jest bezpieczne
+(ta sama ścieżka w kategorii = pominięte). Przykładowa lista: `tools/listy/`.
+
 **Wariant gry = osobny moduł, nie przełącznik w istniejącym.** „Jaka to melodia"
 ma dwa warianty i są to dwie klasy. W buzzerowym liczy się refleks jednej drużyny
 (arbiter blokuje resztę), w teście 1 z 4 wszyscy odpowiadają naraz i rozstrzyga
