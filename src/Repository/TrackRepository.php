@@ -33,6 +33,22 @@ class TrackRepository extends ServiceEntityRepository
         return [] !== $found;
     }
 
+    /** Czy plik o tej sciezce juz jest w kategorii - import z Deezera nie dubluje utworow. */
+    public function hasPathIn(Category $category, string $path): bool
+    {
+        $found = $this->createQueryBuilder('t')
+            ->select('1')
+            ->andWhere('t.category = :category')
+            ->andWhere('t.path = :path')
+            ->setParameter('category', $category)
+            ->setParameter('path', $path)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getResult();
+
+        return [] !== $found;
+    }
+
     /** Ile razy dany plik jest uzywany - kasujac utwor nie wolno usunac pliku wspoldzielonego. */
     public function countByPath(string $path): int
     {

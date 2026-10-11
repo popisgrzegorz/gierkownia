@@ -19,6 +19,7 @@ final class ComposerRuntimeDependenciesTest extends TestCase
     /** Pakiety, bez ktorych cos w src/ cicho przestaje dzialac. */
     private const REQUIRED_AT_RUNTIME = [
         'symfony/process', // HunspellWordJudge
+        'symfony/http-client', // DeezerClient
     ];
 
     public function testPackagesUsedBySourceCodeAreNotDevOnly(): void
