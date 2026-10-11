@@ -38,7 +38,10 @@ services:
 
 ###> symfony/mercure-bundle ###
   mercure:
-    image: dunglas/mercure
+    # Wersja przypieta: od 1.0 hub wymaga w tokenie claimu iss, a
+    # symfony/mercure-bundle 0.4 go nie wysyla - publikacja pada z
+    # "untrusted issuer". Z :latest kontener sam sie psuje po pull.
+    image: dunglas/mercure:v0.24.2
     restart: unless-stopped
     environment:
       # LAN bez internetu - hub jedzie po HTTP, TLS konczy sie na reverse proxy.

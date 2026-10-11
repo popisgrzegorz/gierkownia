@@ -36,7 +36,8 @@ final class TrackDeckTest extends DoctrineTestCase
         // Sto losowan wystarczy: gdyby talia siegala tylko po pierwsza
         // kategorie, "Dwa" nie wypadloby ani razu.
         for ($i = 0; $i < 100; ++$i) {
-            $seen[$this->deck->drawNext(['pierwsza', 'druga'], [])?->getTitle()] = true;
+            // ?? '': drawNext() moze zwrocic null, a null nie jest kluczem tablicy.
+            $seen[$this->deck->drawNext(['pierwsza', 'druga'], [])?->getTitle() ?? ''] = true;
         }
 
         self::assertArrayHasKey('Raz', $seen);

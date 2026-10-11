@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    # Testy rozmawiaja z prawdziwym Redisem, Postgresem i hubem Mercure (patrz
+    # CLAUDE.md, "Konwencje"), wiec CI stawia je jako uslugi - te same porty co
+    # w .env / .env.test, zeby nic nie trzeba bylo nadpisywac poza hubem.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["56379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+      database:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gierki
+          POSTGRES_USER: gierki
+          POSTGRES_PASSWORD: gierki
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gierki -d gierki" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+      mercure:
+        # v0.24.2, nie latest: od 1.0 hub wymaga claimu iss (patrz compose.yaml).
+        image: dunglas/mercure:v0.24.2
+        env:
+          SERVER_NAME: ":80"
+          MERCURE_PUBLISHER_JWT_KEY: ci-mercure-secret-ci-mercure-secret
+          MERCURE_SUBSCRIBER_JWT_KEY: ci-mercure-secret-ci-mercure-secret
+          MERCURE_EXTRA_DIRECTIVES: anonymous
+        ports: ["3010:80"]
+
+    env:
+      # Aplikacja musi widziec hub pod adresem z uslugi powyzej i tym samym kluczem.
+      MERCURE_BIND: 127.0.0.1
+      MERCURE_JWT_SECRET: ci-mercure-secret-ci-mercure-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: intl, mbstring, pdo_pgsql, xml, curl, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composera
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      # Stimulus i Turbo sa poza repo (.gitignore: /assets/vendor/).
+      - run: php bin/console importmap:install
+
+      - name: Migracje bazy testowej
+        run: |
+          php bin/console doctrine:database:create --env=test --if-not-exists
+          php bin/console doctrine:migrations:migrate --no-interaction --env=test
+
+      # Kontener huba nie ma healthchecka w `services`, a testy publikuja od
+      # pierwszej sekundy - bez czekania pierwsze testy padalyby losowo.
+      - name: Czekaj na hub Mercure
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3010/healthz && exit 0
+            sleep 2
+          done
+          echo "Hub Mercure nie wstal" >&2
+          exit 1
+
+      - run: php bin/phpunit
+
+      - run: php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
+
+  lint-js:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
