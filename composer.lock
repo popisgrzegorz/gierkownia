@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2fc84025efb946ed5385e451fc10c8bb",
+    "content-hash": "30b364b09e376a03ca0b35c46b73cb50",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -1305,16 +1305,16 @@
         },
         {
             "name": "easycorp/easyadmin-bundle",
-            "version": "v5.3.0",
+            "version": "v5.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/EasyCorp/EasyAdminBundle.git",
-                "reference": "730f0e0a36623acf85b5c12f0cca913f96eab9e7"
+                "reference": "0b34965c9c8b7b82a6bbeefd892078b29e027614"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/EasyCorp/EasyAdminBundle/zipball/730f0e0a36623acf85b5c12f0cca913f96eab9e7",
-                "reference": "730f0e0a36623acf85b5c12f0cca913f96eab9e7",
+                "url": "https://api.github.com/repos/EasyCorp/EasyAdminBundle/zipball/0b34965c9c8b7b82a6bbeefd892078b29e027614",
+                "reference": "0b34965c9c8b7b82a6bbeefd892078b29e027614",
                 "shasum": ""
             },
             "require": {
@@ -1403,7 +1403,7 @@
             ],
             "support": {
                 "issues": "https://github.com/EasyCorp/EasyAdminBundle/issues",
-                "source": "https://github.com/EasyCorp/EasyAdminBundle/tree/v5.3.0"
+                "source": "https://github.com/EasyCorp/EasyAdminBundle/tree/v5.6.1"
             },
             "funding": [
                 {
@@ -1411,7 +1411,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-21T19:19:06+00:00"
+            "time": "2026-09-30T05:59:24+00:00"
         },
         {
             "name": "endroid/qr-code",
