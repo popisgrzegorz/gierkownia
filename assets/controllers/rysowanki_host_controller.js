@@ -525,7 +525,8 @@ export default class extends Controller {
             timeout: 'Czas minął — nikt nie odgadł.',
         };
         const tabletHints = {
-            idle: 'Czekaj, aż host wybierze kategorię.',
+            // Kategoria bywa już wybrana - wtedy czekamy na losowanie haseł, nie na wybór.
+            idle: view.category ? 'Czekaj, aż host wylosuje hasła.' : 'Czekaj, aż host wybierze kategorię.',
             dealt: 'Wybierz jedno z trzech haseł.',
             drawing: 'Rysuj! Kliknij drużynę, która zgadła.',
             guessed: 'Odgadnięte!',

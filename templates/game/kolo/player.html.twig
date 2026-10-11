@@ -11,7 +11,7 @@
      data-kolo-player-my-turn-value="{{ game.myTurn ? 'true' : 'false' }}">
 
     <p class="puzzle-mini" data-kolo-player-target="board">{{ game.mask }}</p>
-    <p class="text-secondary small mb-2" data-kolo-player-target="hint">
+    <p class="player-puzzle-hint" data-kolo-player-target="hint">
         {{ [game.category, game.hint]|filter(v => v)|join(' • ') }}
     </p>
 

@@ -135,6 +135,9 @@ export default class extends Controller {
                 break;
 
             case 'puzzle_ready':
+                // Komunikat o poprzednim haśle („X rozwiązuje! +2300") nie może
+                // wisieć nad nowym.
+                this.eventTarget.textContent = '';
                 sfx.play('whoosh');
                 break;
         }
@@ -348,8 +351,16 @@ export default class extends Controller {
     }
 
     #renderControls(view) {
+        // Po „Następne hasło" serwer zostaje w stanie idle, ale z już wylosowanym
+        // hasłem (puzzleNumber > 0) - wtedy gra czeka na zakręcenie koła, a nie na
+        // losowanie. „Losuj hasło" w tym miejscu losowało KOLEJNE i jedno hasło
+        // z puli przepadało bez gry.
+        const puzzleDrawn = 'idle' === view.state && (view.puzzleNumber ?? 0) > 0;
+        // Bez „Oddaj turę": z idle serwer nie ma takiego przejścia (jest tylko z next_team).
+        const spinButtons = [['spin', 'Zakręć kołem', 'primary']];
+
         const buttons = {
-            idle: view.category ? [['next_puzzle', 'Losuj hasło', 'primary']] : [],
+            idle: puzzleDrawn ? spinButtons : (view.category ? [['next_puzzle', 'Losuj hasło', 'primary']] : []),
             next_team: [['spin', 'Zakręć kołem', 'primary'], ['skip_turn', 'Oddaj turę', '']],
             spinning: [],
             landed: [],
@@ -370,7 +381,9 @@ export default class extends Controller {
         }));
 
         this.hintTarget.textContent = {
-            idle: view.category ? 'Wylosuj hasło, żeby zacząć.' : 'Wybierz kategorię.',
+            idle: puzzleDrawn
+                ? 'Drużyna kręci kołem — z telefonu albo stąd.'
+                : (view.category ? 'Wylosuj hasło, żeby zacząć.' : 'Wybierz kategorię.'),
             next_team: 'Drużyna kręci kołem — z telefonu albo stąd.',
             spinning: 'Koło się kręci…',
             pick_letter: 'Drużyna podaje literę na telefonie.',
