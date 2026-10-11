@@ -29,6 +29,7 @@ final class ContentTypes
         'melodia' => 'Jaka to melodia',
         'kolo' => 'Koło fortuny',
         'kalambury' => 'Kalambury',
+        'kalambury-rysowane' => 'Kalambury rysowane',
     ];
 
     /**
@@ -37,7 +38,7 @@ final class ContentTypes
      *
      * @var list<string>
      */
-    private const PHRASE_GAMES = ['kolo', 'kalambury'];
+    private const PHRASE_GAMES = ['kolo', 'kalambury', 'kalambury-rysowane'];
 
     /** @return list<string> */
     public static function kinds(): array

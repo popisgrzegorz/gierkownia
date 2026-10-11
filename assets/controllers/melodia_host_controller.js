@@ -14,6 +14,16 @@ export default class extends Controller {
     static values = { actionUrl: String, viewUrl: String, mediaUrl: String };
 
     connect() {
+        // Do nazw drużyn w podpowiedzi "kto już próbował" (patrz #armedHint) -
+        // ten sam trik co w rysowanki_host_controller.js: tablo drużyn żyje
+        // w DOM obok tego panelu, nie w widoku tej gry.
+        this.teams = new Map(
+            [...document.querySelectorAll('[data-team-id]')].map((tile) => [
+                tile.dataset.teamId,
+                tile.querySelector('.team-name')?.textContent?.trim() ?? 'drużyna',
+            ]),
+        );
+
         this.onEvent = (event) => this.#onServerEvent(event.detail);
         window.addEventListener('gierki:event', this.onEvent);
 
@@ -177,6 +187,21 @@ export default class extends Controller {
             : 'Runda zamknięta — losuj kolejny utwór.';
     }
 
+    /**
+     * Kto już próbował na TYM utworze i odpadł - dopisane do bazowej
+     * podpowiedzi, żeby host widział to bez zaglądania w telefony drużyn.
+     */
+    #armedHint(view) {
+        const base = 'Buzzery aktywne — pierwszy telefon zatrzyma muzykę.';
+        const excluded = (view.wrongTeams ?? []).map((teamId) => this.#teamName(teamId));
+
+        return 0 === excluded.length ? base : `${base} Już próbowali: ${excluded.join(', ')}.`;
+    }
+
+    #teamName(teamId) {
+        return this.teams.get(teamId) ?? 'drużyna';
+    }
+
     #renderControls(view) {
         const buttons = {
             // Utwór już odsłonięty (runda zamknięta) nie nadaje się do grania
@@ -205,7 +230,7 @@ export default class extends Controller {
 
         this.hintTarget.textContent = {
             idle: this.#idleHint(view),
-            armed: 'Buzzery aktywne — pierwszy telefon zatrzyma muzykę.',
+            armed: this.#armedHint(view),
             buzzed: 'Wysłuchaj odpowiedzi i oceń ją.',
             judging: 'wrong' === view.lastResult ? 'Możesz puścić utwór dalej dla pozostałych.' : '',
         }[view.state] ?? '';

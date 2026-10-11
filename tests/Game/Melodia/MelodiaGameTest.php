@@ -263,6 +263,96 @@ final class MelodiaGameTest extends DoctrineTestCase
     }
 
     /**
+     * Decyzja uzytkownika: kto sie pomyli, czeka na kolejny utwor zamiast
+     * probowac w kolko, az sie uda - inaczej jedna druzyna z dobrym refleksem
+     * moglaby "zgadywac na wyczucie" ten sam utwor bez konca.
+     */
+    public function testWrongAnswerExcludesThatTeamFromTheSameTrack(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+        $this->host('rearm');
+
+        $mark = \count($this->published);
+        $this->team($this->kanapowcy, 'buzz');
+
+        self::assertSame(
+            'armed',
+            $this->engine->currentState($this->room),
+            'Proba wykluczonej druzyny nie moze ruszyc gry do stanu "buzzed".',
+        );
+
+        $payload = $this->decode($this->onlyUpdateSince($mark)->getData());
+        self::assertSame('buzz_rejected', $payload['type']);
+        self::assertSame('excluded', $payload['reason']);
+    }
+
+    /** Wykluczona druzyna dostaje jasny sygnal - inny niz zwykle "za pozno". */
+    public function testExcludedTeamPlayerViewFlagsIt(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+        $this->host('rearm');
+
+        self::assertTrue($this->engine->playerView($this->room, $this->kanapowcy)['excluded']);
+        self::assertFalse($this->engine->playerView($this->room, $this->dywanowi)['excluded']);
+    }
+
+    /**
+     * Telefon wykluczonej druzyny ma dostac powiadomienie SAM, bez czekania,
+     * az ktos wcisnie przycisk - inaczej przycisk mylnie wygladalby na
+     * aktywny (event 'armed' leci do wszystkich jednakowo).
+     */
+    public function testExcludedTeamIsNotifiedAsSoonAsTheTrackIsRearmedWithoutPressingAnything(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+
+        $mark = \count($this->published);
+        $this->host('rearm');
+
+        $notice = $this->privateUpdateTo($mark, $this->kanapowcy);
+        $payload = $this->decode($notice->getData());
+        self::assertSame('buzz_rejected', $payload['type']);
+        self::assertSame('excluded', $payload['reason']);
+    }
+
+    /** Host widzi, kto juz probowal - bez zagladania w telefony drużyn. */
+    public function testHostViewListsTeamsExcludedFromTheCurrentTrack(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+
+        self::assertSame([$this->kanapowcy->id], $this->engine->hostView($this->room)['wrongTeams']);
+    }
+
+    /** Nowy utwor to czysta karta - wykluczenia z poprzedniego juz nie obowiazuja. */
+    public function testNextTrackClearsExclusionsSoEveryoneCanTryAgain(): void
+    {
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+        $this->host('judge', ['correct' => false]);
+        $this->host('finish');
+        $this->host('next_track');
+
+        self::assertSame([], $this->engine->hostView($this->room)['wrongTeams']);
+        self::assertFalse($this->engine->playerView($this->room, $this->kanapowcy)['excluded']);
+
+        $this->host('arm');
+        $this->team($this->kanapowcy, 'buzz');
+
+        self::assertSame(
+            'buzzed',
+            $this->engine->currentState($this->room),
+            'Na nowym utworze wczesniej wykluczona druzyna znow moze probowac.',
+        );
+    }
+
+    /**
      * Zagadka rozwiazana - tytul idzie na ekran od razu, bez czekania
      * na zamkniecie rundy. Wczesniej host widzial pusty ekran i musial
      * powiedziec na glos, co to bylo.
@@ -495,6 +585,20 @@ final class MelodiaGameTest extends DoctrineTestCase
         self::assertCount(1, $updates, 'Oczekiwano dokladnie jednego eventu.');
 
         return $updates[0];
+    }
+
+    /** Prywatny update do konkretnej druzyny wsrod opublikowanych po znaczniku. */
+    private function privateUpdateTo(int $mark, Team $team): Update
+    {
+        $topic = 'room/'.$this->room->code.'/team/'.$team->id;
+
+        foreach (\array_slice($this->published, $mark) as $update) {
+            if (\in_array($topic, $update->getTopics(), true)) {
+                return $update;
+            }
+        }
+
+        self::fail(sprintf('Nie znalazlem prywatnego update-u do druzyny "%s".', $team->name));
     }
 
     /** @return array<string, mixed> */

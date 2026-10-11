@@ -56,7 +56,11 @@ export default class extends Controller {
                 break;
 
             case 'buzz_rejected':
-                this.#render('locked');
+                // 'excluded' leci ALBO od razu po uzbrojeniu (drużyna już
+                // próbowała na tym utworze, patrz MelodiaGame::excludedMessages),
+                // ALBO dopiero po naciśnięciu - w obu przypadkach to inny
+                // komunikat niż zwykłe spóźnienie ('locked'/'stale').
+                this.#render('excluded' === event.reason ? 'excluded' : 'locked');
                 break;
 
             case 'judged':
@@ -79,6 +83,7 @@ export default class extends Controller {
             sent: ['…', true],
             floor: ['MASZ GŁOS', true],
             locked: [winnerName ? `${winnerName} był szybszy` : 'Za późno', true],
+            excluded: ['Już próbowaliście — czekajcie na kolejny utwór', true],
         };
 
         const [text, disabled] = labels[state] ?? labels.waiting;

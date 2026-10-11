@@ -1,0 +1,40 @@
+{# Logotyp wg makiety (var/gierkownia.png): GIERK + pad w miejscu „O” z koroną
+   + WNIA, pod spodem odręczne „Gramy razem!”. Zwykły tekst, nie obrazek -
+   skaluje się font-size'em rodzica i nie rozmywa na 55". Wariant `small`
+   (pasek w trakcie gry) bez podpisu i konfetti.
+
+   Użycie: {{ include('_brand/logo.html.twig', {small: true}) }} #}
+{% set small = small|default(false) %}
+<span class="gk-logo {{ small ? 'gk-logo-small' : '' }}" role="img" aria-label="Gierkownia">
+    {% if not small %}
+        <span class="gk-confetti" aria-hidden="true">
+            <i style="--x: -4%; --y: 18%; --r: -30deg; --c: #ffd23f"></i>
+            <i style="--x: 46%; --y: -6%; --r: 60deg; --c: #ff5d8f"></i>
+            <i style="--x: 70%; --y: -2%; --r: -15deg; --c: #4cc9f0"></i>
+            <i style="--x: 98%; --y: 30%; --r: 40deg; --c: #ffd23f"></i>
+            <i style="--x: 92%; --y: 92%; --r: -50deg; --c: #ff5d8f"></i>
+        </span>
+    {% endif %}
+    <span class="gk-word" aria-hidden="true">
+        <span class="gk-w1">GiERK</span><span class="gk-o">
+            <svg class="gk-crown" viewBox="0 0 64 40">
+                <path d="M6 36 L2 8 L18 20 L32 2 L46 20 L62 8 L58 36 Z" fill="#ffc21a" stroke="#2a1a05" stroke-width="3.5" stroke-linejoin="round"/>
+                <circle cx="32" cy="24" r="4" fill="#ff4d6d"/>
+            </svg>
+            <svg class="gk-pad" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="46" fill="url(#gk-pad-bg)" stroke="#2a1a05" stroke-width="6"/>
+                <defs>
+                    <radialGradient id="gk-pad-bg" cx=".35" cy=".3" r=".8">
+                        <stop offset="0" stop-color="#ffe98a"/><stop offset="1" stop-color="#ffb000"/>
+                    </radialGradient>
+                </defs>
+                <path d="M22 40 C22 32 28 30 36 30 H64 C72 30 78 32 78 40 L82 62 C83 70 76 74 70 68 L62 60 H38 L30 68 C24 74 17 70 18 62 Z" fill="#2a1a3f"/>
+                <path d="M33 40 V52 M27 46 H39" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="64" cy="42" r="4" fill="#ff4d6d"/><circle cx="71" cy="49" r="4" fill="#4cc9f0"/>
+            </svg>
+        </span><span class="gk-w2">WNIA</span>
+    </span>
+    {% if not small %}
+        <span class="gk-tag" aria-hidden="true">Gramy razem!</span>
+    {% endif %}
+</span>

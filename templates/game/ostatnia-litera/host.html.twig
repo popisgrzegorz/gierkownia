@@ -1,0 +1,89 @@
+{# Panel Ostatniej litery na ekranie hosta: kolejka, ostatnie słowo, kredyty
+   drużyn i panel sędziego. Nic tu nie jest tajne - w odróżnieniu od kalambur
+   host widzi dokładnie to samo, co telefony. #}
+<section class="game-panel ostatnia-litera-panel"
+         data-controller="ostatnia-litera-host"
+         data-ostatnia-litera-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-ostatnia-litera-host-view-url-value="{{ path('game_view', {code: room.code}) }}">
+
+    <div class="game-rail">
+        <h2 class="game-name">
+            <span class="game-name-1 c-ostatnia-litera">OSTATNIA</span>
+            <span class="game-name-2 c-ostatnia-litera">LITERA</span>
+        </h2>
+
+        <div class="clock clock-huge" data-ostatnia-litera-host-target="clock" hidden>
+            <span class="clock-value" data-ostatnia-litera-host-target="clockValue">--</span>
+        </div>
+
+        <div class="panel-row" data-ostatnia-litera-host-target="letterBox">
+            <span class="text-secondary small">Wymagana litera</span>
+            <div class="required-letter" data-ostatnia-litera-host-target="letter">?</div>
+        </div>
+
+        <p class="panel-eyebrow" data-ostatnia-litera-host-target="thresholdLine"></p>
+
+        <p class="tip-card">
+            <strong>Punkty, nie kredyty.</strong> Trafienie jest warte tyle punktów,
+            ile sekund zostało na zegarze - im szybsza odpowiedź, tym więcej.
+            Spóźnienie kosztuje stałą karę. Zero punktów lub mniej — koniec gry
+            dla drużyny; pierwsza drużyna, która osiągnie próg, wygrywa od razu.
+        </p>
+    </div>
+
+    <div class="game-main">
+        <div class="panel-row" data-ostatnia-litera-host-target="secondsRow">
+            <label for="ostatnia-litera-seconds">Czas na słowo</label>
+            <select id="ostatnia-litera-seconds" data-ostatnia-litera-host-target="seconds" class="form-select select">
+                <option value="5">5 s</option>
+                <option value="10" selected>10 s</option>
+                <option value="15">15 s</option>
+                <option value="20">20 s</option>
+                <option value="30">30 s</option>
+            </select>
+
+            <label for="ostatnia-litera-starting-points">Punkty startowe</label>
+            <input type="number" id="ostatnia-litera-starting-points"
+                   data-ostatnia-litera-host-target="startingPoints"
+                   class="form-control" min="1" max="999" value="10">
+
+            <label for="ostatnia-litera-win-threshold">Próg zwycięstwa</label>
+            <input type="number" id="ostatnia-litera-win-threshold"
+                   data-ostatnia-litera-host-target="winThreshold"
+                   class="form-control" min="2" max="9999" value="50">
+        </div>
+
+        <p class="turn-line" data-ostatnia-litera-host-target="turn"></p>
+        <p class="banner-small" data-ostatnia-litera-host-target="event"></p>
+
+        {# Wszystkie podane slowa po kolei - host i tak nie pilnuje powtorzen
+           recznie (odrzuca je serwer, tak samo jak zla litera startowa),
+           ale wszyscy przy stole maja miec do nich wglad na biezaco. #}
+        <ol class="ol-word-chain" data-ostatnia-litera-host-target="wordChain"></ol>
+
+        {# Panel sędziego: widoczny wyłącznie w stanie "judging", gdy słownik
+           nie rozpoznał słowa - host jest ostatecznym arbitrem, nie zgadujemy. #}
+        <div class="judge-panel" data-ostatnia-litera-host-target="judgePanel" hidden>
+            <p class="judge-question">
+                <span data-ostatnia-litera-host-target="judgeTeam"></span> podała słowo:
+            </p>
+            <p class="judge-word" data-ostatnia-litera-host-target="judgeWord"></p>
+            <div class="panel-row panel-controls">
+                <button type="button" class="btn btn-lg btn-primary" data-action="ostatnia-litera-host#rule" data-accept="true">
+                    ✓ Poprawne
+                </button>
+                <button type="button" class="btn btn-lg" data-action="ostatnia-litera-host#rule" data-accept="false">
+                    ✗ Odrzuć
+                </button>
+            </div>
+        </div>
+
+        <ul class="ol-teams" data-ostatnia-litera-host-target="teams"></ul>
+
+        <div class="panel-row panel-controls" data-ostatnia-litera-host-target="controls"></div>
+
+        <p class="hint muted" data-ostatnia-litera-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot">Pierwsza drużyna przy progu albo ostatnia żywa - wygrywa.</p>
+</section>

@@ -7,6 +7,8 @@ namespace App\Controller;
 use App\Core\Game\Actor;
 use App\Core\Game\GameEngine;
 use App\Core\Game\GameRegistry;
+use App\Core\Realtime\Event;
+use App\Core\Realtime\Publisher;
 use App\Core\Room\RoomAccess;
 use App\Core\Room\RoomLock;
 use App\Core\Room\RoomManager;
@@ -35,6 +37,7 @@ final class GameController extends AbstractController
         private readonly Scoreboard $scoreboard,
         private readonly Tournament $tournament,
         private readonly RoomLock $lock,
+        private readonly Publisher $publisher,
     ) {
     }
 
@@ -145,6 +148,43 @@ final class GameController extends AbstractController
             'teamId' => $teamId,
             'total' => $this->scoreboard->add($room->code, $teamId, $delta),
         ]);
+    }
+
+    /**
+     * Kanał na czystą dekorację - np. kreski rysunku w kalamburach rysowanych.
+     *
+     * Świadomie z pominięciem GameEngine: strumień potrafi iść kilkanaście
+     * razy na sekundę, a blokada pokoju (RoomLock) i pełny cykl FSM+ctx na
+     * KAŻDY punkt kreski byłyby marnotrawstwem - rysunek nie jest stanem gry,
+     * o który rozstrzyga serwer (jak zegar czy wynik), tylko dekoracją, jak
+     * animacje GSAP w Dutchu. Prymitywu może użyć każda przyszła gra, tak jak
+     * `/score` (patrz komentarz przy tamtej trasie) - stąd w rdzeniu, nie
+     * w module. Dostępne tylko hostowi: prywatne oferty (np. hasło do wyboru
+     * w kalamburach rysowanych) nie mają wyciekać do telefonów graczy.
+     */
+    #[Route('/live', name: 'game_live', methods: ['POST'])]
+    public function live(Request $request, string $code): JsonResponse
+    {
+        $room = $this->rooms->getOrFail($code);
+        $this->access->requireHost($request, $room->code);
+
+        $payload = $this->payload($request);
+        $type = $payload['type'] ?? null;
+
+        if (!\is_string($type) || '' === $type || \strlen($type) > 40) {
+            throw new BadRequestHttpException('Podaj type.');
+        }
+
+        $data = [];
+        foreach (['x', 'y'] as $key) {
+            if (\is_float($payload[$key] ?? null) || \is_int($payload[$key] ?? null)) {
+                $data[$key] = max(0.0, min(1.0, (float) $payload[$key]));
+            }
+        }
+
+        $this->publisher->broadcast($room->code, new Event($type, $data));
+
+        return new JsonResponse(['ok' => true]);
     }
 
     /**

@@ -1,0 +1,21 @@
+{# Telefon w tej grze nie ma żadnej tajemnicy do pokazania - hasło idzie na
+   tablet do rysowania (drugi ekran hosta, patrz host.html.twig), a zgadywanie
+   jest na głos, jak w zwykłych Kalamburach. Telefon jest wyłącznie
+   "co się teraz dzieje".
+
+   Stan początkowy renderuje serwer (trasa widoku gry jest dla hosta, telefon
+   nie ma jej skąd pobrać) - dalej żyje wyłącznie z eventów SSE. #}
+<p class="game-tab c-bg-kalambury-rysowane">KALAMBURY RYSOWANE</p>
+
+<div class="rys-player"
+     data-controller="rysowanki-player"
+     data-team-id="{{ team.id }}"
+     data-rysowanki-player-state-value="{{ game.state }}"
+     data-rysowanki-player-my-team-drawing-value="{{ game.isMyTeamDrawing ? 'true' : 'false' }}">
+
+    <p class="turn-note" data-rysowanki-player-target="note" aria-live="polite"></p>
+
+    <div class="clock clock-phone" data-rysowanki-player-target="clock" hidden>
+        <span class="clock-value" data-rysowanki-player-target="clockValue">--</span>
+    </div>
+</div>

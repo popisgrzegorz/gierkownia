@@ -220,6 +220,25 @@ final readonly class RoomManager
         return \is_string($json) ? Team::fromJson($json) : null;
     }
 
+    /**
+     * Usuwa druzyne z pokoju - host wyrzuca kogos, kto dolaczyl przez pomylke
+     * albo opuscil impreze. Telefon traci dostep natychmiast: `teamByDeviceToken()`
+     * czyta z tego samego hasha, wiec kolejne zadanie z jego ciasteczkiem
+     * przestaje sie uwierzytelniac, tak jak gdyby nigdy nie dolaczyl.
+     *
+     * Celowo NIE dotyka stanu biezacej gry (kolejka tur, kontekst modulu) -
+     * ten sam "duch w kolejce", ktory juz dzis powstaje, gdy telefonowi
+     * padnie bateria (patrz TurnManager) - host ma na to jawne narzedzia
+     * w kazdej grze (np. "Nastepna druzyna"), zamiast rekonstruowac tury
+     * na sile tutaj, w miejscu, ktore nie zna zadnej konkretnej gry.
+     */
+    public function removeTeam(string $code, string $teamId): void
+    {
+        $this->redis->hdel(RoomKeys::teams($code), [$teamId]);
+        $this->redis->del([RoomKeys::score($code, $teamId)]);
+        $this->redis->srem(RoomKeys::unclaimedTeams($code), [$teamId]);
+    }
+
     /** Uwierzytelnienie telefonu: token urzadzenia -> druzyna. */
     public function teamByDeviceToken(string $code, string $token): ?Team
     {

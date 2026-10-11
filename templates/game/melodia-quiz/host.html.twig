@@ -31,45 +31,84 @@
            prostokąta: przeglądarka skaluje kreskowanie do stu jednostek. #}
         <div class="quiz-tape" data-quiz-host-target="disc">
             <svg viewBox="0 0 260 168" class="quiz-cassette" aria-hidden="true">
-                <rect class="tape-shell" x="5" y="5" width="250" height="158" rx="13"/>
+                <defs>
+                    <linearGradient id="qc-shell" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#8c5cff"/>
+                        <stop offset=".55" stop-color="#6a35e0"/>
+                        <stop offset="1" stop-color="#4a1fb0"/>
+                    </linearGradient>
+                    <linearGradient id="qc-label" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#fffaf0"/>
+                        <stop offset="1" stop-color="#f3e8d2"/>
+                    </linearGradient>
+                    <radialGradient id="qc-tape" cx=".5" cy=".5" r=".5">
+                        <stop offset=".35" stop-color="#7a4a22"/>
+                        <stop offset=".8" stop-color="#4f2e12"/>
+                        <stop offset="1" stop-color="#3a210c"/>
+                    </radialGradient>
+                    <linearGradient id="qc-glass" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#1a1145"/>
+                        <stop offset="1" stop-color="#0c0828"/>
+                    </linearGradient>
+                </defs>
+
+                {# Obudowa z „grubością” pod spodem - jak naklejki z reszty motywu. #}
+                <rect x="5" y="10" width="250" height="155" rx="16" fill="#2c1278"/>
+                <rect class="tape-shell" x="5" y="5" width="250" height="155" rx="16"
+                      fill="url(#qc-shell)" stroke="#1a1238" stroke-width="3.5"/>
+                <path d="M20 9 H240" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".35"/>
+
+                {# Pasek czasu biegnie po obrysie obudowy - kontroler skraca go co sekundę. #}
                 <rect class="tape-run" data-quiz-host-target="ring"
-                      x="5" y="5" width="250" height="158" rx="13"
+                      x="5" y="5" width="250" height="155" rx="16"
                       pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/>
 
-                {# Etykieta - pod nią leży odczyt sekund #}
-                <rect class="tape-label" x="22" y="16" width="216" height="62" rx="5"/>
-                <rect class="tape-strip" x="22" y="16" width="216" height="14" rx="5"/>
-                <rect class="tape-strip" x="22" y="25" width="216" height="5"/>
-
-                {# Okno na taśmę #}
-                <rect class="tape-window" x="22" y="86" width="216" height="56" rx="9"/>
-                <path class="tape-band" d="M82 136 H178"/>
-
-                {# Lewa szpula - pełna, prawa dopiero się nawija #}
-                <g class="tape-reel">
-                    <circle class="tape-wrap" cx="82" cy="113" r="24"/>
-                    <g class="tape-hub tape-hub-left">
-                        <circle class="tape-cog" cx="82" cy="113" r="9"/>
-                        <line class="tape-spoke" x1="82" y1="102" x2="82" y2="124"/>
-                    </g>
+                {# Etykieta: na niej leży odczyt sekund, pod spodem tęczowe paski. #}
+                <rect x="20" y="16" width="220" height="74" rx="9" fill="url(#qc-label)" stroke="#1a1238" stroke-width="2.5"/>
+                <rect x="20" y="16" width="220" height="12" rx="6" fill="#ff5d8f"/>
+                <rect x="20" y="22" width="220" height="6" fill="#ff5d8f"/>
+                <g>
+                    <rect x="22" y="70" width="216" height="4" fill="#ff5d8f"/>
+                    <rect x="22" y="74" width="216" height="4" fill="#ffb000"/>
+                    <rect x="22" y="78" width="216" height="4" fill="#2fb24c"/>
+                    <rect x="22" y="82" width="216" height="4" fill="#1e9bf0"/>
                 </g>
+                <text x="30" y="26" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="9" fill="#fff">A</text>
+                <text x="230" y="26" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="9" fill="#fff" text-anchor="end">1 z 4</text>
 
-                <g class="tape-reel">
-                    <circle class="tape-wrap" cx="178" cy="113" r="16"/>
-                    <g class="tape-hub tape-hub-right">
-                        <circle class="tape-cog" cx="178" cy="113" r="9"/>
-                        <line class="tape-spoke" x1="178" y1="102" x2="178" y2="124"/>
-                    </g>
+                {# Okienko z taśmą #}
+                <rect x="44" y="96" width="172" height="40" rx="20" fill="url(#qc-glass)" stroke="#1a1238" stroke-width="2.5"/>
+                <circle cx="84" cy="116" r="27" fill="url(#qc-tape)"/>
+                <circle cx="176" cy="116" r="17" fill="url(#qc-tape)"/>
+                <path class="tape-band" d="M84 143 H176"/>
+                <g class="tape-hub tape-hub-left">
+                    <circle cx="84" cy="116" r="11" fill="#fff" stroke="#1a1238" stroke-width="2.5"/>
+                    <rect x="92.8" y="113.4" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(90 95.0 116.0)"/><rect x="87.3" y="122.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(150 89.5 125.5)"/><rect x="76.3" y="122.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(210 78.5 125.5)"/><rect x="70.8" y="113.4" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(270 73.0 116.0)"/><rect x="76.3" y="103.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(330 78.5 106.5)"/><rect x="87.3" y="103.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(390 89.5 106.5)"/>
+                    <circle cx="84" cy="116" r="6.5" fill="#2b1f6e"/>
+                    <path d="M84 109.5 V122.5 M78.4 112.8 L89.6 119.2 M78.4 119.2 L89.6 112.8" stroke="#fff" stroke-width="1.6" opacity=".55"/>
                 </g>
+                <g class="tape-hub tape-hub-right">
+                    <circle cx="176" cy="116" r="11" fill="#fff" stroke="#1a1238" stroke-width="2.5"/>
+                    <rect x="184.8" y="113.4" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(90 187.0 116.0)"/><rect x="179.3" y="122.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(150 181.5 125.5)"/><rect x="168.3" y="122.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(210 170.5 125.5)"/><rect x="162.8" y="113.4" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(270 165.0 116.0)"/><rect x="168.3" y="103.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(330 170.5 106.5)"/><rect x="179.3" y="103.9" width="4.4" height="5.2" rx="1" fill="#fff" transform="rotate(390 181.5 106.5)"/>
+                    <circle cx="176" cy="116" r="6.5" fill="#2b1f6e"/>
+                    <path d="M176 109.5 V122.5 M170.4 112.8 L181.6 119.2 M170.4 119.2 L181.6 112.8" stroke="#fff" stroke-width="1.6" opacity=".55"/>
+                </g>
+                <rect x="44" y="96" width="172" height="40" rx="20" fill="none" stroke="#1a1238" stroke-width="2.5"/>
+                <path d="M60 101 H120" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".3"/>
 
-                {# Otwory na trzpienie i śrubki - bez nich to zwykły prostokąt #}
-                <circle class="tape-hole" cx="130" cy="150" r="4"/>
-                <circle class="tape-hole" cx="104" cy="150" r="4"/>
-                <circle class="tape-hole" cx="156" cy="150" r="4"/>
-                <circle class="tape-screw" cx="14" cy="14" r="3"/>
-                <circle class="tape-screw" cx="246" cy="14" r="3"/>
-                <circle class="tape-screw" cx="14" cy="154" r="3"/>
-                <circle class="tape-screw" cx="246" cy="154" r="3"/>
+                {# Stopka z otworami na trzpienie i śrubki - z nimi to kaseta,
+                   bez nich zwykły prostokąt. #}
+                <path d="M62 160 L74 141 H186 L198 160 Z" fill="#5a2cc9" stroke="#1a1238" stroke-width="2.5" stroke-linejoin="round"/>
+                <circle class="tape-hole" cx="104" cy="152" r="4"/>
+                <circle class="tape-hole" cx="130" cy="150" r="3"/>
+                <circle class="tape-hole" cx="156" cy="152" r="4"/>
+                <g fill="#c9b8ff" stroke="#1a1238" stroke-width="1.5">
+                    <circle cx="14" cy="14" r="4"/><circle cx="246" cy="14" r="4"/>
+                    <circle cx="14" cy="151" r="4"/><circle cx="246" cy="151" r="4"/>
+                </g>
+                <g stroke="#1a1238" stroke-width="1.3">
+                    <path d="M12 14 H16 M244 14 H248 M12 151 H16 M244 151 H248"/>
+                </g>
             </svg>
 
             <div class="quiz-readout">

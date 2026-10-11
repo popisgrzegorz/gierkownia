@@ -23,7 +23,8 @@
     <main class="tv"
           data-controller="room-board sfx tournament"
           data-room-board-hub-value="{{ hubUrl }}"
-          data-room-board-code-value="{{ room.code }}">
+          data-room-board-code-value="{{ room.code }}"
+          data-room-board-remove-team-url-value="{{ path('room_remove_team', {code: room.code}) }}">
 
         {# Poczekalnia dostaje pełny nagłówek z makiety (_other/layout2.png):
            duży logotyp po lewej, kod i QR po prawej. W trakcie gry ten sam
@@ -59,17 +60,46 @@
                          width="320" height="320">
                 </div>
             {% else %}
-                <p class="tv-brand">GIERK<span class="brand-o">★</span>WNIA</p>
+                {# W trakcie gry pasek niesie trzy rzeczy czytelne z kanapy: CO
+                   gramy (nazwa i ikona w kolorze gry - wcześniej tytuł siedział
+                   w szynie gry, łamany na dwie linie, i zjadał miejsce kołu czy
+                   płycie), JAK dołączyć (adres + kod, dla spóźnialskich) i dyskretne
+                   przyciski hosta. Kolory gier to te same --g-* co na ścianie. #}
+                {% set gameColors = {
+                    'melodia': 'var(--g-melodia)',
+                    'melodia-quiz': 'var(--g-quiz)',
+                    'kolo': 'var(--g-kolo)',
+                    'kalambury': 'var(--g-kalambury)',
+                    'kalambury-rysowane': 'var(--g-kalambury-rysowane)',
+                    'panstwa-miasta': 'var(--g-panstwa)',
+                    'dutch': 'var(--g-dutch)',
+                    'ostatnia-litera': 'var(--g-ostatnia-litera)',
+                } %}
+                {% set current = games|filter(g => g.type == gameType)|first %}
+                <div class="tv-bar-left">
+                    <p class="tv-brand">{{ include('_brand/logo.html.twig', {small: true}) }}</p>
+                    {% if current %}
+                        <p class="tv-game-chip {{ current.name|length > 13 ? 'tv-game-chip-long' : '' }}" style="--c: {{ gameColors[gameType] ?? 'var(--accent)' }}; --card: #fff;">
+                            <span class="tv-game-icon" aria-hidden="true">
+                                {{ include(['game/' ~ gameType ~ '/art.html.twig', 'game/_art.html.twig']) }}
+                            </span>
+                            <span class="tv-game-title">{{ current.name }}</span>
+                        </p>
+                    {% endif %}
+                </div>
+
+                <button type="button" class="tv-join" data-action="room-board#toggleJoin"
+                        title="Pokaż kod QR do dołączenia">
+                    <span class="tv-join-text">
+                        <span class="tv-join-label">Kod pokoju</span>
+                        <span class="tv-join-url">{{ joinUrl|replace({'http://': '', 'https://': ''})|split('/')|first }}</span>
+                    </span>
+                    <span class="tv-join-code">{{ room.code }}</span>
+                </button>
             {% endif %}
 
             <div class="tv-bar-right">
                 <span class="conn" data-room-board-target="connection" data-state="connecting" aria-live="polite" role="status">łączenie…</span>
-
-                {% if gameType is not null %}
-                    <button type="button" class="btn btn-join" data-action="room-board#toggleJoin">
-                        Dołącz <strong class="bar-code">{{ room.code }}</strong>
-                    </button>
-                {% endif %}
 
                 {% if gameType is not null %}
                     {# Powrot do wyboru gry - druzyny i punkty zostaja, telefony
@@ -78,22 +108,15 @@
                           data-controller="soft-nav" data-action="submit->soft-nav#submit"
                           data-confirm="Zakończyć tę grę i wrócić do wyboru? Drużyny i punkty zostają.">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
-                        <button type="submit" class="btn btn-ghost btn-reset">Zmień grę</button>
+                        <button type="submit" class="btn btn-ghost btn-reset btn-bar-main">◀ Zmień grę</button>
                     </form>
                 {% endif %}
-
-                <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
-                      data-controller="soft-nav" data-action="submit->soft-nav#submit"
-                      data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
-                    <button type="submit" class="btn btn-ghost btn-reset">Reset</button>
-                </form>
 
                 {# Pełna tablica wyników jako okienko modal - ranking wszystkich
                    uczestników na wierzchu ekranu, żywy z tego samego strumienia
                    co tablo z boku. #}
                 <button type="button" class="btn btn-ghost btn-reset"
-                        data-action="room-board#openStandings">🏆 Tablica wyników</button>
+                        data-action="room-board#openStandings">🏆 Turniej</button>
 
                 {# Wyciszenie zapamiętuje się w przeglądarce telewizora: kto raz
                    ucisza grę na czas rozmowy, nie chce jej włączać po każdym
@@ -101,9 +124,20 @@
                 <button type="button" class="btn btn-ghost btn-reset"
                         data-sfx-target="button" data-action="sfx#toggle">🔊 Dźwięk</button>
 
+                {# Reset najrzadszy i najgroźniejszy - sama ikona, potwierdzenie
+                   i tak pyta, zanim cokolwiek wyzeruje. #}
+                <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
+                      data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                      data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                    <button type="submit" class="btn btn-ghost btn-reset btn-icon"
+                            title="Reset punktów i gry" aria-label="Reset punktów i gry">↺</button>
+                </form>
+
                 {# Cała scena na ekran: chowa ten pasek i punktację po lewej. #}
-                <button type="button" class="btn btn-ghost btn-reset"
-                        data-action="room-board#toggleFocus">⤢ Pełny ekran</button>
+                <button type="button" class="btn btn-ghost btn-reset btn-icon"
+                        data-action="room-board#toggleFocus"
+                        title="Pełny ekran" aria-label="Pełny ekran">⛶</button>
             </div>
         </header>
 
@@ -143,6 +177,13 @@
 
             <button type="button" class="btn btn-ghost btn-reset"
                     data-action="room-board#openStandings">🏆 Tablica wyników</button>
+
+            {# Niezależne od samego pełnego ekranu: host może chcieć widok bez
+               paska adresu, a mimo to widzieć wyniki z boku - patrz .tv-focus-show-teams w app.css. #}
+            <button type="button" class="btn btn-ghost btn-reset"
+                    data-action="room-board#toggleTeamsPanel" data-room-board-target="teamsToggleLabel">
+                👥 Pokaż wyniki
+            </button>
 
             <button type="button" class="btn btn-ghost btn-reset"
                     data-sfx-target="button" data-action="sfx#toggle">🔊 Dźwięk</button>
@@ -235,6 +276,8 @@
                             <span class="team-rank">{{ loop.index }}</span>
                             <span class="team-name">{{ team.name }}</span>
                             <span class="team-score" data-score>{{ team.score }}</span>
+                            <button type="button" class="team-remove" data-action="room-board#removeTeam"
+                                    title="Usuń drużynę z gry" aria-label="Usuń drużynę z gry">✕</button>
                         </li>
                     {% endfor %}
                 </ul>
@@ -307,6 +350,8 @@
                 <span class="team-rank"></span>
                 <span class="team-name"></span>
                 <span class="team-score" data-score>0</span>
+                <button type="button" class="team-remove" data-action="room-board#removeTeam"
+                        title="Usuń drużynę z gry" aria-label="Usuń drużynę z gry">✕</button>
             </li>
         </template>
     </main>

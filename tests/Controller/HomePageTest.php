@@ -22,7 +22,7 @@ final class HomePageTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         $registry = static::getContainer()->get(GameRegistry::class);
-        $listed = $crawler->filter('.home-games li')->each(static fn ($node) => trim($node->text()));
+        $listed = $crawler->filter('.gk-home-wall .gk-tile-name')->each(static fn ($node) => trim($node->text()));
 
         foreach ($registry->all() as $game) {
             self::assertContains($game->name(), $listed, sprintf('Gra "%s" powinna byc na liscie.', $game->name()));
@@ -35,6 +35,6 @@ final class HomePageTest extends WebTestCase
         $client = static::createClient();
         $crawler = $client->request('GET', '/');
 
-        self::assertCount(0, $crawler->filter('.home-games .soon'));
+        self::assertCount(0, $crawler->filter('.gk-home-wall .soon'));
     }
 }

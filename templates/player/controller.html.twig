@@ -16,10 +16,20 @@
           data-player-status-team-value="{{ team.id }}"
           data-player-status-game-value="{{ gameType ?? '' }}">
 
+        {# Host usunął tę drużynę z pokoju - nakładka na CAŁY ekran, żeby nie
+           dało się dalej grać telefonem, który nie ma już do czego wracać
+           (drużyny nie ma już w Redisie, każde kolejne zgłoszenie i tak
+           dostałoby odmowę). #}
+        <div class="player-removed-overlay" data-player-status-target="removedOverlay" hidden>
+            <p class="player-removed-title">Zostaliście usunięci z pokoju</p>
+            <p class="player-removed-note">Host wyrzucił tę drużynę z gry. Możecie dołączyć ponownie pod nową nazwą.</p>
+            <a class="btn btn-primary btn-lg" href="{{ path('player_join', {code: room.code}) }}">Dołącz ponownie</a>
+        </div>
+
         {# Drużyna i punkty to tylko mała informacja w pasku - resztę ekranu
            telefonu ma zająć samo granie. #}
         <header class="player-bar">
-            <p class="player-brand">GIERK<span class="brand-o">★</span>WNIA</p>
+            <p class="player-brand">{{ include('_brand/logo.html.twig', {small: true}) }}</p>
             <span class="player-who">
                 <span class="player-who-dot"></span>
                 <span class="player-who-name">{{ team.name }}</span>

@@ -1,0 +1,34 @@
+{# Sterownik Ostatniej litery. Stan początkowy renderuje serwer - trasa
+   game_view jest dla hosta, więc telefon dalej żyje wyłącznie z eventów. #}
+<p class="game-tab c-bg-ostatnia-litera">OSTATNIA LITERA</p>
+
+<div class="ostatnia-litera-player"
+     data-controller="ostatnia-litera-player"
+     data-team-id="{{ team.id }}"
+     data-ostatnia-litera-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
+     data-ostatnia-litera-player-state-value="{{ game.state }}"
+     data-ostatnia-litera-player-my-turn-value="{{ game.myTurn ? 'true' : 'false' }}">
+
+    {# Litera obok zegara, nie osobno nad polem - zegar zostaje w widoku nawet
+       gdy klawiatura systemowa zjada dol ekranu, wiec litera przy nim tez. #}
+    <div class="ol-clock-row">
+        <div class="ol-letter-block">
+            <span class="text-secondary small">Litera</span>
+            <div class="required-letter" data-ostatnia-litera-player-target="letter">?</div>
+        </div>
+
+        <div class="clock clock-phone" data-ostatnia-litera-player-target="clock" hidden>
+            <span class="clock-value" data-ostatnia-litera-player-target="clockValue">--</span>
+        </div>
+    </div>
+
+    <div class="ol-input-row" data-ostatnia-litera-player-target="inputRow" hidden>
+        <input type="text" class="form-control ol-input-upper" data-ostatnia-litera-player-target="input"
+               data-action="input->ostatnia-litera-player#normalizeInput"
+               autocomplete="off" spellcheck="false" maxlength="60" placeholder="TWOJE SŁOWO">
+        <button type="button" class="btn btn-primary" data-action="ostatnia-litera-player#submit">Wyślij</button>
+    </div>
+
+    <p class="turn-note" data-ostatnia-litera-player-target="note" aria-live="polite"></p>
+    <p class="ol-error" data-ostatnia-litera-player-target="error" aria-live="polite"></p>
+</div>

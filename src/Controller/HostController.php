@@ -49,7 +49,18 @@ final class HostController extends AbstractController
         if ('' !== $token && $this->rooms->isHostToken($room->code, $token)) {
             $this->access->rememberHost($request, $room->code, $token);
 
-            return $this->redirectToRoute('host_screen', ['code' => $room->code]);
+            // "role" przechodzi przez to przekierowanie bez zmian - to nie
+            // rdzeń decyduje, co ta wartość znaczy (patrz JoinLink::hostTransferUrl),
+            // tylko podpowiedź dla ekranu docelowego (dziś: kalambury rysowane,
+            // "od razu widok rysowania, bez ponownego wyboru roli").
+            $redirect = ['code' => $room->code];
+            $role = $request->query->get('role');
+
+            if (\is_string($role) && '' !== $role) {
+                $redirect['role'] = $role;
+            }
+
+            return $this->redirectToRoute('host_screen', $redirect);
         }
 
         $this->access->requireHost($request, $room->code);
@@ -75,6 +86,12 @@ final class HostController extends AbstractController
             ),
             'joinUrl' => $this->joinLink->url($room->code),
             'qr' => $this->joinLink->qrDataUri($room->code),
+            // Do trybu "tablet do rysowania" (kalambury rysowane) - tani do
+            // policzenia (SVG lokalnie, bez I/O), wiec generujemy zawsze,
+            // niezaleznie od tego, czy akurat trwa gra, ktora go uzywa.
+            // role: 'tablet' - jedyny dzisiejszy konsument tego QR-a; kto go
+            // skanuje, z definicji chce ekran rysowania, nie ponowny wybor roli.
+            'hostTransferQr' => $this->joinLink->hostTransferQrDataUri($room->code, $room->hostToken, role: 'tablet'),
             'teams' => array_map(
                 static fn ($team) => $team->toPublicArray() + ['score' => $scores[$team->id] ?? 0],
                 $this->rooms->teams($room->code),

@@ -1,0 +1,158 @@
+{# Kalambury rysowane: JEDEN szablon, DWIE role tego samego ekranu hosta -
+   projektor (widzi cała sala) i tablet do rysowania (trzyma je rysujący).
+   Rola żyje w localStorage tego konkretnego urządzenia (patrz
+   rysowanki_host_controller.js) - nie w Redisie, bo to kwestia tego, KTÓRY
+   fizyczny ekran na co patrzy, nie stanu rozgrywki.
+
+   Tablet loguje się TYM SAMYM tokenem hosta co projektor (JoinLink::hostTransferUrl) -
+   host go przenosi, skanując kod QR poniżej. Hasło i oferty tras widzi więc
+   również projektor w danych (hostView() nie robi różnicy między ekranami) -
+   sekret chroni WYŁĄCZNIE ten szablon, chowając go za rolą "tablet"
+   (patrz CLAUDE.md, decyzja "tablet jako drugi ekran hosta"). #}
+<section class="game-panel rys-panel"
+         data-controller="rysowanki-host"
+         data-rysowanki-host-action-url-value="{{ path('game_action', {code: room.code}) }}"
+         data-rysowanki-host-view-url-value="{{ path('game_view', {code: room.code}) }}"
+         data-rysowanki-host-live-url-value="{{ path('game_live', {code: room.code}) }}"
+         data-rysowanki-host-room-code-value="{{ room.code }}">
+
+    {# Nakładka wyboru roli - .game-panel ma WŁASNĄ siatkę grid-template-areas
+       "rail main"/"foot foot" (patrz app.css), więc .game-rail/.game-main/
+       .game-foot MUSZĄ zostać bezpośrednimi dziećmi sekcji. Nakładka wychodzi
+       z tej siatki przez position:absolute (patrz .rys-role-gate w app.css)
+       i po prostu przykrywa całość, zamiast dokładać własny poziom
+       zagnieżdżenia, który złamałby rozkład reszty ekranu. #}
+    <div class="rys-role-gate" data-rysowanki-host-target="roleGate">
+        <h2 class="game-name"><span class="c-kalambury-rysowane">Ten ekran będzie…</span></h2>
+
+        <div class="rys-role-choices">
+            <button type="button" class="btn btn-lg btn-primary rys-role-btn" data-action="rysowanki-host#chooseProjector">
+                <span class="rys-role-btn-title">🖥️ Projektorem</span>
+                <span class="rys-role-btn-sub">widzi cała sala</span>
+            </button>
+            <button type="button" class="btn btn-lg rys-role-btn" data-action="rysowanki-host#chooseTablet">
+                <span class="rys-role-btn-title">✏️ Tabletem do rysowania</span>
+                <span class="rys-role-btn-sub">trzyma je rysujący</span>
+            </button>
+        </div>
+
+        <p class="muted">Na TABLECIE zeskanuj ten kod, żeby przenieść na niego sterowanie:</p>
+        <img class="rys-transfer-qr" src="{{ hostTransferQr }}" alt="Kod QR trybu tabletu" width="200" height="200">
+        <p class="rys-transfer-warn">⚠️ Nie pokazuj tego kodu graczom — daje pełną kontrolę nad grą.</p>
+    </div>
+
+    {# Pełny ekran rysowania - poza siatką .game-panel (position:absolute, jak
+       .rys-role-gate wyżej), więc jest ZAWSZE osiągalny, niezależnie od roli
+       i od tego, czy szyna/HUD są akurat schowane (to one znikają w trybie
+       pełnoekranowym, nie ten przycisk - patrz #applyFocus w kontrolerze).
+       Gest Esc/wyjście z natywnego pełnego ekranu i tak przywraca wszystko
+       z powrotem (patrz onFullscreenChange), ten przycisk jest drugą,
+       zawsze widoczną drogą wyjścia. #}
+    <button type="button" class="rys-focus-toggle" data-rysowanki-host-target="focusToggle"
+            data-action="rysowanki-host#toggleFocus"
+            title="Rysuj na całym ekranie" aria-label="Rysuj na całym ekranie">⛶</button>
+
+    {# Szyna WYŁĄCZNIE na projektorze (.rys-panel[data-role="projector"] w
+       app.css dokłada z powrotem kolumnę "rail") - wąska, delikatna: kategoria,
+       kto rysuje, zegar i punkty bez krzykliwej oprawy. Na tablecie cała szyna
+       znika (display:none), żeby płótno zajmowało tam PRAWIE cały ekran -
+       "sidebar po lewo z licznikiem, kategorią... a reszta to duży ekran
+       z rysunkiem" (życzenie użytkownika po trzecim realnym teście). #}
+    <div class="game-rail rys-rail">
+        <p class="rys-rail-category" data-rysowanki-host-target="progress"></p>
+        <p class="rys-rail-turn" data-rysowanki-host-target="turn"></p>
+
+        <div class="clock rys-rail-clock" data-rysowanki-host-target="clock" hidden>
+            <span class="clock-value" data-rysowanki-host-target="clockValue">--</span>
+        </div>
+
+        <div class="rys-points-badge rys-rail-points" data-rysowanki-host-target="pointsBadge" hidden>
+            <span data-rysowanki-host-target="pointsValue">0</span> pkt
+        </div>
+
+        <button type="button" class="rys-role-switch" data-action="rysowanki-host#switchRole"
+                title="Zmień rolę ekranu" aria-label="Zmień rolę ekranu">🔁</button>
+    </div>
+
+    <div class="game-main">
+        {# Wyłącznie na tablecie: hasło widzi jedynie rysujący, obok zegara -
+           projektor ma swoją kopię zegara/punktów w szynie po lewej.
+
+           W trakcie RYSOWANIA ta cała szyna znika (patrz #render() w JS,
+           `tabletDrawing`) poza jednym przyciskiem - hasło jest domyślnie
+           SCHOWANE (rysujący sam je przed chwilą wybrał, nie musi patrzeć
+           na nie cały czas), a "👁 Pokaż hasło" to jedyna rzecz, jaką
+           rysujący może jeszcze potrzebować poza samym płótnem (życzenie
+           użytkownika: "TYLKO ekran do rysowania, żadnych innych
+           komunikatów - no może tylko pokaż/ukryj hasło"). #}
+        <div class="rys-hud rys-only-tablet">
+            <button type="button" class="rys-word-toggle" data-rysowanki-host-target="wordToggle"
+                    data-action="rysowanki-host#toggleWord" hidden>👁 Pokaż hasło</button>
+            <span class="rys-hud-word" data-rysowanki-host-target="secretWordCard" hidden>
+                <span class="secret-word" data-rysowanki-host-target="secretWord"></span>
+            </span>
+
+            <div class="clock rys-hud-clock" data-rysowanki-host-target="clock" hidden>
+                <span class="clock-value" data-rysowanki-host-target="clockValue">--</span>
+            </div>
+
+            <div class="rys-points-badge rys-hud-points" data-rysowanki-host-target="pointsBadge" hidden>
+                <span data-rysowanki-host-target="pointsValue">0</span> pkt
+            </div>
+
+            <button type="button" class="rys-role-switch" data-rysowanki-host-target="roleSwitch"
+                    data-action="rysowanki-host#switchRole"
+                    title="Zmień rolę ekranu" aria-label="Zmień rolę ekranu">🔁</button>
+        </div>
+
+        <div class="panel-row rys-only-projector" data-rysowanki-host-target="categoryPicker" hidden>
+            <label for="rys-category">Kategoria</label>
+            <select id="rys-category" data-rysowanki-host-target="categorySelect" class="form-select select"></select>
+            <label for="rys-seconds">Czas rundy</label>
+            <select id="rys-seconds" data-rysowanki-host-target="secondsSelect" class="form-select select">
+                <option value="60">60 s</option>
+                <option value="90" selected>90 s</option>
+                <option value="120">120 s</option>
+                <option value="180">180 s</option>
+            </select>
+            <button type="button" class="btn btn-primary" data-action="rysowanki-host#pickCategory">Wybierz</button>
+        </div>
+
+        <p class="banner-small" data-rysowanki-host-target="event"></p>
+        <p class="track-answer" data-rysowanki-host-target="answer"></p>
+
+        {# Wyłącznie na tablecie: trzy oferty trudności, zanim rysujący wybierze. #}
+        <div class="rys-choices rys-only-tablet" data-rysowanki-host-target="choices" hidden></div>
+
+        {# Płótno: na tablecie interaktywne (rysujący dotyka/rysuje myszką),
+           na projektorze wyłącznie odbiornik kresek - patrz kontroler,
+           obie role rysują WYŁĄCZNIE z odebranych zdarzeń SSE. To główny
+           element ekranu - reszta (.rys-hud, sterowanie) jest celowo zwarta.
+
+           .rys-canvas-wrap wypełnia dostępne miejsce i centruje w nim
+           .rys-canvas-frame - TEN ma stały format (1:1, patrz app.css) i to
+           JEGO rozmiar liczy #resizeCanvas() w JS. Bez wspólnego formatu ta
+           sama kreska (współrzędne 0..1 względem własnego pudełka) wychodziłaby
+           na drugim ekranie rozciągnięta - projektor jest szeroki, tablet
+           wysoki (życzenie użytkownika: "takie samo skalowanie i taki sam
+           rozmiar pola rysowania"). #}
+        <div class="rys-canvas-wrap" data-rysowanki-host-target="canvasWrap" hidden>
+            <div class="rys-canvas-frame">
+                <canvas class="rys-canvas" data-rysowanki-host-target="canvas"
+                        data-action="pointerdown->rysowanki-host#onPointerDown
+                                      pointermove->rysowanki-host#onPointerMove
+                                      pointerup->rysowanki-host#onPointerUp
+                                      pointercancel->rysowanki-host#onPointerUp
+                                      pointerleave->rysowanki-host#onPointerUp"></canvas>
+                <button type="button" class="btn btn-ghost btn-sm rys-clear-btn rys-only-tablet"
+                        data-rysowanki-host-target="clearBtn" data-action="rysowanki-host#clearCanvas" hidden>🧹 Wyczyść</button>
+            </div>
+        </div>
+
+        <div class="panel-row panel-controls" data-rysowanki-host-target="controls"></div>
+
+        <p class="hint muted" data-rysowanki-host-target="hint"></p>
+    </div>
+
+    <p class="game-foot" data-rysowanki-host-target="foot">Odgadnięcie punktuje zgadujących i rysującego. Punkty topnieją z czasem.</p>
+</section>

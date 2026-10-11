@@ -1,0 +1,10 @@
+{# Kafelek Ostatniej litery. Kolor i hasło należą do modułu, nie do rdzenia. #}
+{% embed 'game/_card.html.twig' with {
+    game: game,
+    color: '#e5484d',
+    lead: 'Podaj słowo na ostatnią literę poprzedniego!'
+} %}
+    {% block art %}
+        {{ include('game/ostatnia-litera/icon.html.twig') }}
+    {% endblock %}
+{% endembed %}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Game\Melodia;
 
 use App\Core\Buzzer\BuzzerArbiter;
+use App\Core\Buzzer\BuzzResult;
 use App\Content\TrackDeck;
 use App\Core\Game\AbstractGame;
 use App\Core\Game\Actor;
@@ -103,6 +104,9 @@ final class MelodiaGame extends AbstractGame
             'round' => $ctx['round'] ?? 0,
             'buzz' => $ctx['buzz'] ?? null,
             'lastResult' => $ctx['lastResult'] ?? null,
+            // Druzyny, ktore juz odpowiedzialy zle na TEN utwor - host ma
+            // widziec, kto jeszcze moze probowac (patrz wrongTeams()).
+            'wrongTeams' => $this->wrongTeams($room),
             // Tytul odsloniety juz calemu pokojowi. Ekran hosta pokazuje go
             // wylacznie na tej podstawie: 'track' nizej niesie tytul zawsze
             // (host go potrzebuje do oceny), ale telewizor oglada caly pokoj.
@@ -136,6 +140,9 @@ final class MelodiaGame extends AbstractGame
             // zamiast surowego id, ktorego sterownik i tak by nie porownal.
             'hasFloor' => $winnerId === $team->id,
             'armed' => $this->buzzer->isArmed($room->code),
+            // Ta druzyna juz probowala na TYM utworze i odpowiedziala zle -
+            // telefon ma to pokazac zamiast aktywnego przycisku (patrz wrongTeams()).
+            'excluded' => \in_array($team->id, $this->wrongTeams($room), true),
         ];
     }
 
@@ -234,6 +241,9 @@ final class MelodiaGame extends AbstractGame
             'trackNumber' => \count($played),
             'revealed' => null,
             'lastResult' => null,
+            // Nowy utwor - stare wykluczenia nie maja juz znaczenia (patrz
+            // wrongTeams() i judge()).
+            'wrongTeams' => [],
         ]);
 
         // Telefony dostaja wylacznie numer utworu - tytul zdradzilby zagadke.
@@ -261,13 +271,18 @@ final class MelodiaGame extends AbstractGame
 
         $this->transition($room, 'arm');
 
+        $round = $this->buzzer->arm($room->code);
         $this->patchCtx($room, [
-            'round' => $this->buzzer->arm($room->code),
+            'round' => $round,
             'buzz' => null,
             'lastResult' => null,
         ]);
 
-        return [];
+        // Zwykle pusta lista przy PIERWSZYM uzbrojeniu nowego utworu - ale
+        // host moze tez wrocic do 'idle' i wcisnac "Graj" na tym samym
+        // utworze bez losowania nowego (nextTrack() go nie wymaga), wiec
+        // wykluczenia z poprzedniej rundy tego utworu maja wciaz obowiazywac.
+        return $this->excludedMessages($room, $round);
     }
 
     /**
@@ -288,6 +303,13 @@ final class MelodiaGame extends AbstractGame
         $round = \is_int($payload['round'] ?? null)
             ? $payload['round']
             : $this->buzzer->currentRound($room->code);
+
+        // Ta druzyna juz probowala na tym utworze i odpowiedziala zle -
+        // sprawdzamy PRZED arbitrem, zeby nie zuzywac rundy na proba, ktora
+        // i tak nie ma prawa wygrac (patrz judge() i wrongTeams()).
+        if (\in_array($team->id, $this->wrongTeams($room), true)) {
+            return [Message::toTeam($team->id, new Event('buzz_rejected', BuzzResult::excluded($round)->toArray()))];
+        }
 
         $result = $this->buzzer->buzz($room->code, $round, $team);
 
@@ -331,10 +353,21 @@ final class MelodiaGame extends AbstractGame
         $points = \is_int($payload['points'] ?? null) ? $payload['points'] : 1;
 
         $this->transition($room, 'judge');
-        $this->patchCtx($room, ['lastResult' => $correct ? 'correct' : 'wrong']);
 
         if ($correct) {
             $this->scoreboard->add($room->code, $buzz['teamId'], $points);
+            $this->patchCtx($room, ['lastResult' => 'correct']);
+        } else {
+            // Zla odpowiedz wyklucza TE druzyne z ponownej proby na TYM SAMYM
+            // utworze - decyzja uzytkownika: kto sie pomyli, czeka na kolejna
+            // piosenke zamiast probowac w kolko, az sie uda. Lista czysci sie
+            // dopiero przy nastepnym wylosowanym utworze (patrz nextTrack()).
+            $wrongTeams = $this->wrongTeams($room);
+            $wrongTeams[] = $buzz['teamId'];
+            $this->patchCtx($room, [
+                'lastResult' => 'wrong',
+                'wrongTeams' => array_values(array_unique($wrongTeams)),
+            ]);
         }
 
         $messages = [Message::broadcast(new Event('judged', [
@@ -350,11 +383,15 @@ final class MelodiaGame extends AbstractGame
     }
 
     /**
-     * Zla odpowiedz - ten sam utwor wraca do gry dla pozostalych.
+     * Zla odpowiedz - ten sam utwor wraca do gry dla POZOSTALYCH druzyn.
      *
-     * Runda dostaje nowy numer, wiec druzyna, ktora wlasnie sie pomylila,
-     * moze sprobowac ponownie. Wykluczanie jej nie jest tu zaimplementowane
-     * celowo: przy stole rozstrzyga to host, a nie regulamin.
+     * Runda dostaje nowy numer, ale druzyna, ktora wlasnie sie pomylila, jest
+     * na liscie wykluczonych (dopisanej w judge()) i nie moze juz probowac na
+     * tym samym utworze - decyzja uzytkownika, zeby jedna druzyna nie mogla
+     * "przepytywac sie" w kolko az zgadnie. Serwer pilnuje tego sam
+     * (buzz() odrzuca wykluczonych), wiec ten telefon dostaje od razu
+     * powiadomienie zamiast czekac, az wcisnie przycisk i dopiero wtedy
+     * usłyszy odmowe.
      *
      * @return list<Message>
      */
@@ -363,12 +400,39 @@ final class MelodiaGame extends AbstractGame
         $actor->requireHost();
         $this->transition($room, 'rearm');
 
+        $round = $this->buzzer->arm($room->code);
         $this->patchCtx($room, [
-            'round' => $this->buzzer->arm($room->code),
+            'round' => $round,
             'buzz' => null,
         ]);
 
-        return [];
+        return $this->excludedMessages($room, $round);
+    }
+
+    /** @return list<string> */
+    private function wrongTeams(Room $room): array
+    {
+        $teams = $this->ctx($room)['wrongTeams'] ?? null;
+
+        return \is_array($teams) ? array_values(array_filter($teams, '\is_string')) : [];
+    }
+
+    /**
+     * Powiadamia kazda wykluczona druzyne od razu po uzbrojeniu, zamiast
+     * czekac, az sama sprobuje zabuzzowac i dopiero wtedy dostanie odmowe -
+     * inaczej przycisk na jej telefonie mylnie wygladalby na aktywny.
+     *
+     * @return list<Message>
+     */
+    private function excludedMessages(Room $room, int $round): array
+    {
+        return array_map(
+            static fn (string $teamId): Message => Message::toTeam(
+                $teamId,
+                new Event('buzz_rejected', BuzzResult::excluded($round)->toArray()),
+            ),
+            $this->wrongTeams($room),
+        );
     }
 
     /** @return list<Message> */

@@ -4,7 +4,8 @@
 {% block body_class %}player screen-center{% endblock %}
 
 {% block body %}
-    <main class="panel">
+    <main class="panel gk-join-panel">
+        <p class="gk-join-logo">{{ include('_brand/logo.html.twig') }}</p>
         <p class="muted">Pokój</p>
         <h1 class="room-code small">{{ room.code }}</h1>
 

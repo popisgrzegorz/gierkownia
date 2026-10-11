@@ -55,4 +55,43 @@ final readonly class JoinLink
             margin: 12,
         ))->build()->getDataUri();
     }
+
+    /**
+     * Link, ktory przenosi uprawnienia hosta na INNE urzadzenie (np. tablet do
+     * rysowania w kalamburach rysowanych) - ten sam mechanizm, ktorego
+     * HostController::screen() juz uzywa do przeniesienia ekranu z laptopa na
+     * telewizor (parametr `t`), tylko teraz swiadomie dzielony miedzy dwa
+     * rownoczesne urzadzenia zamiast jednego nastepujacego po drugim.
+     *
+     * Token daje PELNA kontrole nad pokojem - link nie moze trafic na ekran,
+     * ktory widzi cala sala (patrz ostrzezenie w szablonie, ktory go pokazuje).
+     */
+    /**
+     * `$role` to opcjonalna, przezroczysta dla tej klasy podpowiedz dla ekranu
+     * docelowego (np. "tablet") - HostController przepuszcza ja bez zmian
+     * przez przekierowanie zdejmujace token z adresu, a to, co dana rola
+     * znaczy, wie wylacznie kontroler JS konkretnej gry (patrz
+     * rysowanki_host_controller.js) - ten link nie wie nic o "tablecie" per se.
+     */
+    public function hostTransferUrl(string $code, string $hostToken, ?string $role = null): string
+    {
+        $params = ['code' => $code, 't' => $hostToken];
+
+        if (null !== $role) {
+            $params['role'] = $role;
+        }
+
+        return $this->urlGenerator->generate('host_screen', $params, UrlGeneratorInterface::ABSOLUTE_URL);
+    }
+
+    public function hostTransferQrDataUri(string $code, string $hostToken, int $size = 240, ?string $role = null): string
+    {
+        return (new Builder(
+            writer: new SvgWriter(),
+            data: $this->hostTransferUrl($code, $hostToken, $role),
+            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
+            size: $size,
+            margin: 12,
+        ))->build()->getDataUri();
+    }
 }

@@ -1,0 +1,2558 @@
+/*
+ * Motyw „Gierkownia” - wg makiety var/gierkownia.png.
+ *
+ * Ładowany PO app.css i nadpisuje go tam, gdzie zmienia wygląd: tło „salonu
+ * wieczorem”, fonty z charakterem (Baloo 2 na tytułach, Nunito na tekście,
+ * Caveat na odręcznych dopiskach), nasycone kolory gier, przyciski z grubym
+ * spodem jak w teleturnieju. Układ ekranów (siatki, które pilnują, żeby gra
+ * mieściła się w telewizorze) zostaje w app.css - tu jest skóra i nowe
+ * ekrany: logo, poczekalnia, strona startowa.
+ *
+ * Skala jak w app.css: vh/vmin, bo telewizor ogląda się z kanapy.
+ */
+
+:root {
+    --gk-ink: #1a1238;
+    --gk-bg: #140d3a;
+    --gk-panel: rgba(28, 20, 82, 0.74);
+    --gk-panel-border: rgba(140, 120, 255, 0.32);
+    --gk-yellow: #ffc21a;
+    --gk-yellow-hi: #ffe066;
+    --gk-blue: #2f6bff;
+    --gk-text: #f4f1ff;
+    --gk-muted: #b4acd9;
+    /* Baloo 2, nie Lilita One z makiety - Lilita nie ma polskich liter
+       z ogonkami i kreskami (patrz base.html.twig). */
+    --gk-display: 'Baloo 2', 'Arial Black', system-ui, sans-serif;
+    --gk-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --gk-hand: 'Caveat', 'Comic Sans MS', cursive;
+}
+
+/* ---------- tło: salon wieczorem ----------
+
+   Makieta ma za grą rozmyty pokój: lampa w rogu, światełka, fiolet. Tu ten
+   sam klimat z samych gradientów - zero obrazków do pobrania, ostre na
+   każdym ekranie. Światła stoją w miejscu, bo ruch w tle męczy przez cały
+   wieczór. */
+body.host,
+body.home,
+body.player {
+    font-family: var(--gk-body);
+    color: var(--gk-text);
+    background-color: var(--gk-bg);
+    background-image:
+        radial-gradient(circle at 92% 88%, rgba(255, 170, 60, 0.30) 0, transparent 22%),
+        radial-gradient(circle at 6% 14%, rgba(120, 90, 255, 0.35) 0, transparent 30%),
+        radial-gradient(circle at 70% 6%, rgba(255, 90, 170, 0.16) 0, transparent 28%),
+        radial-gradient(circle at 14% 92%, rgba(40, 170, 255, 0.18) 0, transparent 26%),
+        radial-gradient(circle at 38% 52%, rgba(90, 60, 200, 0.28) 0, transparent 55%),
+        radial-gradient(3px 3px at 22% 30%, rgba(255, 255, 255, 0.5), transparent),
+        radial-gradient(4px 4px at 81% 22%, rgba(255, 220, 150, 0.55), transparent),
+        radial-gradient(3px 3px at 64% 74%, rgba(255, 255, 255, 0.35), transparent),
+        linear-gradient(180deg, #1b1250 0%, #120b35 60%, #0d0828 100%);
+    background-attachment: fixed;
+}
+
+/* Wspólne tło app.css (.tv, .l2) ustępuje temu z body. */
+body.host .tv,
+body.host .l2 {
+    background: none;
+}
+
+/* ---------- logo ---------- */
+
+.gk-logo {
+    position: relative;
+    font-weight: 800;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-family: var(--gk-display);
+    line-height: 0.9;
+    letter-spacing: 0.01em;
+    transform: rotate(-3deg);
+}
+
+.gk-word {
+    display: inline-flex;
+    align-items: flex-end;
+    font-size: 1em;
+    /* Gruby granatowy kontur + „grubość” litery pod spodem - jak naklejka. */
+    -webkit-text-stroke: 0.09em var(--gk-ink);
+    paint-order: stroke fill;
+    text-shadow:
+        0 0.07em 0 var(--gk-ink),
+        0 0.12em 0.25em rgba(0, 0, 0, 0.45);
+}
+
+.gk-w1 {
+    color: #fff;
+}
+
+/* Pełny kolor, nie gradient przez background-clip: razem z text-stroke
+   i paint-order Chrome rysował wtedy litery w paski. */
+.gk-w2 {
+    color: #ffbe1a;
+}
+
+.gk-o {
+    position: relative;
+    display: inline-block;
+    width: 0.86em;
+    height: 0.86em;
+    margin: 0 0.02em 0.04em;
+}
+
+.gk-pad {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0.06em 0 var(--gk-ink));
+}
+
+.gk-crown {
+    position: absolute;
+    left: 50%;
+    bottom: 86%;
+    width: 0.7em;
+    transform: translateX(-50%) rotate(6deg);
+    filter: drop-shadow(0 0.03em 0 var(--gk-ink));
+}
+
+.gk-tag {
+    align-self: flex-end;
+    margin: -0.02em 0.2em 0 0;
+    padding-bottom: 0.08em;
+    font-family: var(--gk-hand);
+    font-size: 0.52em;
+    color: #fff;
+    transform: rotate(-4deg);
+    text-shadow: 0 0.05em 0 var(--gk-ink), 0 0 0.3em rgba(0, 0, 0, 0.5);
+    /* Żółte podkreślenie zamachem pióra. */
+    background:
+        radial-gradient(ellipse 60% 40% at 50% 100%, var(--gk-yellow) 0 45%, transparent 50%) no-repeat;
+    background-size: 100% 0.35em;
+    background-position: 0 100%;
+}
+
+.gk-confetti i {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 0.12em;
+    height: 0.34em;
+    border-radius: 0.06em;
+    background: var(--c);
+    transform: rotate(var(--r));
+    box-shadow: 0 0.03em 0 rgba(0, 0, 0, 0.3);
+}
+
+.gk-logo-small {
+    transform: rotate(-2deg);
+}
+
+/* ---------- przyciski ---------- */
+
+.gk-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    padding: 0.5em 1.4em 0.6em;
+    border: 0.12em solid var(--gk-ink);
+    border-radius: 0.6em;
+    font-family: var(--gk-display);
+    font-size: clamp(1rem, 2.6vh, 2rem);
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.gk-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-2px);
+}
+
+/* „Wznów turniej” to link (<a>) - bez tego Tabler dokłada mu niebieski
+   kolor i podkreślenie linku pod kursorem. */
+a.gk-btn:hover,
+a.gk-btn:focus {
+    text-decoration: none;
+}
+
+a.gk-btn-secondary:hover,
+a.gk-btn-secondary:focus {
+    color: #fff;
+}
+
+.gk-btn:active {
+    transform: translateY(2px);
+}
+
+.gk-btn:disabled {
+    filter: saturate(0.4) brightness(0.8);
+    cursor: progress;
+}
+
+/* Żółty z grubym, ciemniejszym spodem - główna akcja, świeci jak przycisk
+   w studiu. */
+.gk-btn-primary {
+    color: #2a1a05;
+    background: linear-gradient(180deg, var(--gk-yellow-hi) 0%, var(--gk-yellow) 55%, #ffa800 100%);
+    box-shadow:
+        0 0.22em 0 #b86a00,
+        0 0.3em 1.6em rgba(255, 180, 0, 0.45),
+        inset 0 0.08em 0 rgba(255, 255, 255, 0.6);
+}
+
+.gk-btn-secondary {
+    color: #fff;
+    background: linear-gradient(180deg, #2a3aa8 0%, #1b2478 100%);
+    border-color: #4d6bff;
+    box-shadow: 0 0.18em 0 #0e1450, 0 0 1.2em rgba(77, 107, 255, 0.35), inset 0 0.08em 0 rgba(255, 255, 255, 0.2);
+}
+
+.gk-btn-xl {
+    font-size: clamp(1.4rem, 4.6vh, 3.4rem);
+    padding: 0.42em 1.3em 0.5em;
+    border-radius: 0.5em;
+}
+
+/* Trójkąt „play” z makiety - CSS zamiast znaku ▶, który na części systemów
+   zamienia się w kolorowe emoji. */
+.gk-play {
+    width: 0;
+    height: 0;
+    border-top: 0.42em solid transparent;
+    border-bottom: 0.42em solid transparent;
+    border-left: 0.66em solid #2a1a05;
+}
+
+.gk-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--gk-yellow);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.gk-link:hover {
+    text-decoration: underline;
+}
+
+/* ---------- karty (panele) ---------- */
+
+.gk-card {
+    position: relative;
+    padding: clamp(0.8rem, 2vh, 1.6rem) clamp(0.9rem, 1.4vw, 1.6rem);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(40, 30, 110, 0.78), var(--gk-panel));
+    border: 2px solid var(--gk-panel-border);
+    box-shadow: 0 0.8rem 2.4rem rgba(5, 2, 25, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.gk-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin: 0 0 0.6em;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.1rem, 3vh, 2.2rem);
+    letter-spacing: 0.01em;
+}
+
+.gk-eyebrow {
+    color: #9fb4ff;
+    font-family: var(--gk-display);
+    font-size: clamp(0.9rem, 2.2vh, 1.6rem);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.gk-muted {
+    margin: 0;
+    color: var(--gk-muted);
+    font-weight: 700;
+}
+
+/* Ikona telefonu - rysowana CSS-em, bo emoji 📱 wygląda inaczej na każdym TV. */
+.gk-phone {
+    display: inline-block;
+    width: 0.6em;
+    height: 0.95em;
+    border: 0.1em solid currentColor;
+    border-radius: 0.14em;
+    box-shadow: inset 0 -0.14em 0 -0.06em currentColor;
+}
+
+.gk-people {
+    position: relative;
+    display: inline-block;
+    width: 1.4em;
+    height: 1em;
+    background:
+        radial-gradient(circle at 50% 28%, currentColor 0 18%, transparent 19%),
+        radial-gradient(ellipse 34% 30% at 50% 92%, currentColor 0 98%, transparent 100%),
+        radial-gradient(circle at 18% 36%, currentColor 0 13%, transparent 14%),
+        radial-gradient(circle at 82% 36%, currentColor 0 13%, transparent 14%),
+        radial-gradient(ellipse 22% 24% at 16% 96%, currentColor 0 98%, transparent 100%),
+        radial-gradient(ellipse 22% 24% at 84% 96%, currentColor 0 98%, transparent 100%);
+    opacity: 0.9;
+}
+
+/* ========================================================================
+   POCZEKALNIA - ekran wyboru gry
+   ======================================================================== */
+
+body.host .l2.gk-lobby {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(19rem, 30vw, 36rem);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+        'main side'
+        'bar bar';
+    gap: clamp(0.7rem, 1.8vh, 1.6rem) clamp(0.8rem, 1.6vw, 1.8rem);
+    padding: clamp(0.8rem, 2.4vh, 2rem) clamp(0.9rem, 2vw, 2.4rem) clamp(0.6rem, 1.6vh, 1.2rem);
+    font-family: var(--gk-body);
+}
+
+.gk-lobby-main {
+    grid-area: main;
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    gap: clamp(0.4rem, 1.4vh, 1.1rem);
+    min-height: 0;
+}
+
+.gk-lobby-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(1rem, 2vw, 2.4rem);
+    flex-wrap: wrap;
+}
+
+/* Logo rośnie z wysokością ekranu - to pierwsze, co widać z drugiego końca
+   pokoju. Margines na koronę i konfetti, które wystają ponad litery. */
+.gk-lobby-logo {
+    margin: clamp(0.8rem, 3vh, 2.6rem) 0 0 clamp(0.2rem, 0.6vw, 0.8rem);
+    font-size: clamp(2.4rem, 11.5vh, 9rem);
+    font-weight: 400;
+}
+
+.gk-lobby-actions {
+    display: grid;
+    gap: clamp(0.6rem, 1.6vh, 1.2rem);
+    flex: 1 1 18rem;
+    max-width: 26rem;
+    margin-left: auto;
+}
+
+.gk-section-title {
+    margin: 0;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.3rem, 3.6vh, 2.8rem);
+    text-shadow: 0 0.08em 0 var(--gk-ink);
+}
+
+body.host .gk-lobby .resumed-banner {
+    margin: 0;
+}
+
+/* ---------- ściana gier ---------- */
+
+body.host .gk-wall {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(11rem, 13vw)), 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: clamp(0.6rem, 1.4vw, 1.4rem);
+    min-height: 0;
+}
+
+.gk-tile {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    justify-items: center;
+    align-items: end;
+    gap: clamp(0.1rem, 0.5vh, 0.4rem);
+    min-width: 0;
+    min-height: 0;
+    padding: clamp(0.4rem, 1.2vh, 1rem) clamp(0.4rem, 0.8vw, 0.9rem) clamp(0.6rem, 1.8vh, 1.4rem);
+    border: 3px solid color-mix(in srgb, var(--c) 55%, #fff);
+    border-radius: 22px;
+    color: #fff;
+    text-align: center;
+    cursor: pointer;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.28) 0, transparent 30%),
+        radial-gradient(circle at 85% 25%, rgba(255, 255, 255, 0.12) 0, transparent 22%),
+        linear-gradient(165deg, color-mix(in srgb, var(--c) 78%, #fff) 0%, var(--c) 45%, color-mix(in srgb, var(--c) 55%, #10052e) 100%);
+    box-shadow:
+        0 0.45rem 0 color-mix(in srgb, var(--c) 45%, #0a0420),
+        0 1rem 2rem -0.6rem color-mix(in srgb, var(--c) 70%, transparent),
+        inset 0 2px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1), box-shadow 0.18s ease;
+}
+
+/* Konfetti w tle kafelka - drobne, żeby nie walczyło z ilustracją. */
+.gk-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 12% 70%, rgba(255, 255, 255, 0.22) 0 4px, transparent 5px),
+        radial-gradient(circle at 88% 62%, rgba(255, 255, 255, 0.18) 0 3px, transparent 4px),
+        radial-gradient(circle at 76% 10%, rgba(255, 255, 255, 0.2) 0 5px, transparent 6px);
+    pointer-events: none;
+}
+
+/* Zaznaczenie jak na makiecie: biała, świecąca ramka. Ten sam wygląd dla
+   kursora i dla fokusu z pilota/klawiatury. */
+.gk-tile:hover,
+.gk-tile:focus-visible {
+    transform: translateY(-4px) scale(1.02);
+    outline: none;
+    box-shadow:
+        0 0 0 4px #fff,
+        0 0 2.2rem 0.4rem color-mix(in srgb, var(--c) 80%, #fff),
+        0 0.45rem 0 color-mix(in srgb, var(--c) 45%, #0a0420);
+}
+
+.gk-tile:disabled {
+    cursor: progress;
+    filter: brightness(1.15);
+}
+
+.gk-tile-art {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.gk-tile-art svg {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: 17vh;
+    filter: drop-shadow(0 0.4rem 0.5rem rgba(0, 0, 0, 0.3));
+}
+
+.gk-tile-name {
+    position: relative;
+    font-family: var(--gk-display);
+    font-size: clamp(1rem, 3.3vh, 2.5rem);
+    line-height: 1.02;
+    text-shadow: 0 0.08em 0 rgba(20, 8, 50, 0.65), 0 0 0.6em rgba(0, 0, 0, 0.25);
+}
+
+.gk-tile-hook {
+    position: relative;
+    max-width: 22ch;
+    font-size: clamp(0.75rem, 1.85vh, 1.35rem);
+    font-weight: 700;
+    line-height: 1.15;
+    opacity: 0.95;
+}
+
+/* ---------- prawa kolumna ---------- */
+
+.gk-lobby-side {
+    grid-area: side;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: clamp(0.6rem, 1.6vh, 1.3rem);
+    min-height: 0;
+}
+
+.gk-code-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(0.6rem, 1.2vw, 1.4rem);
+}
+
+.gk-code-text {
+    display: grid;
+    gap: 0.15em;
+    padding: clamp(0.5rem, 1.4vh, 1rem) clamp(0.6rem, 1vw, 1.2rem);
+    border-radius: 16px;
+    background: rgba(10, 6, 40, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Kod przepisuje się z telefonem w ręku - największy tekst w kolumnie. */
+.gk-code {
+    font-family: var(--gk-display);
+    font-size: clamp(2rem, 6.8vh, 5.4rem);
+    line-height: 0.95;
+    letter-spacing: 0.04em;
+    color: #fff;
+    text-shadow: 0 0.06em 0 var(--gk-ink);
+}
+
+.gk-code-url {
+    color: var(--gk-muted);
+    font-weight: 700;
+    font-size: clamp(0.75rem, 1.7vh, 1.2rem);
+}
+
+.gk-qr {
+    width: clamp(7rem, 20vh, 16rem);
+    height: auto;
+    aspect-ratio: 1;
+    padding: clamp(6px, 1vh, 12px);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 0 2rem rgba(255, 210, 80, 0.25);
+}
+
+.gk-steps-card {
+    padding-right: clamp(6.5rem, 10.5vw, 12rem);
+}
+
+.gk-steps {
+    display: grid;
+    gap: clamp(0.4rem, 1.2vh, 0.9rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(0.85rem, 2.1vh, 1.5rem);
+    font-weight: 700;
+}
+
+.gk-steps li {
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+}
+
+.gk-step-no {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 1.7em;
+    height: 1.7em;
+    border-radius: 50%;
+    background: #2a3aa8;
+    border: 2px solid #4d6bff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+.gk-hl {
+    color: var(--gk-yellow);
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: 1.2em;
+    letter-spacing: 0.04em;
+}
+
+/* Odręczny dopisek ze strzałką do QR - z makiety. */
+.gk-scribble {
+    position: absolute;
+    top: clamp(1.4rem, 4vh, 3rem);
+    right: clamp(0.5rem, 0.8vw, 1rem);
+    color: var(--gk-yellow);
+    font-family: var(--gk-hand);
+    font-size: clamp(0.95rem, 2.4vh, 1.8rem);
+    line-height: 1;
+    text-align: center;
+    transform: rotate(-10deg);
+}
+
+.gk-scribble::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 104%;
+    width: 1.2em;
+    height: 1.6em;
+    border-right: 3px solid currentColor;
+    border-top-right-radius: 100% 100%;
+    transform: rotate(-12deg);
+}
+
+.gk-scribble::after {
+    content: '';
+    position: absolute;
+    left: calc(50% + 0.85em);
+    bottom: calc(104% + 1.4em);
+    border: 0.28em solid transparent;
+    border-bottom: 0.45em solid currentColor;
+}
+
+.gk-rank-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.gk-rank {
+    display: grid;
+    gap: 0.45em;
+    margin: 0 0 0.6em;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(0.85rem, 2vh, 1.4rem);
+    font-weight: 800;
+}
+
+.gk-rank li {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.35em 0.7em;
+    border-radius: 12px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--team-color) 30%, transparent), rgba(255, 255, 255, 0.04) 80%);
+}
+
+.gk-rank-no {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    color: var(--gk-muted);
+}
+
+.gk-rank li:first-child .gk-rank-no {
+    color: var(--gk-yellow);
+}
+
+.gk-rank-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gk-rank strong {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+.gk-rank-card .gk-muted {
+    margin-bottom: 0.6em;
+}
+
+/* Pusty turniej: duży, przygaszony puchar zamiast pustej karty. */
+.gk-rank-empty {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.4em;
+    min-height: 0;
+    text-align: center;
+}
+
+.gk-rank-empty svg {
+    width: auto;
+    height: min(9rem, 12vh);
+    opacity: 0.9;
+    filter: drop-shadow(0 0.4rem 0.6rem rgba(0, 0, 0, 0.35));
+}
+
+.gk-rank-card .gk-link {
+    margin-top: auto;
+    align-self: flex-start;
+    font-size: clamp(0.8rem, 1.8vh, 1.2rem);
+}
+
+/* ---------- pas graczy na dole ---------- */
+
+.gk-players-bar {
+    grid-area: bar;
+    display: flex;
+    align-items: center;
+    gap: clamp(0.8rem, 1.6vw, 2rem);
+    min-width: 0;
+    padding: clamp(0.5rem, 1.2vh, 0.9rem) clamp(0.9rem, 1.6vw, 1.8rem);
+    border-radius: 20px;
+    background: rgba(12, 8, 40, 0.7);
+    border: 1px solid rgba(140, 120, 255, 0.2);
+    font-size: clamp(0.8rem, 1.9vh, 1.35rem);
+}
+
+.gk-players-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    flex: 0 0 auto;
+    font-family: var(--gk-display);
+    font-size: 1.15em;
+    white-space: nowrap;
+}
+
+body.host .gk-players {
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    gap: clamp(0.7rem, 1.4vw, 1.6rem);
+    min-width: 0;
+    margin: 0;
+    padding: 0.9em 0.2em 0.1em;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+/* Gracz = awatar w kolorze drużyny + imię. Awatar rysowany gradientami
+   (głowa i ramiona), bez obrazków. */
+body.host .gk-players .team {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+}
+
+body.host .gk-players .team::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 2.1em;
+    height: 2.1em;
+    border-radius: 50%;
+    border: 0.16em solid var(--team-color);
+    background:
+        radial-gradient(circle at 50% 38%, #fff 0 19%, transparent 20%),
+        radial-gradient(ellipse 34% 26% at 50% 92%, #fff 0 98%, transparent 100%),
+        radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--team-color) 85%, #fff), color-mix(in srgb, var(--team-color) 60%, #000));
+    box-shadow: 0 0 0.8em color-mix(in srgb, var(--team-color) 50%, transparent);
+}
+
+/* Korona nad pierwszym, jak na makiecie - pierwszy przy stole. */
+body.host .gk-players .team:first-child::after {
+    content: '';
+    position: absolute;
+    left: 0.55em;
+    top: -0.85em;
+    width: 1.2em;
+    height: 0.8em;
+    background: var(--gk-yellow);
+    clip-path: polygon(0 100%, 0 20%, 25% 55%, 50% 0, 75% 55%, 100% 20%, 100% 100%);
+}
+
+body.host .gk-players .team-name {
+    max-width: 9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 800;
+    font-size: 1em;
+}
+
+body.host .gk-players .team-remove {
+    position: absolute;
+    top: -0.5em;
+    left: 1.6em;
+    width: 1.3em;
+    height: 1.3em;
+    background: var(--err);
+    color: #fff;
+    font-size: 0.75em;
+    opacity: 0;
+}
+
+body.host .gk-players .team:hover .team-remove,
+body.host .gk-players .team-remove:focus-visible {
+    opacity: 1;
+}
+
+.gk-wait {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    flex: 0 0 auto;
+    color: var(--gk-muted);
+    font-weight: 700;
+    font-size: 0.85em;
+    line-height: 1.1;
+}
+
+.gk-wait-plus {
+    display: grid;
+    place-items: center;
+    width: 2.2em;
+    height: 2.2em;
+    border: 2px dashed var(--gk-muted);
+    border-radius: 50%;
+    font-size: 1.2em;
+}
+
+.gk-bar-tools {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 0.8vw, 1rem);
+    margin-left: auto;
+    padding-left: clamp(0.6rem, 1.2vw, 1.4rem);
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.gk-bar-tools form {
+    margin: 0;
+}
+
+/* Stan połączenia jako sama kropka - z kanapy liczy się kolor, nie słowo.
+   Tekst zostaje dla czytników ekranu. */
+.gk-bar-tools .conn {
+    width: 0.8em;
+    height: 0.8em;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #f5a524;
+    color: transparent;
+    font-size: 1em;
+    box-shadow: 0 0 0.6em currentColor;
+}
+
+.gk-bar-tools .conn[data-state="online"] { background: #3ddc84; }
+.gk-bar-tools .conn[data-state="offline"] { background: #ff4d6d; }
+
+.gk-tool {
+    display: grid;
+    place-items: center;
+    min-width: 2.2em;
+    height: 2.2em;
+    padding: 0 0.5em;
+    font-size: 1.2em;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--gk-text);
+    font: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.gk-tool:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Telefon albo wąskie okno: wszystko w jednej kolumnie i przewijanie. */
+@media (max-width: 900px) {
+    body.host .l2.gk-lobby {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'main' 'side' 'bar';
+    }
+
+    body.host .gk-wall {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: 14rem;
+    }
+
+    .gk-players-bar { flex-wrap: wrap; }
+    .gk-bar-tools { margin-left: 0; border-left: 0; padding-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gk-tile, .gk-btn { transition: none; }
+    .gk-tile:hover, .gk-tile:focus-visible, .gk-btn:hover { transform: none; }
+}
+
+/* ========================================================================
+   EKRAN W TRAKCIE GRY - ta sama skóra co poczekalnia
+   ======================================================================== */
+
+body.host .tv {
+    font-family: var(--gk-body);
+}
+
+/* ---------- pasek ---------- */
+
+body.host .tv-bar:not(.tv-bar-lobby) {
+    padding: clamp(0.35rem, 0.9vh, 0.7rem) clamp(0.7rem, 1.4vw, 1.4rem);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(40, 30, 110, 0.8), rgba(24, 16, 72, 0.8));
+    border: 2px solid var(--gk-panel-border);
+    box-shadow: 0 0.6rem 2rem rgba(5, 2, 25, 0.45);
+}
+
+body.host .tv-bar .tv-brand {
+    margin: 0;
+    font-size: clamp(1.1rem, 3.7vh, 2.8rem);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Nazwa gry jako mały kafelek z jej ilustracją - ten sam kolor i rysunek
+   co na ścianie wyboru, więc od razu wiadomo, co się kliknęło. */
+body.host .tv-game-chip {
+    gap: 0.5em;
+    padding: 0.18em 1.1em 0.18em 0.2em;
+    border: 3px solid color-mix(in srgb, var(--c) 55%, #fff);
+    border-radius: 18px;
+    background: linear-gradient(165deg, color-mix(in srgb, var(--c) 78%, #fff) 0%, var(--c) 50%, color-mix(in srgb, var(--c) 55%, #10052e) 100%);
+    box-shadow: 0 0.3rem 0 color-mix(in srgb, var(--c) 45%, #0a0420), 0 0.6rem 1.4rem -0.4rem color-mix(in srgb, var(--c) 70%, transparent);
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1rem, 3.1vh, 2.4rem);
+    letter-spacing: 0.01em;
+    text-transform: none;
+    text-shadow: 0 0.08em 0 rgba(20, 8, 50, 0.6);
+}
+
+body.host .tv-game-chip-long {
+    font-size: clamp(0.85rem, 2.4vh, 1.8rem);
+}
+
+body.host .tv-game-icon {
+    width: 2.3em;
+    height: 1.75em;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+}
+
+body.host .tv-game-icon svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0.15rem 0.2rem rgba(0, 0, 0, 0.3));
+}
+
+/* Kod pokoju jak karta z poczekalni - mniejsza, ale ten sam układ. */
+body.host .tv-join {
+    gap: 0.8em;
+    padding: 0.3em 0.35em 0.3em 1em;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(10, 6, 40, 0.5);
+}
+
+body.host .tv-join:hover {
+    background: rgba(10, 6, 40, 0.75);
+    border-color: var(--gk-yellow);
+}
+
+.tv-join-text {
+    display: grid;
+    text-align: left;
+    line-height: 1.1;
+}
+
+body.host .tv-join-label {
+    color: #9fb4ff;
+    font-family: var(--gk-display);
+    font-size: clamp(0.7rem, 1.6vh, 1.15rem);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+body.host .tv-join-url {
+    color: var(--gk-muted);
+    font-size: clamp(0.7rem, 1.5vh, 1.05rem);
+    font-weight: 700;
+}
+
+body.host .tv-join-code {
+    padding: 0.08em 0.45em 0.12em;
+    border-radius: 12px;
+    background: none;
+    color: #fff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 4.6vh, 3.4rem);
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-shadow: 0 0.06em 0 var(--gk-ink);
+}
+
+body.host .tv-bar-right .btn {
+    font-family: var(--gk-body);
+    font-weight: 800;
+    color: var(--gk-text);
+    font-size: clamp(0.75rem, 1.6vh, 1.15rem);
+    padding: 0.45em 0.75em;
+}
+
+/* Połączenie jako kropka - jak w poczekalni. */
+body.host .tv-bar-right .conn {
+    width: 0.75rem;
+    height: 0.75rem;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #f5a524;
+    color: transparent;
+    box-shadow: 0 0 0.5rem rgba(245, 165, 36, 0.8);
+}
+
+body.host .tv-bar-right .conn[data-state="online"] { background: #3ddc84; box-shadow: 0 0 0.5rem #3ddc84; }
+body.host .tv-bar-right .conn[data-state="offline"] { background: #ff4d6d; box-shadow: 0 0 0.5rem #ff4d6d; }
+
+body.host .tv-bar-right .btn-bar-main {
+    border: 2px solid #4d6bff;
+    background: linear-gradient(180deg, #2a3aa8 0%, #1b2478 100%);
+    box-shadow: 0 0.16em 0 #0e1450;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+/* ---------- tablo drużyn ---------- */
+
+body.host .tv-teams.card {
+    border: 2px solid var(--gk-panel-border);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(40, 30, 110, 0.78), var(--gk-panel));
+    box-shadow: 0 0.8rem 2.4rem rgba(5, 2, 25, 0.45);
+}
+
+body.host .tv-teams .card-header {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+body.host .teams-head {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.1rem, 3.2vh, 2.4rem);
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #fff;
+}
+
+body.host .teams-head .text-secondary {
+    color: var(--gk-muted) !important;
+}
+
+/* Drużyna = awatar w kolorze drużyny (jak w pasie graczy poczekalni) +
+   nazwa + wynik. Numer miejsca wisi na awatarze jak plakietka. */
+body.host .tv-teams .team {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: clamp(0.45rem, 1.1vh, 0.9rem) clamp(0.6rem, 1vw, 1rem);
+    border-radius: 16px;
+    outline: 0;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--team-color) 32%, transparent), rgba(255, 255, 255, 0.04) 85%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+body.host .tv-teams .team-rank {
+    position: relative;
+    width: 2.4em;
+    height: 2.4em;
+    border-radius: 50%;
+    border: 0.15em solid var(--team-color);
+    background:
+        radial-gradient(circle at 50% 38%, #fff 0 19%, transparent 20%),
+        radial-gradient(ellipse 34% 26% at 50% 92%, #fff 0 98%, transparent 100%),
+        radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--team-color) 85%, #fff), color-mix(in srgb, var(--team-color) 60%, #000));
+    color: transparent;
+    font-size: clamp(0.85rem, 1.9vh, 1.4rem);
+    box-shadow: 0 0 0.8em color-mix(in srgb, var(--team-color) 45%, transparent);
+}
+
+/* Numer miejsca jako kółeczko w rogu awatara (sam tekst .team-rank jest
+   przezroczysty, żeby nie zasłaniał ludzika - kontroler i tak go numeruje). */
+body.host .tv-teams .team-rank::after {
+    content: counter(gk-rank);
+    position: absolute;
+    right: -0.35em;
+    bottom: -0.3em;
+    display: grid;
+    place-items: center;
+    min-width: 1.25em;
+    height: 1.25em;
+    border-radius: 999px;
+    background: #2a3aa8;
+    border: 2px solid var(--gk-bg);
+    color: #fff;
+    font-family: var(--gk-display);
+    font-size: 0.78em;
+    font-weight: 800;
+}
+
+body.host .tv-teams .teams {
+    counter-reset: gk-rank;
+}
+
+body.host .tv-teams .team {
+    counter-increment: gk-rank;
+}
+
+body.host .tv-teams .team:first-child .team-rank {
+    background:
+        radial-gradient(circle at 50% 38%, #fff 0 19%, transparent 20%),
+        radial-gradient(ellipse 34% 26% at 50% 92%, #fff 0 98%, transparent 100%),
+        radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--team-color) 85%, #fff), color-mix(in srgb, var(--team-color) 60%, #000));
+    color: transparent;
+}
+
+body.host .tv-teams .team:first-child .team-rank::after {
+    background: var(--gk-yellow);
+    color: #2a1a05;
+}
+
+/* Korona nad liderem - jak nad pierwszym graczem w poczekalni. */
+body.host .tv-teams .team:first-child .team-rank::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -0.62em;
+    width: 1.15em;
+    height: 0.75em;
+    transform: translateX(-50%) rotate(-8deg);
+    background: var(--gk-yellow);
+    clip-path: polygon(0 100%, 0 20%, 25% 55%, 50% 0, 75% 55%, 100% 20%, 100% 100%);
+    filter: drop-shadow(0 1px 0 var(--gk-ink));
+}
+
+body.host .tv-teams .team:first-child {
+    box-shadow: inset 0 0 0 2px rgba(255, 194, 26, 0.7), 0 0 1.4rem rgba(255, 194, 26, 0.18);
+}
+
+body.host .tv-teams .team-name {
+    font-family: var(--gk-body);
+    font-weight: 800;
+}
+
+body.host .tv-teams .team-score {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.6rem, 4.2vh, 3.4rem);
+    color: #fff;
+    text-shadow: 0 0.06em 0 var(--gk-ink);
+}
+
+/* ---------- panel gry ---------- */
+
+body.host .game-panel {
+    border: 2px solid var(--gk-panel-border);
+    background:
+        radial-gradient(ellipse at 20% 0%, rgba(130, 100, 255, 0.18), transparent 60%),
+        linear-gradient(180deg, rgba(40, 30, 110, 0.7), rgba(22, 14, 66, 0.78));
+    box-shadow: 0 0.8rem 2.4rem rgba(5, 2, 25, 0.45);
+}
+
+body.host .game-main {
+    background: rgba(10, 6, 40, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+}
+
+body.host .tip-card {
+    border-left-color: var(--gk-yellow);
+    background: rgba(255, 255, 255, 0.06);
+    color: #e6e0ff;
+    font-weight: 600;
+}
+
+body.host .tip-card strong {
+    color: var(--gk-yellow);
+    font-weight: 900;
+}
+
+body.host .game-foot {
+    color: var(--gk-muted);
+    font-weight: 700;
+}
+
+body.host .panel-eyebrow {
+    font-family: var(--gk-display);
+    letter-spacing: 0.05em;
+    color: #9fb4ff;
+}
+
+body.host .turn-line,
+body.host .banner-small,
+body.host .track-answer {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+/* Przyciski gry jak w teleturnieju: gruby spód, Baloo, żółty dla głównej
+   akcji, granat dla reszty. Ten sam kształt, co „Losuj grę” na ścianie. */
+body.host .tv .btn {
+    border: 2px solid #4d6bff;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #2a3aa8 0%, #1b2478 100%);
+    color: #fff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    box-shadow: 0 0.2em 0 #0e1450, inset 0 0.08em 0 rgba(255, 255, 255, 0.2);
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+body.host .tv .btn:hover {
+    filter: brightness(1.1);
+}
+
+body.host .tv .btn-primary {
+    border-color: var(--gk-ink);
+    background: linear-gradient(180deg, var(--gk-yellow-hi) 0%, var(--gk-yellow) 55%, #ffa800 100%);
+    color: #2a1a05;
+    box-shadow: 0 0.2em 0 #b86a00, 0 0.3em 1.4em rgba(255, 180, 0, 0.35), inset 0 0.08em 0 rgba(255, 255, 255, 0.6);
+}
+
+body.host .tv .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    font-family: var(--gk-body);
+    font-weight: 800;
+}
+
+body.host .tv .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.host .game-main .panel-row:not(.panel-controls) {
+    border: 2px solid var(--gk-panel-border);
+    background: rgba(40, 30, 110, 0.45);
+}
+
+body.host .game-main .panel-row:not(.panel-controls) > label {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    color: #9fb4ff;
+}
+
+body.host .game-main .select,
+body.host .game-main .form-control {
+    border: 2px solid rgba(140, 120, 255, 0.4);
+    border-radius: 12px;
+    background-color: rgba(10, 6, 40, 0.7);
+    color: #fff;
+    font-weight: 800;
+}
+
+/* Plansza hasła w kalamburach w kolorze gry (była zielona). */
+body.host .kalambury-panel .cell-back {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--g-kalambury) 85%, #fff), var(--g-kalambury));
+    border-color: color-mix(in srgb, var(--g-kalambury) 50%, #fff);
+}
+
+body.host .kalambury-panel .cell-front {
+    background: #fff0f5;
+    border-color: color-mix(in srgb, var(--g-kalambury) 50%, #fff);
+}
+
+body.host .cell-face {
+    border-radius: 8px;
+    box-shadow: 0 0.12em 0 rgba(10, 4, 30, 0.6);
+}
+
+body.host .cell-back {
+    background: linear-gradient(180deg, #3a2f9a, #261c78);
+    border-color: #5b4fd0;
+}
+
+body.host .cell-front {
+    font-family: var(--gk-display);
+}
+
+/* Modal turnieju i panel dołączania w tej samej skórze. */
+body.host .standings-modal-card,
+body.host .join-card {
+    border: 2px solid var(--gk-panel-border);
+    border-radius: 26px;
+    background: linear-gradient(180deg, #2a1f78, #1a1150);
+}
+
+body.host .room-code {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    color: var(--gk-yellow);
+    text-shadow: 0 0.06em 0 var(--gk-ink);
+}
+
+body.host .standings-modal-title,
+body.host .join-lead {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+/* ========================================================================
+   STRONA STARTOWA
+   ======================================================================== */
+
+.gk-home {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+        'logo host join'
+        'games games games';
+    align-items: center;
+    align-content: center;
+    gap: clamp(1rem, 3vh, 2.4rem) clamp(1rem, 2vw, 2.4rem);
+    padding: clamp(1rem, 3vh, 2.6rem) clamp(1rem, 3vw, 3rem);
+    max-width: 120rem;
+    margin: 0 auto;
+}
+
+.gk-home-logo {
+    grid-area: logo;
+    margin: clamp(1rem, 3vh, 2.6rem) 0 0;
+    font-size: clamp(2.6rem, 5.4vw, 7rem);
+    font-weight: 400;
+}
+
+.gk-home-host {
+    grid-area: host;
+    display: grid;
+    gap: clamp(0.7rem, 1.8vh, 1.2rem);
+}
+
+.gk-host-form {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.gk-home-note {
+    margin: 0;
+    color: var(--gk-muted);
+    font-weight: 700;
+    text-align: center;
+}
+
+.gk-input,
+body:not(.admin) .gk-input {
+    width: 100%;
+    padding: 0.7em 0.9em;
+    border: 2px solid rgba(140, 120, 255, 0.45);
+    border-radius: 14px;
+    background: rgba(10, 6, 40, 0.65);
+    color: #fff;
+    font-family: var(--gk-body);
+    font-weight: 800;
+    font-size: max(16px, 1.1rem);
+}
+
+.gk-home-join {
+    grid-area: join;
+}
+
+.gk-join-form {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.gk-join-row {
+    display: flex;
+    gap: 0.6rem;
+}
+
+body:not(.admin) .gk-code-input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: max(16px, 1.8rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.gk-btn-blue {
+    color: #fff;
+    background: linear-gradient(180deg, #3d8bff 0%, #1f5fe6 100%);
+    border-color: var(--gk-ink);
+    box-shadow: 0 0.2em 0 #0f2f86, 0 0 1.2em rgba(61, 139, 255, 0.35), inset 0 0.08em 0 rgba(255, 255, 255, 0.35);
+}
+
+.gk-home-url {
+    margin: 0.8rem 0 0;
+    color: var(--gk-muted);
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.gk-home-games {
+    grid-area: games;
+    display: grid;
+    gap: clamp(0.5rem, 1.4vh, 1rem);
+}
+
+.gk-home-wall {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: clamp(0.6rem, 1.2vw, 1.2rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gk-tile-static {
+    cursor: default;
+    height: clamp(11rem, 24vh, 17rem);
+}
+
+.gk-tile-static:hover {
+    transform: none;
+    box-shadow:
+        0 0.45rem 0 color-mix(in srgb, var(--c) 45%, #0a0420),
+        0 1rem 2rem -0.6rem color-mix(in srgb, var(--c) 70%, transparent),
+        inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Telefon: najpierw dołączanie (po to tu się wchodzi z telefonu), potem
+   logo, zakładanie pokoju i gry. */
+@media (max-width: 900px) {
+    .gk-home {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'logo' 'join' 'host' 'games';
+        align-content: start;
+    }
+
+    .gk-home-logo {
+        justify-self: center;
+        font-size: clamp(2.6rem, 14vw, 5rem);
+    }
+
+    .gk-home-wall {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gk-tile-static {
+        height: 12rem;
+    }
+}
+
+/* Kalambury rysowane: bramka wyboru roli ekranu w skórze motywu. */
+body.host .rys-role-gate {
+    background: rgba(20, 12, 60, 0.94);
+}
+
+body.host .rys-role-gate .game-name,
+body.host .rys-role-gate .game-name span {
+    color: var(--gk-yellow);
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+/* ========================================================================
+   TELEFON GRACZA - ta sama skóra, układ zostaje z app.css
+   ======================================================================== */
+
+body.player .player-brand {
+    margin: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+body.player .player-bar {
+    padding: 0.5rem 0.2rem 0.7rem;
+}
+
+body.player .player-who {
+    font-weight: 800;
+}
+
+body.player .game-tab {
+    border: 3px solid rgba(255, 255, 255, 0.35);
+    border-radius: 18px;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.02em;
+    text-shadow: 0 0.08em 0 rgba(20, 8, 50, 0.6);
+    box-shadow: 0 0.3rem 0 rgba(10, 4, 32, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.3);
+    background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.25), transparent 60%);
+}
+
+body.player .fact-card,
+body.player .panel {
+    border: 2px solid var(--gk-panel-border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(40, 30, 110, 0.78), var(--gk-panel));
+}
+
+body.player .fact-value,
+body.player .room-code {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+body.player .btn {
+    border: 2px solid #4d6bff;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #2a3aa8 0%, #1b2478 100%);
+    color: #fff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: 0.01em;
+    box-shadow: 0 0.2em 0 #0e1450, inset 0 0.08em 0 rgba(255, 255, 255, 0.2);
+}
+
+body.player .btn-primary {
+    border-color: var(--gk-ink);
+    background: linear-gradient(180deg, var(--gk-yellow-hi) 0%, var(--gk-yellow) 55%, #ffa800 100%);
+    color: #2a1a05;
+    box-shadow: 0 0.2em 0 #b86a00, 0 0.3em 1.2em rgba(255, 180, 0, 0.35), inset 0 0.08em 0 rgba(255, 255, 255, 0.6);
+}
+
+body.player .waiting {
+    font-family: var(--gk-display);
+    font-size: 1.5rem;
+}
+
+body.player input:not([type="hidden"]),
+body.player select {
+    border: 2px solid rgba(140, 120, 255, 0.45);
+    border-radius: 14px;
+    background: rgba(10, 6, 40, 0.65);
+    font-weight: 800;
+}
+
+.gk-join-logo {
+    margin: 1rem 0 0.4rem;
+    font-size: 2.6rem;
+    text-align: center;
+}
+
+body.player .gk-join-panel {
+    padding: 1.4rem;
+}
+
+body.player .join-form .btn {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+/* ========================================================================
+   SCENA STUDIA - ekrany gier
+   ========================================================================
+
+   Każda gra dostaje własną scenę w swoim kolorze: dwa reflektory z sufitu,
+   poświatę „podłogi” pod ilustracją i drobne konfetti. Wszystko w warstwie
+   ::before/::after, absolutnie, ZA treścią (isolation + z-index -1) - panel
+   ma sztywną siatkę rail/main/foot (patrz pułapki w CLAUDE.md), więc nie
+   wolno dokładać do niego żadnych elementów w przepływie. */
+
+/* Zapas dla gry bez własnego koloru - nadpisują go reguły poniżej. */
+.game-panel { --c: #6b5cff; }
+.melodia-panel { --c: var(--g-melodia); }
+.quiz-panel { --c: var(--g-quiz); }
+.kolo-panel { --c: var(--g-kolo); }
+.kalambury-panel { --c: var(--g-kalambury); }
+.rys-panel { --c: var(--g-kalambury-rysowane); }
+.panstwa-panel { --c: var(--g-panstwa); }
+.dutch-panel { --c: var(--g-dutch); }
+.ostatnia-litera-panel { --c: var(--g-ostatnia-litera); }
+
+body.host .game-panel {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--c) 45%, rgba(140, 120, 255, 0.4));
+    background:
+        radial-gradient(ellipse 46% 22% at 26% 96%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%),
+        radial-gradient(ellipse 70% 55% at 26% 40%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%),
+        linear-gradient(180deg, rgba(40, 30, 110, 0.75), rgba(18, 11, 56, 0.85));
+    box-shadow:
+        0 0.8rem 2.4rem rgba(5, 2, 25, 0.45),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+        inset 0 -6rem 6rem -4rem color-mix(in srgb, var(--c) 25%, transparent);
+}
+
+/* Reflektory: dwa stożki światła z góry, skośnie na scenę. */
+body.host .game-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        conic-gradient(from 160deg at 8% -8%, transparent 0deg, color-mix(in srgb, var(--c) 30%, transparent) 14deg, transparent 30deg),
+        conic-gradient(from 172deg at 46% -10%, transparent 0deg, rgba(255, 255, 255, 0.10) 10deg, transparent 22deg);
+    filter: blur(6px);
+    opacity: 0.9;
+}
+
+/* Konfetti - kilka barwnych kresek w rogach sceny. */
+body.host .game-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(60deg, transparent 47%, #ffd23f 47% 53%, transparent 53%) 3% 6% / 18px 18px no-repeat,
+        linear-gradient(-30deg, transparent 45%, #4cc9f0 45% 55%, transparent 55%) 46% 3% / 16px 16px no-repeat,
+        linear-gradient(20deg, transparent 45%, #ff5d8f 45% 55%, transparent 55%) 52% 94% / 18px 18px no-repeat,
+        linear-gradient(-60deg, transparent 45%, #ffd23f 45% 55%, transparent 55%) 97% 8% / 16px 16px no-repeat,
+        radial-gradient(circle, rgba(255, 255, 255, 0.5) 0 2px, transparent 3px) 12% 30% / 10px 10px no-repeat,
+        radial-gradient(circle, rgba(255, 255, 255, 0.4) 0 2px, transparent 3px) 40% 70% / 10px 10px no-repeat;
+}
+
+/* Ilustracja gry (koło, płyta, ludzik...) dostaje cień „na podłodze”. */
+body.host .game-rail .wheel,
+body.host .game-rail .game-art svg,
+body.host .mime svg {
+    filter: drop-shadow(0 1.6rem 1.4rem rgba(0, 0, 0, 0.45)) drop-shadow(0 0 2.6rem color-mix(in srgb, var(--c) 35%, transparent));
+}
+
+/* ---------- tablica (prawa strona) ---------- */
+
+/* Zamiast ciemnego pudła: tablica z paskiem w kolorze gry u góry. */
+body.host .game-main {
+    position: relative;
+    /* Bez tego długie hasło (wyrazy się nie łamią) rozpychało kolumnę
+       i tablica z przyciskami wychodziła za prawą krawędź panelu. */
+    min-width: 0;
+    padding-top: clamp(1rem, 2.6vh, 2rem);
+    gap: clamp(0.8rem, 2.2vh, 1.8rem);
+    border: 2px solid rgba(255, 255, 255, 0.07);
+    border-top: 0.45rem solid var(--c);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 30%),
+        rgba(8, 5, 32, 0.55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1rem 2rem rgba(0, 0, 0, 0.25);
+}
+
+/* Kategoria i numer hasła jako plakietka - widać, z czego losujemy. */
+body.host .panel-eyebrow {
+    justify-self: center;
+    padding: 0.35em 1em;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c) 30%, rgba(10, 6, 40, 0.6));
+    border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+    color: #fff;
+    font-size: clamp(0.85rem, 2.1vh, 1.5rem);
+    letter-spacing: 0.04em;
+    text-transform: none;
+}
+
+body.host .panel-eyebrow:empty {
+    display: none;
+}
+
+body.host .board-head {
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+body.host .board-hint {
+    background: rgba(255, 194, 26, 0.18);
+    border-color: rgba(255, 194, 26, 0.6);
+    color: var(--gk-yellow);
+}
+
+/* Czyja tura - duży napis z poświatą, czytany z kanapy. */
+body.host .turn-line {
+    font-size: clamp(1.6rem, 5vh, 3.8rem);
+    line-height: 1.05;
+    color: #fff;
+    text-shadow: 0 0.07em 0 var(--gk-ink), 0 0 0.8em color-mix(in srgb, var(--c) 60%, transparent);
+}
+
+body.host .banner-small {
+    font-size: clamp(1.3rem, 4vh, 3rem);
+    color: var(--gk-yellow);
+    text-shadow: 0 0.07em 0 var(--gk-ink);
+}
+
+body.host .track-answer {
+    font-size: clamp(1.6rem, 5.4vh, 4rem);
+    color: var(--gk-yellow);
+    text-shadow: 0 0.07em 0 var(--gk-ink), 0 0 1em rgba(255, 194, 26, 0.4);
+}
+
+body.host .hint {
+    font-size: clamp(0.9rem, 2vh, 1.4rem);
+    font-weight: 700;
+    color: var(--gk-muted);
+}
+
+body.host .panel-controls {
+    gap: clamp(0.6rem, 1.4vh, 1rem);
+}
+
+body.host .panel-controls .btn {
+    min-width: 13ch;
+    padding: 0.55em 1.6em 0.6em;
+    font-size: clamp(1.1rem, 3vh, 2.2rem);
+    border-radius: 18px;
+}
+
+/* ---------- plansza hasła: tablica z lampkami ---------- */
+
+/* Kropkowany, żółty obrys = rząd żarówek wokół tablicy, jak w studiu. */
+body.host .puzzle-board {
+    width: fit-content;
+    max-width: 100%;
+    justify-self: center;
+    padding: clamp(0.7rem, 2vh, 1.4rem) clamp(0.7rem, 1.2vw, 1.4rem);
+    border: 0.42rem dotted #ffe066;
+    border-radius: 22px;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.12), transparent 60%),
+        linear-gradient(180deg, #1d2a8f, #0f175a);
+    box-shadow:
+        0 0 0 0.35rem #0b0f3d,
+        0 0 2rem rgba(255, 224, 102, 0.35),
+        inset 0 0 2rem rgba(0, 0, 0, 0.45);
+}
+
+body.host .puzzle-board:empty {
+    display: none;
+}
+
+/* Kafelek liczony z SZEROKOŚCI ekranu, nie tylko wysokości: najdłuższe
+   wyrazy słownika (11-12 liter) muszą zmieścić się w jednym rzędzie tablicy,
+   bo wyraz się nie łamie. */
+body.host .puzzle-cell {
+    width: clamp(1.5rem, min(4.8vmin, 2.25vw), 4.2rem);
+    height: clamp(2.1rem, min(6.6vmin, 3.1vw), 5.6rem);
+    font-size: clamp(1.1rem, min(4vmin, 1.9vw), 3.4rem);
+}
+
+body.host .puzzle-space {
+    width: clamp(0.6rem, 2vmin, 1.4rem);
+}
+
+body.host .cell-back {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 45%),
+        linear-gradient(180deg, color-mix(in srgb, var(--c) 85%, #fff), color-mix(in srgb, var(--c) 80%, #000));
+    border: 2px solid color-mix(in srgb, var(--c) 40%, #fff);
+}
+
+body.host .cell-front {
+    background: linear-gradient(180deg, #ffffff, #e9e4ff);
+    border: 2px solid #fff;
+    color: var(--gk-ink);
+}
+
+body.host .puzzle-space .cell-face,
+body.host .puzzle-cell.puzzle-space {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* ---------- zegar: okrągła tarcza ---------- */
+
+body.host .game-rail .clock:not(.rys-rail-clock):not(.rys-hud-clock) {
+    justify-self: center;
+    align-self: center;
+    width: clamp(8rem, 30vmin, 22rem);
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.12), transparent 55%),
+        radial-gradient(circle, #160d45 0 60%, transparent 61%),
+        conic-gradient(var(--gk-yellow), var(--c), #ff5d8f, var(--c), var(--gk-yellow));
+    box-shadow: 0 0 0 0.35rem rgba(10, 6, 40, 0.7), 0 0 3rem color-mix(in srgb, var(--c) 50%, transparent);
+}
+
+body.host .game-rail .clock .clock-value {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(3rem, 13vmin, 9rem);
+    color: #fff;
+    text-shadow: 0 0.06em 0 var(--gk-ink);
+}
+
+body.host .game-rail .clock-huge {
+    width: clamp(10rem, 40vmin, 28rem);
+}
+
+body.host .game-rail .clock-huge .clock-value {
+    font-size: clamp(4rem, 19vmin, 13rem);
+}
+
+/* Ostatnie sekundy: tarcza na czerwono i pulsuje. */
+body.host .game-rail .clock[data-state="urgent"] {
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.12), transparent 55%),
+        radial-gradient(circle, #3a0b1e 0 60%, transparent 61%),
+        conic-gradient(#ff4d6d, #ff9f1c, #ff4d6d);
+    animation: gk-pulse 0.9s ease-in-out infinite;
+}
+
+body.host .game-rail .clock[data-state="urgent"] .clock-value {
+    color: #fff;
+}
+
+@keyframes gk-pulse {
+    50% { transform: scale(1.05); box-shadow: 0 0 0 0.35rem rgba(10, 6, 40, 0.7), 0 0 4rem rgba(255, 77, 109, 0.7); }
+}
+
+/* Kalambury rysowane: zegar i punkty w szynie projektora czytelne z kanapy. */
+body.host .rys-rail-clock .clock-value,
+body.host .rys-hud-clock .clock-value {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+/* ---------- ostatnia litera ---------- */
+
+/* Wymagana litera jako kafelek z planszówki - największa rzecz w szynie
+   zaraz po zegarze. */
+body.host .ostatnia-litera-panel .game-rail .panel-row {
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+body.host .ostatnia-litera-panel .game-rail .panel-row .small {
+    color: var(--gk-muted) !important;
+    font-family: var(--gk-display);
+    font-size: clamp(0.9rem, 2.2vh, 1.6rem);
+    letter-spacing: 0.04em;
+}
+
+body.host .required-letter {
+    display: grid;
+    place-items: center;
+    width: clamp(4.5rem, 15vmin, 11rem);
+    aspect-ratio: 1;
+    border-radius: 18%;
+    background: linear-gradient(180deg, #fffaf0, #fff0d1);
+    color: var(--gk-ink);
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(3rem, 10vmin, 7.5rem);
+    line-height: 1;
+    transform: rotate(-4deg);
+    box-shadow: 0 0.5rem 0 #d9ad6a, 0 0.9rem 1.6rem rgba(0, 0, 0, 0.4);
+}
+
+body.host .ol-word-chain {
+    justify-content: center;
+    gap: 0.6rem 0.5rem;
+    max-height: 30vh;
+}
+
+body.host .ol-word-chain-item {
+    padding: 0.25em 0.6em;
+    border: 0;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #fffaf0, #fff0d1);
+    color: var(--gk-ink);
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1rem, 2.8vh, 2.1rem);
+    letter-spacing: 0.04em;
+    box-shadow: 0 0.18em 0 #d9ad6a;
+}
+
+body.host .ol-word-chain-item:last-child {
+    background: linear-gradient(180deg, #fff6b0, var(--gk-yellow));
+    box-shadow: 0 0.18em 0 #b86a00, 0 0 1.2em rgba(255, 194, 26, 0.6);
+    transform: scale(1.12);
+}
+
+body.host .ol-word-chain-item:not(:last-child)::after {
+    color: var(--gk-muted);
+    opacity: 1;
+}
+
+body.host .ol-teams {
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+body.host .ol-team {
+    padding: 0.45em 1em;
+    font-size: clamp(0.9rem, 2.1vh, 1.5rem);
+    font-weight: 800;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+body.host .ol-team-active {
+    border-color: var(--gk-yellow);
+    background: rgba(255, 194, 26, 0.16);
+    box-shadow: 0 0 1.2rem rgba(255, 194, 26, 0.4);
+}
+
+body.host .judge-panel {
+    border: 2px solid var(--gk-yellow);
+    border-radius: 20px;
+    background: rgba(255, 194, 26, 0.1);
+}
+
+body.host .judge-word {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(2rem, 6vh, 4.5rem);
+    color: var(--gk-yellow);
+}
+
+/* ---------- państwa i miasta ---------- */
+
+body.host .pm-progress-row {
+    font-size: clamp(1.1rem, 2.8vh, 2rem);
+    font-weight: 800;
+}
+
+body.host .pm-dot {
+    width: clamp(0.9rem, 2.4vh, 1.6rem);
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+}
+
+body.host .pm-dot-on {
+    background: radial-gradient(circle at 35% 30%, #fff 0 18%, transparent 20%), var(--c);
+    box-shadow: 0 0 0.6em color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+body.host .panstwa-panel .tip-card {
+    font-size: clamp(0.9rem, 2.2vh, 1.6rem);
+}
+
+/* ---------- dutch: większy stół ---------- */
+
+body.host .dutch-center {
+    gap: clamp(1.4rem, 3vw, 3rem);
+}
+
+body.host .dutch-deck,
+body.host .dutch-pile-wrap .dutch-card,
+body.host .dutch-discard-pile {
+    --cw: clamp(120px, 19vmin, 300px);
+}
+
+body.host .dutch-deck {
+    width: clamp(120px, 19vmin, 300px);
+    height: calc(clamp(120px, 19vmin, 300px) * 1.4);
+    border: 0.35rem solid #fff;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.25) 0 18%, transparent 19%),
+        repeating-linear-gradient(45deg, color-mix(in srgb, var(--c) 85%, #fff) 0 10px, var(--c) 10px 20px);
+    box-shadow: 0.5rem 0.5rem 0 -0.1rem color-mix(in srgb, var(--c) 55%, #000), 0 1.4rem 2rem rgba(0, 0, 0, 0.45);
+    color: #fff;
+}
+
+body.host .dutch-pile-count {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(2rem, 7vmin, 5rem);
+    text-shadow: 0 0.07em 0 var(--gk-ink);
+}
+
+body.host .dutch-pile-label {
+    font-family: var(--gk-display);
+    font-size: clamp(0.9rem, 2.4vh, 1.7rem);
+    color: #fff;
+    letter-spacing: 0.06em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.host .game-rail .clock[data-state="urgent"] { animation: none; }
+}
+
+/* ---------- melodia: „ma głos!” jak tablica z nazwiskiem ---------- */
+
+body.host .buzz-banner {
+    padding: 0.35em 1.2em 0.4em;
+    border: 0.25rem solid #fff;
+    border-radius: 24px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 50%),
+        var(--team-color, var(--gk-yellow));
+    color: #fff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 5.6vh, 4.4rem);
+    line-height: 1.05;
+    text-shadow: 0 0.07em 0 rgba(20, 8, 50, 0.7);
+    box-shadow: 0 0.4rem 0 color-mix(in srgb, var(--team-color, #ffb000) 55%, #000), 0 0 3rem color-mix(in srgb, var(--team-color, #ffb000) 70%, transparent);
+    animation: gk-bounce 0.55s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes gk-bounce {
+    from { transform: scale(0.4) rotate(-6deg); opacity: 0; }
+}
+
+/* ---------- kalambury rysowane ---------- */
+
+/* Szyna projektora: kategoria i rysujący czytelne z kanapy (były drobne,
+   szare), zegar i punkty wyraźne, ale nadal mniejsze od płótna. */
+body.host .rys-panel .rys-rail-category {
+    padding: 0.35em 0.8em;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--c) 30%, rgba(10, 6, 40, 0.6));
+    color: #fff;
+    font-family: var(--gk-display);
+    font-size: clamp(0.85rem, 2vh, 1.4rem);
+    line-height: 1.15;
+}
+
+body.host .rys-panel .rys-rail-turn {
+    color: #fff;
+    font-family: var(--gk-display);
+    font-size: clamp(1.1rem, 3vh, 2.2rem);
+    line-height: 1.1;
+}
+
+body.host .rys-panel .rys-rail-clock .clock-value {
+    font-size: clamp(2.6rem, 9vh, 6.5rem);
+    color: #fff;
+}
+
+body.host .rys-panel .rys-rail-points {
+    color: var(--gk-muted);
+    font-family: var(--gk-display);
+    font-size: clamp(1rem, 2.4vh, 1.7rem);
+}
+
+body.host .rys-panel .rys-rail-points span {
+    color: var(--gk-yellow);
+    font-size: clamp(1.8rem, 5vh, 3.6rem);
+}
+
+/* Płótno w drewnianej ramie sztalugi - rysunek oglądany jak obraz. */
+body.host .rys-panel[data-role="projector"] .rys-canvas,
+body.host .rys-panel:not([data-role]) .rys-canvas {
+    border: 0.7rem solid #c98a46;
+    border-radius: 14px;
+    background: #fffdf7;
+    box-shadow:
+        inset 0 0 0 3px #8a5a2b,
+        0 0 0 3px #5a3a18,
+        0 1.4rem 2.4rem rgba(0, 0, 0, 0.5);
+}
+
+/* Czekanie na wybór hasła: duży, żywy komunikat zamiast szarej linijki. */
+body.host .rys-panel .banner-small {
+    font-size: clamp(1.4rem, 4.4vh, 3.2rem);
+}
+
+/* ---------- państwa i miasta: tabela wyników ---------- */
+
+body.host .pm-table {
+    border-collapse: separate;
+    border-spacing: 0 0.35rem;
+    font-size: clamp(0.85rem, 2vh, 1.45rem);
+}
+
+body.host .pm-table th {
+    color: #9fb4ff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: 0.85em;
+    border: 0;
+}
+
+body.host .pm-table td {
+    border: 0;
+    background: rgba(255, 255, 255, 0.05);
+    font-weight: 800;
+}
+
+body.host .pm-table td:first-child {
+    border-radius: 12px 0 0 12px;
+}
+
+body.host .pm-table td:last-child {
+    border-radius: 0 12px 12px 0;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: 1.4em;
+    color: var(--gk-yellow);
+}
+
+body.host .pm-unique .pm-text { color: #5df08f; }
+body.host .pm-shared .pm-text { color: var(--gk-yellow); }
+
+/* ---------- dutch: gracze przy stole ---------- */
+
+body.host .dutch-seat {
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    border-left: 0;
+    border-radius: 16px;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--team-color) 30%, transparent), rgba(255, 255, 255, 0.04) 80%);
+    box-shadow: inset 0.4rem 0 0 var(--team-color);
+}
+
+body.host .dutch-seat.is-turn {
+    border-color: var(--gk-yellow);
+    box-shadow: inset 0.4rem 0 0 var(--team-color), 0 0 1.6rem rgba(255, 194, 26, 0.45);
+    transform: scale(1.04);
+}
+
+body.host .dutch-seat-name {
+    color: #fff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.1rem, 2.9vh, 2.1rem);
+}
+
+body.host .dutch-seat-count {
+    font-family: var(--gk-display);
+    font-weight: 800;
+}
+
+body.host .dutch-discard-pile:empty,
+body.host .dutch-discard-pile:not(:has(*)) {
+    border: 0.3rem dashed rgba(255, 255, 255, 0.25);
+    border-radius: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.host .buzz-banner { animation: none; }
+}
+
+/* Rysujący wybiera hasło: na projektorze pędzel nad pustą sztalugą i duży
+   napis zamiast szarej linijki nad ciemnym, pustym polem. */
+body.host .rys-panel[data-role="projector"][data-state="dealt"] .hint {
+    order: -1;
+    display: grid;
+    justify-items: center;
+    gap: 0.4em;
+    margin: auto;
+    color: #fff;
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 6vh, 4.4rem);
+    text-align: center;
+    text-shadow: 0 0.07em 0 var(--gk-ink);
+}
+
+body.host .rys-panel[data-role="projector"][data-state="dealt"] .hint::before {
+    content: '✏️';
+    font-size: 1.8em;
+    animation: gk-wiggle 1.2s ease-in-out infinite;
+}
+
+@keyframes gk-wiggle {
+    0%, 100% { transform: rotate(-12deg) translateY(0); }
+    50% { transform: rotate(12deg) translateY(-0.15em); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.host .rys-panel[data-state="dealt"] .hint::before { animation: none; }
+}
+
+/* Oferty trudności na tablecie: trzy karty w kolorach stawki - zielona,
+   żółta, czerwona. Ogólna skórka przycisków (.tv .btn) dawała im jednakowy
+   granat i rysujący nie widział, która oferta jest ile warta. Kolory wprost,
+   nie --g-*: te są barwami GIER (kalambury są teraz różowe), a tu chodzi
+   o skalę łatwe-trudne. */
+body.host .tv .btn.rys-choice {
+    --rc: #2fb24c;
+    border: 0.25rem solid #fff;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.3), transparent 40%),
+        linear-gradient(165deg, color-mix(in srgb, var(--rc) 80%, #fff), var(--rc) 50%, color-mix(in srgb, var(--rc) 60%, #000));
+    box-shadow: 0 0.4rem 0 color-mix(in srgb, var(--rc) 50%, #000), 0 1rem 2rem -0.6rem var(--rc);
+}
+
+body.host .tv .btn.rys-choice-sredni { --rc: #f39a12; }
+body.host .tv .btn.rys-choice-trudny { --rc: #e8336d; }
+
+body.host .rys-choice-label {
+    font-family: var(--gk-display);
+    font-size: clamp(1rem, 2.6vh, 1.8rem);
+    opacity: 0.95;
+}
+
+/* min-width: 0 i zawijanie - dwuwyrazowe hasło („Brzydkie kaczątko”)
+   wystawało poza kartę (pułapka z min-width: auto, patrz CLAUDE.md). */
+body.host .rys-choice-word {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: break-word;
+    font-family: var(--gk-display);
+    font-size: clamp(1.3rem, min(4.4vh, 2.6vw), 3.2rem);
+    line-height: 1.1;
+    text-shadow: 0 0.07em 0 rgba(20, 8, 50, 0.6);
+}
+
+/* ========================================================================
+   JAKA TO MELODIA - 1 z 4: kaseta, karty odpowiedzi, plakietki
+   ======================================================================== */
+
+/* Kolory czterech odpowiedzi - te same co kafelki 1-2-3-4 na ilustracji gry,
+   żeby „A niebieskie, C pomarańczowe” czytało się tak samo na TV i telefonie. */
+.quiz-options > :nth-child(1),
+.quiz-choices > :nth-child(1) { --qc: #3b7bff; }
+.quiz-options > :nth-child(2),
+.quiz-choices > :nth-child(2) { --qc: #19b4e8; }
+.quiz-options > :nth-child(3),
+.quiz-choices > :nth-child(3) { --qc: #ff9f1c; }
+.quiz-options > :nth-child(4),
+.quiz-choices > :nth-child(4) { --qc: #a25bff; }
+
+/* ---------- kaseta ---------- */
+
+body.host .quiz-tape {
+    width: min(100%, 34rem);
+}
+
+body.host .quiz-cassette {
+    filter: drop-shadow(0 1.6rem 1.4rem rgba(0, 0, 0, 0.45)) drop-shadow(0 0 2.4rem rgba(138, 63, 240, 0.35));
+    transform: rotate(-2deg);
+}
+
+/* Pasek czasu po obrysie: żółty i gruby - z kanapy to jedyny zegar. */
+body.host .tape-run {
+    stroke: var(--gk-yellow);
+    stroke-width: 6;
+    filter: drop-shadow(0 0 4px rgba(255, 194, 26, 0.8));
+}
+
+body.host .quiz-tape[data-state="urgent"] .tape-run {
+    stroke: #ff4d6d;
+    filter: drop-shadow(0 0 5px rgba(255, 77, 109, 0.9));
+}
+
+/* Stara reguła w app.css (.tape-shell { fill: ... }) wygrywa z atrybutem
+   fill w SVG - CSS zawsze bije atrybuty prezentacji, więc gradient
+   obudowy trzeba podać tu jeszcze raz. */
+body.host .tape-shell {
+    fill: url(#qc-shell);
+    stroke: #1a1238;
+    stroke-width: 3.5;
+}
+
+body.host .tape-band {
+    stroke: #4f2e12;
+    stroke-width: 3;
+}
+
+body.host .tape-hole {
+    fill: #1a1145;
+    stroke: #1a1238;
+    stroke-width: 1.5;
+}
+
+/* Odczyt sekund na etykiecie (y 28-70 z 168 w układzie SVG). */
+body.host .quiz-readout {
+    left: 12%;
+    right: 12%;
+    top: 17%;
+    height: 25%;
+    gap: 0;
+    transform: rotate(-2deg);
+    color: var(--gk-ink);
+}
+
+body.host .quiz-count {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 6.4vmin, 3.8rem);
+    line-height: 0.95;
+}
+
+body.host .quiz-tape[data-state="urgent"] .quiz-count {
+    color: #e8184a;
+}
+
+body.host .quiz-count-label {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(0.6rem, 1.3vmin, 0.95rem);
+    color: #8a7a9e;
+}
+
+body.host .quiz-eq {
+    height: 1rem;
+}
+
+body.host .quiz-eq i {
+    width: 0.28rem;
+    border-radius: 0.14rem;
+    background: linear-gradient(180deg, #ff5d8f, #8a3ff0);
+}
+
+/* ---------- karty odpowiedzi ---------- */
+
+body.host .quiz-options {
+    gap: clamp(0.7rem, 1.6vmin, 1.2rem);
+    width: 100%;
+}
+
+body.host .quiz-option {
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    align-items: center;
+    align-content: center;
+    gap: 0.8rem;
+    min-height: clamp(4.5rem, 12vh, 8rem);
+    padding: clamp(0.6rem, 1.6vmin, 1rem) clamp(0.8rem, 1.4vw, 1.3rem);
+    border: 0.22rem solid #fff;
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.3), transparent 45%),
+        linear-gradient(165deg, color-mix(in srgb, var(--qc) 80%, #fff), var(--qc) 50%, color-mix(in srgb, var(--qc) 65%, #000));
+    color: #fff;
+    text-align: left;
+    box-shadow: 0 0.35rem 0 color-mix(in srgb, var(--qc) 50%, #0a0420), 0 0.8rem 1.6rem -0.5rem color-mix(in srgb, var(--qc) 80%, transparent);
+}
+
+body.host .quiz-letter {
+    width: clamp(2.2rem, 5.6vmin, 3.6rem);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--qc);
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1.2rem, 3.4vmin, 2.2rem);
+    box-shadow: 0 0.2rem 0 rgba(10, 4, 32, 0.35);
+}
+
+body.host .quiz-options .quiz-title {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(1rem, 2.4vmin, 1.7rem);
+    line-height: 1.12;
+    text-shadow: 0 0.06em 0 rgba(20, 8, 50, 0.55);
+}
+
+/* Wyniki: poprawna świeci na zielono i podskakuje, pomyłki czerwone,
+   reszta szarzeje - kolor odpowiedzi znika, bo teraz liczy się wyrok. */
+body.host .quiz-option.good {
+    --qc: #22c55e;
+    border-color: #fff;
+    background:
+        radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.35), transparent 45%),
+        linear-gradient(165deg, #6ee7a0, #22c55e 50%, #15803d);
+    box-shadow: 0 0.35rem 0 #0f5e2c, 0 0 2.4rem rgba(34, 197, 94, 0.75);
+    animation: gk-win 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+body.host .quiz-option.good .quiz-letter {
+    background: #fff;
+    color: #15803d;
+}
+
+body.host .quiz-option.bad {
+    --qc: #ef4444;
+    border-color: #ffd0d6;
+    background: linear-gradient(165deg, #ff8a8a, #ef4444 50%, #991b1b);
+}
+
+body.host .quiz-option.bad .quiz-letter {
+    background: #fff;
+    color: #b91c1c;
+}
+
+body.host .quiz-option.dim {
+    opacity: 1;
+    filter: grayscale(0.85) brightness(0.55);
+}
+
+@keyframes gk-win {
+    40% { transform: scale(1.06) rotate(-1deg); }
+}
+
+/* Ile drużyn wskazało tę odpowiedź - żółta plakietka w rogu. */
+body.host .quiz-count-badge {
+    top: -0.8rem;
+    right: -0.6rem;
+    min-width: 2rem;
+    padding: 0.15rem 0.55rem;
+    border: 3px solid var(--gk-ink);
+    background: var(--gk-yellow);
+    color: var(--gk-ink);
+    font-family: var(--gk-display);
+    font-size: clamp(0.9rem, 2vmin, 1.3rem);
+    text-align: center;
+}
+
+body.host .quiz-message {
+    font-family: var(--gk-display);
+    font-size: clamp(1.2rem, 3.4vh, 2.4rem);
+    text-shadow: 0 0.06em 0 var(--gk-ink);
+}
+
+body.host .quiz-message.good { color: #5df08f; }
+body.host .quiz-message.bad { color: #ff7a8f; }
+
+/* ---------- plakietki drużyn pod kasetą ---------- */
+
+body.host .quiz-who {
+    gap: 0.6rem;
+}
+
+body.host .quiz-chip {
+    padding: 0.3em 1em 0.3em 0.3em;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    background: rgba(10, 6, 40, 0.5);
+    color: var(--gk-muted);
+    font-size: clamp(0.85rem, 2vh, 1.35rem);
+}
+
+body.host .quiz-chip-mark {
+    width: 1.9em;
+    height: 1.9em;
+    border: 0.14em solid var(--team-color, #6b5cff);
+    background: color-mix(in srgb, var(--team-color, #6b5cff) 30%, #0a0628);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Odpowiedział: plakietka zapala się kolorem drużyny. */
+body.host .quiz-chip.answered {
+    border-color: var(--team-color, #6b5cff);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--team-color, #6b5cff) 45%, transparent), rgba(10, 6, 40, 0.5));
+    color: #fff;
+    box-shadow: 0 0 1rem color-mix(in srgb, var(--team-color, #6b5cff) 45%, transparent);
+    animation: gk-bounce 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+body.host .quiz-chip.answered .quiz-chip-mark {
+    background: var(--team-color, #6b5cff);
+    color: #fff;
+}
+
+body.host .quiz-chip.won {
+    border-color: #fff;
+    background: linear-gradient(180deg, #4ade80, #16a34a);
+    color: #fff;
+    box-shadow: 0 0.2rem 0 #0f5e2c, 0 0 1.4rem rgba(34, 197, 94, 0.6);
+}
+
+body.host .quiz-chip.won .quiz-chip-mark {
+    border-color: #fff;
+    background: #fff;
+    color: #16a34a;
+}
+
+body.host .quiz-chip.missed {
+    border-color: rgba(255, 77, 109, 0.6);
+    background: rgba(255, 77, 109, 0.12);
+    color: #ffb3bf;
+}
+
+body.host .quiz-chip.missed .quiz-chip-mark {
+    border-color: #ff4d6d;
+    background: #ff4d6d;
+    color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.host .quiz-option.good,
+    body.host .quiz-chip.answered { animation: none; }
+}
+
+/* Telefon: te same kolorowe przyciski A-D, co karty na TV. */
+body.player .quiz-choice {
+    min-height: 4.2rem;
+    padding: 0.7rem 0.9rem;
+    border: 0.2rem solid #fff;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.3), transparent 45%),
+        linear-gradient(165deg, color-mix(in srgb, var(--qc) 80%, #fff), var(--qc) 50%, color-mix(in srgb, var(--qc) 65%, #000));
+    color: #fff;
+    box-shadow: 0 0.3rem 0 color-mix(in srgb, var(--qc) 50%, #0a0420);
+}
+
+body.player .quiz-choice:active {
+    transform: translateY(0.2rem);
+    box-shadow: 0 0.1rem 0 color-mix(in srgb, var(--qc) 50%, #0a0420);
+}
+
+body.player .quiz-choice .quiz-letter {
+    width: 2.4rem;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--qc);
+    font-family: var(--gk-display);
+    font-size: 1.4rem;
+}
+
+body.player .quiz-choice .quiz-title {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: 1.1rem;
+    line-height: 1.15;
+    text-shadow: 0 0.06em 0 rgba(20, 8, 50, 0.5);
+}
+
+/* Wybrana: żółta obwódka, reszta przygaszona - widać, co się kliknęło. */
+body.player .quiz-choice.picked {
+    outline: 0.3rem solid var(--gk-yellow);
+    outline-offset: 0.2rem;
+}
+
+body.player .quiz-choices:has(.picked) .quiz-choice:not(.picked) {
+    filter: saturate(0.4) brightness(0.7);
+}
+
+body.player .quiz-choice.good {
+    background: linear-gradient(165deg, #6ee7a0, #22c55e 50%, #15803d);
+    filter: none;
+}
+
+body.player .quiz-choice.bad {
+    background: linear-gradient(165deg, #ff8a8a, #ef4444 50%, #991b1b);
+}
+
+/* ========================================================================
+   JAKA TO MELODIA (buzzer): płyta winylowa
+   ======================================================================== */
+
+/* Etykieta płyty jak naklejka z motywu: różowo-pomarańczowa „słoneczna”
+   tarcza z promieniami, biały pierścień i napis Baloo. Promienie są na
+   etykiecie, więc kręcą się razem z płytą - obrót widać nawet z kanapy. */
+body.host .vinyl .vinyl-label {
+    width: 38%;
+    height: 38%;
+    border: 0.35vmin solid #fff;
+    background:
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.35), transparent 45%),
+        repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.16) 0 10deg, transparent 10deg 20deg),
+        radial-gradient(circle at center, #ffd23f 0 22%, #ff8a3d 48%, #ff4d8d 78%, #c2187a 100%);
+    box-shadow:
+        inset 0 0 0 0.9vmin rgba(255, 255, 255, 0.18),
+        0 0 0 0.5vmin #1a1238,
+        0 0 3vmin rgba(255, 93, 143, 0.5);
+    color: #fff;
+}
+
+body.host .vinyl .vinyl-label::before,
+body.host .vinyl .vinyl-label::after {
+    height: 2px;
+    background: rgba(255, 255, 255, 0.55);
+}
+
+body.host .vinyl .vinyl-brand {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    font-size: clamp(0.7rem, 2.6vmin, 1.7rem);
+    letter-spacing: 0.02em;
+    text-shadow: 0 0.08em 0 rgba(26, 18, 56, 0.7);
+}
+
+body.host .vinyl .vinyl-rpm {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    color: #fff;
+    font-size: clamp(0.45rem, 1.3vmin, 0.9rem);
+}
+
+body.host .vinyl .vinyl-side {
+    font-family: var(--gk-display);
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: clamp(0.4rem, 1.1vmin, 0.75rem);
+}
+
+/* Ramię gramofonu w barwach motywu. */
+body.host .vinyl-arm-tube rect:nth-of-type(2) {
+    fill: #e6dcff;
+}
+
+body.host .vinyl-arm-tube rect:nth-of-type(3) {
+    fill: var(--gk-yellow);
+}

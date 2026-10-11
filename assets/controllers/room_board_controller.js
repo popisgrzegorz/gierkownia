@@ -37,8 +37,9 @@ const safeStorage = {
  * oraz punkty - telewizor nigdy sie nie odswieza recznie.
  */
 export default class extends Controller {
-    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel', 'standingsModal', 'focusMenu'];
-    static values = { hub: String, code: String };
+    static targets = ['list', 'empty', 'count', 'template', 'connection', 'joinPanel', 'standingsModal',
+        'focusMenu', 'teamsToggleLabel'];
+    static values = { hub: String, code: String, removeTeamUrl: String };
 
     connect() {
         /** Trwające przewijanie licznika - jedno na kafelek drużyny. */
@@ -77,6 +78,7 @@ export default class extends Controller {
         document.addEventListener('fullscreenchange', this.onFullscreen);
 
         this.#restoreFullscreen();
+        this.#setTeamsPanelVisible('1' === safeStorage.get('tvFocusShowTeams'));
     }
 
     disconnect() {
@@ -183,6 +185,33 @@ export default class extends Controller {
     }
 
     /**
+     * Wyniki drużyn/zawodników w pełnym ekranie - domyślnie znikają razem
+     * z paskiem (maksimum miejsca dla samej gry), ale to osobne życzenie
+     * hosta niż sam pełny ekran: czasem chce immersyjny widok bez adresu
+     * przeglądarki, a mimo to widzieć tablo z boku. Zapamiętane na tę samą
+     * sesję co "tvFull" (sessionStorage), więc przeżywa zmianę ekranu.
+     */
+    toggleTeamsPanel() {
+        const on = !this.element.classList.contains('tv-focus-show-teams');
+
+        if (on) {
+            safeStorage.set('tvFocusShowTeams', '1');
+        } else {
+            safeStorage.remove('tvFocusShowTeams');
+        }
+
+        this.#setTeamsPanelVisible(on);
+    }
+
+    #setTeamsPanelVisible(on) {
+        this.element.classList.toggle('tv-focus-show-teams', on);
+
+        if (this.hasTeamsToggleLabelTarget) {
+            this.teamsToggleLabelTarget.textContent = on ? '👥 Ukryj wyniki' : '👥 Pokaż wyniki';
+        }
+    }
+
+    /**
      * Menu w trybie pełnego ekranu: pasek u góry (Zmień grę, Reset, Tablica
      * wyników, Dźwięk...) jest wtedy schowany razem z resztą, więc te akcje
      * potrzebują osobnego, małego wejścia w rogu - inaczej jedynym wyjściem
@@ -236,6 +265,38 @@ export default class extends Controller {
         event.stopPropagation();
     }
 
+    /**
+     * Usuwa drużynę z pokoju - host wyrzuca kogoś, kto dołączył przez pomyłkę
+     * albo wyszedł z imprezy. Kafelek znika dopiero po potwierdzonym
+     * rozgłoszeniu 'team_removed' (patrz #handle), nie od razu po kliknięciu -
+     * ten sam wzorzec co reszta tego kontrolera: serwer rozstrzyga, ekran
+     * tylko odzwierciedla.
+     */
+    async removeTeam(event) {
+        const tile = event.currentTarget.closest('[data-team-id]');
+        const teamId = tile?.dataset.teamId;
+
+        if (!teamId) {
+            return;
+        }
+
+        const name = tile.querySelector('.team-name')?.textContent?.trim() ?? 'tę drużynę';
+
+        if (!window.confirm(`Usunąć „${name}” z pokoju? Straci dostęp do gry na swoim telefonie.`)) {
+            return;
+        }
+
+        try {
+            await fetch(this.removeTeamUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teamId }),
+            });
+        } catch {
+            // Brak połączenia - drużyna po prostu zostaje, host spróbuje ponownie.
+        }
+    }
+
     #handle(event) {
         // Jeden strumień SSE na ekran: panel gry (melodia, koło) słucha tego
         // zdarzenia zamiast otwierać hubowi drugie połączenie.
@@ -251,7 +312,19 @@ export default class extends Controller {
             case 'reset':
                 this.#resetScores();
                 break;
+            case 'team_removed':
+                this.#removeTeamTile(event.teamId);
+                break;
         }
+    }
+
+    #removeTeamTile(teamId) {
+        this.listTargets.forEach((list) => {
+            this.#tileIn(list, teamId)?.remove();
+        });
+
+        this.#refreshCount();
+        this.listTargets.forEach((list) => this.#renumber(list));
     }
 
     #addTeam(team, score) {

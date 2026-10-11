@@ -5,12 +5,6 @@
     lead: 'Pokaż to bez słów. Reszta odgadnie!'
 } %}
     {% block art %}
-        <svg viewBox="0 0 120 120" role="img" aria-label="Kalambury">
-            <rect x="24" y="16" width="72" height="88" rx="8" fill="none"
-                  stroke="currentColor" stroke-width="5"/>
-            <circle cx="60" cy="44" r="10" fill="none" stroke="currentColor" stroke-width="5"/>
-            <path d="M60 54 v24 M60 60 l-14 8 M60 60 l14 8 M60 78 l-12 16 M60 78 l12 16"
-                  fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-        </svg>
+        {{ include('game/kalambury/icon.html.twig') }}
     {% endblock %}
 {% endembed %}

@@ -7,7 +7,7 @@
      data-controller="melodia-player"
      data-melodia-player-action-url-value="{{ path('game_action', {code: room.code}) }}"
      data-melodia-player-team-id-value="{{ team.id }}"
-     data-melodia-player-state-value="{{ game.hasFloor ? 'floor' : (game.armed ? 'armed' : 'waiting') }}"
+     data-melodia-player-state-value="{{ game.hasFloor ? 'floor' : (game.excluded ? 'excluded' : (game.armed ? 'armed' : 'waiting')) }}"
      data-melodia-player-round-value="{{ game.round }}">
 
     <button type="button"

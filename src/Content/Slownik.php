@@ -36,7 +36,7 @@ final class Slownik
         [
             'slug' => 'polskie-seriale',
             'name' => 'Polskie seriale',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'sredni',
             'hint' => 'polski serial',
             'items' => [
@@ -129,7 +129,7 @@ final class Slownik
         [
             'slug' => 'bajki',
             'name' => 'Bajki i baśnie',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'latwy',
             'hint' => 'bajka',
             'items' => [
@@ -164,7 +164,7 @@ final class Slownik
         [
             'slug' => 'dziwne-slowa',
             'name' => 'Dziwne słowa',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'trudny',
             'hint' => null,
             'items' => [
@@ -197,7 +197,7 @@ final class Slownik
         [
             'slug' => 'filmy',
             'name' => 'Filmy',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'sredni',
             'hint' => 'film',
             'items' => [
@@ -230,7 +230,7 @@ final class Slownik
         [
             'slug' => 'zwierzeta',
             'name' => 'Zwierzęta',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'latwy',
             'hint' => 'zwierzę',
             'items' => [
@@ -265,7 +265,7 @@ final class Slownik
         [
             'slug' => 'zawody',
             'name' => 'Zawody',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'latwy',
             'hint' => 'zawód',
             'items' => [
@@ -300,7 +300,7 @@ final class Slownik
             'name' => 'Czynności domowe',
             // Tylko kalambury: "odkurzanie" pokazuje sie samo, a jako haslo
             // do odgadywania po literce jest po prostu nudne.
-            'games' => ['kalambury'],
+            'games' => ['kalambury', 'kalambury-rysowane'],
             'difficulty' => 'latwy',
             'hint' => null,
             'items' => [
@@ -327,7 +327,7 @@ final class Slownik
         [
             'slug' => 'sport',
             'name' => 'Sport',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'sredni',
             'hint' => 'dyscyplina sportowa',
             'items' => [
@@ -356,7 +356,7 @@ final class Slownik
         [
             'slug' => 'jedzenie',
             'name' => 'Jedzenie',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'sredni',
             'hint' => 'coś do jedzenia',
             'items' => [
@@ -410,7 +410,7 @@ final class Slownik
         [
             'slug' => 'swieta-i-tradycje',
             'name' => 'Święta i tradycje',
-            'games' => ['kolo', 'kalambury'],
+            'games' => ['kolo', 'kalambury', 'kalambury-rysowane'],
             'difficulty' => 'sredni',
             'hint' => 'święto lub tradycja',
             'items' => [
@@ -435,7 +435,7 @@ final class Slownik
             'name' => 'Emocje i miny',
             // Wylacznie kalambury - to material na pokazywanie twarza,
             // a nie na plansze z literami.
-            'games' => ['kalambury'],
+            'games' => ['kalambury', 'kalambury-rysowane'],
             'difficulty' => 'trudny',
             'hint' => null,
             'items' => [

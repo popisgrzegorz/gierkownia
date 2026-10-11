@@ -25,12 +25,14 @@ Rozmowa jest po polsku; komentarze w kodzie też.
 | 7. Przyciski fizyczne | **nie zaczęty** |
 | Państwa i miasta | **gotowa**, grywalna (poza planem §13) |
 | Dutch (Cabo) | **backend gotowy i przetestowany**, frontend niesprawdzony na żywo (poza planem §13) |
+| Ostatnia litera | **backend gotowy i przetestowany**, frontend niesprawdzony na żywo (poza planem §13) |
+| Kalambury rysowane | **backend gotowy i przetestowany**, frontend niesprawdzony na żywo (poza planem §13) |
 | 8. Panel treści | **gotowy** (zamiast `app:deck:sync` z YAML) |
 
 Ponadto: panel administracyjny `/panel` (EasyAdmin), którego spec nie przewidywała —
 `/admin` zostaje jako wspólne logowanie/wylogowanie.
 
-381 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
+415 testów, PHPStan na poziomie `max` bez błędów. Symfony 7.4, PHP 8.3.
 
 **Pełny audyt logiki, bezpieczeństwa i wyglądu** ([`AUDYT-2026-07.md`](AUDYT-2026-07.md))
 i wdrożenie wszystkich znalezisk z Bloków 0–3 (bezpieczeństwo produkcyjne, wyścigi
@@ -54,6 +56,14 @@ apt install php8.3-pgsql php8.3-mbstring
 ```
 
 `gd` nie jest potrzebny — QR generujemy jako SVG (patrz pułapki).
+
+Do gry „Ostatnia litera" (sprawdzanie słów) potrzebny jest hunspell z polskim
+słownikiem — bez niego gra dalej działa, ale KAŻDE słowo trafia do hosta jako
+„niepewne" (patrz `HunspellWordJudge`):
+
+```bash
+apt install hunspell hunspell-pl
+```
 
 ```bash
 composer install
@@ -180,6 +190,9 @@ src/Game/Kolo/       moduł „Koło fortuny"
 src/Game/Kalambury/  moduł „Kalambury"
 src/Game/PanstwaMiasta/ moduł „Państwa i miasta"
 src/Game/Dutch/      moduł „Dutch" (gra karciana; Karty, Punktacja)
+src/Game/OstatniaLitera/ moduł „Ostatnia litera" (WordJudge, HunspellWordJudge)
+src/Game/KalamburyRysowane/ moduł „Kalambury rysowane" (rysowanie na tablecie,
+                     jako drugim ekranie hosta - patrz decyzje niżej)
 ```
 
 **Stan „live" (pokój, drużyny, punkty, stan gry) żyje wyłącznie w Redisie** z TTL
@@ -385,6 +398,43 @@ Kalambury: `guessed` przyjmuje jako źródło `acting` **i** `timeout` — host 
 kliknąć „Zgadnięto" tuż po tym, jak zegar TV już wysłał `timeout`; bez tego
 punkt nie szedł do nikogo, mimo że ktoś naprawdę zgadł.
 
+**Melodia: zła odpowiedź wyklucza TĘ drużynę z bieżącego utworu, nie tylko
+kończy jej turę.** Poprzednia wersja świadomie NIE wykluczała - komentarz
+w kodzie mówił wprost "przy stole rozstrzyga to host, a nie regulamin".
+Użytkownik zmienił zdanie po pierwszych testach: kto się pomyli, czeka na
+kolejny utwór, zamiast móc próbować w kółko na tym samym, aż się uda.
+`wrongTeams` (lista id drużyn) żyje w kontekście gry, dopisywana w `judge()`
+przy `correct: false`, czyszczona wyłącznie w `nextTrack()` (nowy utwór to
+czysta karta) - `rearm()` (ten sam utwór wraca dla POZOSTAŁYCH) świadomie jej
+nie rusza. `buzz()` odrzuca wykluczoną drużynę wcześniej niż `BuzzerArbiter`
+w ogóle się o nią dowie (`BuzzResult::excluded()` - nowy, trzeci powód
+odmowy obok `stale`/`locked`, rozstrzygany przez MODUŁ gry, nie przez
+arbitra, bo "kto już próbował" to co innego niż "kto pierwszy"). Wykluczona
+drużyna dostaje powiadomienie **od razu po ponownym uzbrojeniu** (`arm()`/
+`rearm()` zwracają `excludedMessages()`), nie dopiero po naciśnięciu
+przycisku - inaczej jej telefon mylnie pokazywałby aktywny "NACIŚNIJ!" mimo
+że każda próba i tak skończy się odmową. Host widzi `wrongTeams` w
+`hostView()` (podpowiedź "Już próbowali: X, Y" w `armed`), gracze - przez
+`excluded` w `playerView()` (stan początkowy renderowany w Twigu, na wypadek
+odświeżenia w trakcie wykluczenia).
+
+**Kalambury rysowane: tablet w trakcie rysowania pokazuje TYLKO płótno.**
+Zgłoszenie użytkownika po realnym teście: zegar, punkty, przełącznik roli
+i podpowiedzi tekstowe na tablecie odciągały uwagę rysującego od samego
+rysowania i zabierały miejsce płótnu. `rysowanki_host_controller.js` liczy
+`tabletDrawing = 'tablet' === this.role && 'drawing' === view.state` w
+`#render()` i na tej podstawie chowa `.rys-role-switch`, `.game-foot` oraz
+podpowiedź (`.hint`) - WYŁĄCZNIE na tablecie i WYŁĄCZNIE w trakcie rysowania;
+inne stany (`dealt`, `idle`) i projektor nie tracą nic. **Jedyny wyjątek**
+(świadomie zostawiony na życzenie użytkownika: "no może tylko pokaż/ukryj
+hasło") to `.rys-word-toggle` - hasło jest domyślnie SCHOWANE (rysujący sam
+je przed chwilą wybrał, nie musi na nie patrzeć cały czas), przycisk "👁 Pokaż
+hasło" pokazuje je na żądanie. Zegar **wizualnie** znika (`clockTargets`/
+`pointsBadgeTargets` dostają `hidden = tabletDrawing`), ale sam interwał
+(`tick()`) leci dalej - to on zgłasza serwerowi `timeout`, gdy czas minie,
+a tablet bywa jedynym otwartym ekranem, gdyby projektor akurat nie żył;
+ukrycie DOM-u nie może ukryć też tej logiki.
+
 **`RoomLock` — zamek Redisowy (`SET NX`) wokół `GameEngine::start/handle`**
 i akcji kończącej grę (`GameController::stop`). Backend jest wieloprocesowy pod
 PHP-FPM, więc dwa równoległe żądania czytające ten sam stan gry (np. dwa
@@ -424,6 +474,26 @@ zbiór Redisowy, `SREM` przy pierwszym trafieniu). To drugie jest konieczne:
 wznowienie zakłada **nowy** pokój z nowym kodem, więc żadne ciasteczko z wczoraj
 nie może pasować, a mimo to gracz musi móc wrócić pod swoją nazwą.
 
+**Host może usunąć drużynę z pokoju (`POST /room/{code}/team/remove`).**
+`RoomManager::removeTeam()` czyści drużynę z Redisa (hasz drużyn, wynik,
+`unclaimedTeams`) i **świadomie nie dotyka stanu żadnej trwającej gry** — to nie
+przeoczenie, tylko wykorzystanie istniejącej odporności na „drużyny-duchy",
+udokumentowanej już przy `TurnManager` (drużyna, która zniknie z pokoju
+w trakcie gry, zostaje w kolejce tur jako duch, aż host jawnie przekaże turę
+dalej). Pisanie osobnej ścieżki czyszczącej kontekst każdego modułu z osobna
+byłoby dokładnie tą robotą, którą `TurnManager` już rozwiązał raz, ogólnie.
+Endpoint jest fetch-owy jak reszta akcji gry, więc bez CSRF (patrz „CSRF tylko
+na klasycznych formularzach" wyżej), rozgłasza `team_removed` do całego
+pokoju — telefon usuniętej drużyny łapie to po swoim `teamId`, zrywa SSE
+i pokazuje pełnoekranową nakładkę blokującą dalszą grę (drużyny i tak nie ma
+już w Redisie, każde kolejne zgłoszenie i tak dostałoby odmowę). Nakładka
+działa wyłącznie na żywo, przez event — telefon, który akurat przeładował
+stronę PO usunięciu, nie zobaczy „zostałeś usunięty", tylko zwykły formularz
+dołączania (serwer nie odróżnia „nigdy nie dołączył" od „usunięty i strona
+odświeżona" — drużyny po prostu już nie ma). Świadomy kompromis: telefon
+otwarty i nietknięty w trakcie usunięcia dostaje jasny komunikat, telefon
+odświeżony już nie - ale i tak nie ma czym dalej grać.
+
 **Mercure: `/host/{code}/tablo` poszerza topiki, gdy pyta o nie sam host.**
 Ciasteczko `mercureAuthorization` jest jedno na przeglądarkę (nazwa i ścieżka na
 sztywno w protokole Mercure) — gdyby host otworzył tablicę wyników w drugiej
@@ -462,9 +532,340 @@ istniejącego** `PhraseCrudController` (formularz nowego hasła), nie tylko nowe
 settery aktualizują teraz też odwrotną kolekcję (`Category::addTrack`/`addPhrase`
 i `removeTrack`/`removePhrase`), żeby stara kategoria nie trzymała sieroty.
 
+**Ostatnia litera: wyścig do progu punktów z eliminacją jako siatką
+bezpieczeństwa, hunspell zamiast udawanego słownika.** Druga wersja zasad
+(pierwsza miała płaskie ±1 „kredytu” bez progu zwycięstwa - w historii gita).
+Host ustala przy starcie punkty startowe i próg zwycięstwa (musi być wyższy
+niż start, walidowane w `start()`) - pierwsza drużyna, która osiągnie próg,
+wygrywa natychmiast, niezależnie od tego, ile innych drużyn jeszcze gra.
+Trafienie jest warte TYLE PUNKTÓW, ILE SEKUND ZOSTAŁO na zegarze w chwili
+odpowiedzi (10 s na słowo, odpowiedź po 7 s = 3 punkty; `ceil()`, żeby zgadzało
+się z tym, co drużyna WIDZIAŁA na wyświetlaczu) - im szybsza odpowiedź, tym
+więcej warta. Spóźnienie kosztuje stałą karę (`TIMEOUT_PENALTY`). Zero punktów
+lub mniej = odpadnięcie - to ta sama siatka bezpieczeństwa co poprzednie
+kredyty, tylko waluta jest teraz zmiennej wartości, nie płaskim ±1 (użytkownik
+świadomie wybrał zachowanie eliminacji OBOK wyścigu do progu, nie zamiast
+niego). Słowo sprawdza `HunspellWordJudge` (`apt install hunspell hunspell-pl`,
+patrz „Pierwsze uruchomienie") - rozpoznane wchodzi od razu, nierozpoznane
+zatrzymuje rundę w stanie `judging` i czeka na werdykt hosta (ten sam duch co
+`Wykaz` w Państwach-miastach: serwer nie udaje, że zna cały język polski,
+więc ostatnie słowo należy do człowieka przy stole). Brak hunspella nie wywala
+gry - `WordJudge` jest interfejsem właśnie po to, żeby awaria/brak pakietu
+systemowego degradowała do "każde słowo idzie do sędziego", nie do błędu 500.
+Kolejność drużyn (`order`/`turn` w kontekście, z pomijaniem wyeliminowanych
+przy `nextAlive()`) jest własna, nie przez `TurnManager` - ten robi gołą
+modulo-`INCR` po stałej liście i nie umie pomijać nikogo (ten sam powód, dla
+którego Dutch też ma własną kolejkę).
+
+Punkty za trafienie liczą się w CHWILI PODANIA SŁOWA, nie w chwili werdyktu
+hosta - inaczej zwlekający host oszukiwałby drużynę z należnych punktów.
+Dla ścieżki sędziowskiej (`submit` → `hold` → `rule`) zegar stoi przez całą
+naradę, więc wartość trzeba zapamiętać w chwili zgłoszenia (`pendingPoints`
+w kontekście) i użyć jej później - świeże przeliczenie po stronie `rule()`
+dałoby zero, bo `GameTimer` jest już wyczyszczony. Wspólne tablo (`Scoreboard`)
+JEST punktacją wprost, bez osobnego mirrorowania jak przy poprzednich
+kredytach (tam `credits` w kontekście i tablo były dwoma zapisami tej samej
+liczby, bo tablo umiało tylko +1/-1) - `total` z odpowiedzi `Scoreboard::add()`
+rozstrzyga od razu i próg zwycięstwa, i eliminację, jedno źródło prawdy
+zamiast dwóch zsynchronizowanych. `start()` zasiewa każdą drużynę punktami
+startowymi, żeby drużyna, która jeszcze nic nie zrobiła, nie wyglądała na
+"0 punktów". **Konsekwencja:** kilku wyeliminowanych w jednej rundzie remisuje
+na tablie (wszyscy przy zerze) - `Tournament::placements()` obsługuje remisy
+tak samo jak wszędzie indziej. Druga konsekwencja: `restart()` w tym samym
+pokoju **resetuje** tablo do punktów startowych zamiast akumulować wynik
+z poprzedniej rundy (inaczej niż Kalambury/Państwa-miasta) - bo tu wynik MA
+być zawsze zgodny z aktualną punktacją, a ta też resetuje się przy każdym
+`start()`.
+
+**Ostatnia litera: wymagana litera wpisana w pole, nie tylko wyświetlona obok.**
+Na telefonie klawiatura systemowa zakrywa dolną część ekranu, więc panel
+z wymaganą literą (nad polem tekstowym) znikał z widoku dokładnie wtedy, gdy
+był potrzebny - zgłoszenie użytkownika. Zamiast przebudowywać layout pod
+nieznaną wysokość klawiatury, `ostatnia_litera_player_controller.js` wpisuje
+literę (albo dwuznak: `ni/ci/si/zi` dla `ń/ć/ś/ź` - w realnych polskich
+słowach na starcie to on występuje, nie goła miękka spółgłoska) prosto do
+pustego pola przy PRZEJŚCIU na "moja tura" (`wasTypable` false→true), z
+kursorem za wpisanym tekstem. Gracz dopisuje resztę słowa tam, gdzie i tak
+patrzy - walidacja pozostaje wyłącznie po stronie serwera, to czysta
+podpowiedź. Warunek przejścia (nie każdy render) jest celowy: inaczej
+kasowałoby to, co gracz właśnie pisze, przy każdym niepowiązanym evencie.
+Litera nad polem przeniesiona dodatkowo obok zegara (`.ol-clock-row`) - drugie
+wzmocnienie tej samej naprawy, na życzenie użytkownika, który dalej jej nie
+widział mimo podpowiedzi w polu (dwie niezależne wskazówki są tańsze niż
+zgadywanie, która zadziała na konkretnym telefonie).
+
+**Ostatnia litera: słowa wersalikami, cały łańcuch widoczny na TV.** Pole
+gracza wymusza wielkie litery na bieżąco (`normalizeInput()`, zdarzenie
+`input`, kursor zachowany przez `setSelectionRange`) - walidacja i tak jest
+case-insensitive po stronie serwera, to czysta czytelność z dystansu (ten sam
+powód co wersaliki `secret-word` w kalamburach). Ekran hosta pokazuje `usedWords`
+w całości jako `.ol-word-chain` zamiast samego ostatniego słowa - duplikaty
+były już od początku odrzucane przez `checkWord()` (patrz wyżej), to wyłącznie
+dokłada im widoczność, żeby cały stół widział historię, nie tylko serwer.
+
+**Ostatnia litera: powtórka słowa ma własny sygnał na TV, reszta odrzuceń nie.**
+`checkWord()` i tak odrzuca duplikat (patrz wyżej) - zwykły błąd HTTP na
+telefonie gracza wystarczyłby, ale powtórka to moment, który cały stół chce
+zobaczyć i usłyszeć naraz, nie tylko ta jedna drużyna. `submit()` porównuje
+zwrócony komunikat z `self::DUPLICATE_MESSAGE` (nie parsuje wszystkich
+przyczyn odrzucenia) i przed rzuceniem wyjątku rozgłasza `word_duplicate`
+przez `Publisher::toHost()` wstrzyknięty wprost do modułu - dokładnie ten sam
+wzorzec co `Scoreboard`, które publikuje samo, niezależnie od listy
+`Message` zwracanej z `handleAction()`. Musi być `toHost`, bo wyjątek i tak
+przerywa `GameEngine::handle()` przed wysłaniem zwróconych `Message` - gdyby
+moduł nie publikował sam, host nigdy by się nie dowiedział. Host reaguje
+dźwiękiem `wrong` (ten sam brzęczyk porażki co Koło) i komunikatem w
+`#flash()`. Za krótkie słowo czy zła litera startowa zostają tylko błędem na
+telefonie - to pomyłki jednej drużyny, nie wydarzenie dla całego stołu.
+
+**Ostatnia litera: własne, większe cyfry zegara na TV** (`.clock-huge`,
+osobna klasa modyfikująca `.clock-value`, nie zmiana wspólnej reguły) - ekran
+tej gry poza zegarem i literami nie pokazuje nic innego (żadnej planszy ani
+hasła), więc stać go na więcej niż Kalambury czy Koło, którym reszta
+interfejsu też potrzebuje miejsca.
+
+**Kalambury rysowane: tablet do rysowania to DRUGI ekran hosta, nie nowa rola
+urządzenia.** Gra powstała z myślą o dużym spotkaniu rodzinnym: telewizor/rzutnik
+pokazuje grę całej sali, a jedna, fizycznie przekazywana osobie rysującej
+tabletka jest płótnem. Rozważona była alternatywa "tablet loguje się jak
+telefon drużyny" (istniejący `RoomAccess::team()`), ale odpadła: telefon
+drużyny jest **na stałe** związany z jedną drużyną (ciasteczko + token
+subskrypcji Mercure wypieczony w JWT przy wejściu), a tablet wędruje między
+drużynami co rundę - przełączanie, KTÓREJ drużyny prywatny topik subskrybuje,
+w trakcie gry nie jest tu nigdzie wspierane. Zamiast tego tablet loguje się
+**tym samym tokenem hosta** co telewizor, przez istniejący już mechanizm
+`HostController::screen()` (`?t={hostToken}`, wcześniej służący wyłącznie do
+przenoszenia JEDNEGO ekranu hosta z laptopa na telewizor) - `JoinLink::hostTransferUrl()`
+dokłada do niego tylko generowanie QR. Oba ekrany widzą więc identyczny
+`hostView()` (hasło i oferty trudności włącznie - `KalamburyRysowaneGame::hostView()`
+nie robi między nimi różnicy, tak jak zwykłe Kalambury już dziś oddają hasło
+do `hostView()` i tylko szablon je chowa), a którą rolę pełni KONKRETNE
+urządzenie, decyduje wyłącznie `localStorage` tego urządzenia
+(`rysowanki_host_controller.js`, klucz `rys-role-{kod}`) - CSS (`[data-role]`)
+chowa resztę. **Konsekwencja:** link/QR do przejęcia roli hosta daje pełną
+kontrolę nad pokojem (start/stop/reset/wynik), więc szablon pokazuje go
+wyłącznie w bramce wyboru roli, z jawnym ostrzeżeniem - nie wolno bez pytania
+przenieść tego QR na ekran widoczny dla całej sali ani dodać go do żadnego
+ogólnego (nie-tylko-tej-gry) miejsca w UI.
+
+**Kalambury rysowane: kto skanuje QR transferu, dostaje ekran rysowania od
+razu, bez bramki wyboru roli.** Zgłoszenie użytkownika: bramka "Ten ekran
+będzie... Projektorem / Tabletem" po zeskanowaniu kodu opisanego wprost jako
+"Na TABLECIE zeskanuj ten kod" była zbędnym, mylącym powtórzeniem wyboru,
+który skanujący już podjął samym aktem skanowania. `JoinLink::hostTransferUrl()`
+przyjmuje teraz opcjonalny `$role` doklejany jako zwykły parametr `role` w
+URL-u - celowo NIE wie, co ta wartość znaczy (żaden `if` po stronie rdzenia),
+to czysty passthrough. `HostController::screen()` generuje `hostTransferQr`
+z `role: 'tablet'` wprost (jedyny dzisiejszy konsument tego QR-a - gdyby
+kiedyś powstała druga gra z tym samym mechanizmem transferu, ale INNYM
+znaczeniem roli, ta stała wartość wymaga przejrzenia, nie jest generycznym
+rozwiązaniem na zapas). Przekierowanie zdejmujące token z adresu (ten sam
+mechanizm co zwykłe "laptop → telewizor") przepuszcza `role` dalej bez zmian -
+rdzeń nie interpretuje wartości, tylko ją niesie. Dopiero `rysowanki_host_controller.js`
+odczytuje `?role=` z adresu **po** przekierowaniu i, jeśli to `tablet` albo
+`projector`, stosuje ją od razu (`#setRole`) zamiast czekać na kliknięcie w
+bramce - i czyści adres (`history.replaceState`), żeby ewentualne odświeżenie
+polegało już wyłącznie na `localStorage`, tak jak przy ręcznym wyborze roli.
+
+**Kalambury rysowane: rysunek pomija `GameEngine` - nowy prymityw rdzenia
+`POST /room/{code}/game/live`.** Kreska potrafi iść kilkanaście razy na
+sekundę; przepychanie KAŻDEGO punktu przez `RoomLock` (blokada Redisowa całego
+pokoju) i pełny cykl FSM+ctx `GameEngine::handle()` byłoby marnotrawstwem bez
+żadnej korzyści - rysunek nie jest stanem, o który rozstrzyga serwer (jak
+zegar czy wynik), tylko czystą dekoracją, jak animacje GSAP w Dutchu. Trasa
+żąda wyłącznie tokenu hosta (ten sam, którym loguje się tablet - patrz wyżej)
+i od razu woła `Publisher::broadcast()` z przepuszczonym `type`+`x`+`y`
+(`GameController::live()`). Celowo w **rdzeniu**, nie w module gry - ten sam
+duch co `/score` ("Punktacja jest prymitywem rdzenia, nie mechaniką gry"):
+kolejna gra chcąca lekki, dekoracyjny strumień (inne rysowanie, animacja na
+żywo) dostaje go za darmo. Renderowanie kresek na obu ekranach (tablet i
+telewizor) idzie WYŁĄCZNIE z odebranych zdarzeń SSE, nigdy z lokalnego
+zdarzenia wskaźnika wprost - jedna ścieżka rysowania dla obu ról, bez
+podwójnego rysowania tej samej kreski na urządzeniu, które ją wysłało.
+
+**Kalambury rysowane: rysujący wybiera trudność, punkty topnieją z czasem.**
+`deal()` oferuje trzy nieużyte hasła naraz - po jednym z `Phrase::DIFFICULTIES`
+(`latwy`/`sredni`/`trudny`) - i to on decyduje, ile punktów jest do zdobycia
+(`BASE_POINTS`: 3/5/8). Wszystkie trzy trafiają do `_played` od razu przy
+ofercie, nie dopiero przy wyborze - odrzucona oferta (`skip`) nie wraca
+w kolejnej turze, tak samo jak `skip` w zwykłych Kalamburach. Pierwsze 10
+sekund (`GRACE_SECONDS`) to pełna pula; potem `pointsFor()` liczy topnienie
+liniowo względem pozostałego czasu, nigdy poniżej 1 punktu - trafienie
+w ostatniej sekundzie ma się wciąż opłacać. Telewizor i tablet pokazują TĘ
+SAMĄ liczbę na bieżąco (kopia `pointsFor()` w JS, skomentowana jako lustro
+metody PHP - dwie kopie muszą się zgadzać, bo inaczej malejący licznik na
+ekranie kłamałby o faktycznym wyniku), ale liczy się WYŁĄCZNIE wynik policzony
+na serwerze w chwili `guessed()`, z `GameTimer::remaining()` sprzed
+wyczyszczenia zegara - dokładnie ten sam duch co reszta gier w tej appce
+("wynik zapada dopiero w chwili, gdy host naciśnie"). **Etykieta trudności
+bywa tylko stawką punktową, nie prawdą o haśle.** Istniejący słownik ma
+**jedną, uniform trudność na całą kategorię** (patrz "Słownik nie zna
+trudności per gra" niżej), więc dopasowanie "poziom = dokładnie ta trudność"
+trafiało niemal zawsze tylko w JEDEN slot z trzech - rysujący widział jedną
+ofertę zamiast trzech (zgłoszenie użytkownika po pierwszym realnym teście:
+"Losujesz 3 hasła - widać tylko 1!"). `PhraseDeck::drawChoices()` robi więc
+dwa przebiegi: najpierw dokładne trafienia poziomu (przyda się, gdy ktoś
+kiedyś zróżnicuje trudność w obrębie kategorii), a drugi przebieg dobiera
+z reszty puli KAŻDY jeszcze pusty slot, żeby rysujący zawsze miał trzy realne
+hasła do wyboru - nawet jeśli wszystkie trzy formalnie dzielą tę samą
+"prawdziwą" trudność. Pusty slot w wyniku znaczy odtąd wyłącznie "hasła
+w kategorii się skończyły", nigdy "ten poziom nie istnieje".
+
+**Kalambury rysowane: „Rysuj na całym ekranie" łączy DWA niezależne chromy,
+nie jeden.** Życzenie użytkownika po pierwszych testach: płótno miało zająć
+NAPRAWDĘ cały ekran, nie tylko tyle, ile już dawał wcześniejszy container-query
+fit. Przycisk (`.rys-focus-toggle`, zawsze widoczny w rogu - poza siatką
+`.game-panel` przez `position:absolute`, tak jak `.rys-role-gate`) chowa
+WŁASNY chrom gry (`.rys-rail`/`.rys-hud`/`.game-foot` - klasa `rys-focus` na
+`.rys-panel`), ale to tylko połowa ekranu hosta: pasek u góry i panel wyników
+po lewej (`.tv-bar`/`.tv-teams`) żyją POZA `.rys-panel`, w kontrolerze
+`room-board` (`host/screen.html.twig`). Zamiast wołać `requestFullscreen`
+drugi raz z osobna (dwa wywołania nakładałyby się i psuły stan `tv-focus` po
+stronie `room-board`), `rysowanki_host_controller.js` klika WŁASNY przycisk
+`room-board#toggleFocus` z paska - dokładnie ten gest, jaki zrobiłby host
+ręcznie. **Pułapka, na którą to wpadło**: `.tv.tv-focus` ścieśnia `.tv` z
+powrotem do JEDNEGO wiersza (`grid-template-rows: minmax(0,1fr)`), a osobna,
+starsza reguła (`.tv:has(.rys-panel[data-role="tablet"]) .tv-body { grid-row: 2 }`,
+patrz Pułapki niżej) zakłada DWURZĘDOWĄ siatkę - w trybie `tv-focus` wiersza
+2 po prostu nie ma, więc `.tv-body` trafiał do niejawnie dołożonego wiersza
+na dole, a canvas spadał pod widoczny ekran. Naprawka: `.tv.tv-focus:has(.rys-panel[data-role="tablet"]) .tv-body { grid-row: 1 }`
+z wyższą specyficznością (dokłada `.tv-focus` do selektora), wygrywa
+niezależnie od kolejności w źródle. Wniosek ogólny: każde jawne przypięcie
+do konkretnego numeru wiersza/kolumny (`grid-row`/`grid-column`) trzeba
+sprawdzić pod KAŻDYM trybem, który zmienia `grid-template-rows`/`-columns`
+tego samego przodka - liczba wierszy nie jest stała tylko dlatego, że
+wygląda na stałą w jednym trybie.
+
+**Kalambury rysowane: płótno 16:9, nie kwadrat - bo tablet ZAWSZE stoi
+w poziomie.** Kwadrat (1:1, patrz Pułapki: "Największy kwadrat...") był
+kompromisem MIĘDZY dwiema różnymi orientacjami (tablet w pionie, projektor
+w poziomie) - żadne stałe proporcje nie faworyzowałyby wtedy żadnego z dwóch
+ekranów. Użytkownik zdecydował, że w tej grze tablet stoi w poziomie zawsze,
+więc kompromis stał się zbędny: oba ekrany są już tego samego, szerokiego
+typu, i 16:9 wykorzystuje realne miejsce lepiej niż kwadrat na obu. Sama
+technika (container query na `.rys-canvas-wrap`, `width: min(...)` na
+`.rys-canvas-frame`) zostaje identyczna - zmienia się tylko wzór: przy
+kwadracie oba wymiary kontenera są równoważne (`min(100cqw, 100cqh)`), przy
+16:9 trzeba przeskalować jeden z nich współczynnikiem proporcji
+(`min(100cqw, calc(100cqh * 16 / 9))`), bo inaczej porównanie „która strona
+kontenera jest mniejsza” dalej dawałoby kwadrat. **Konsekwencja: założenie
+„tablet zawsze w poziomie” nie jest wymuszone w kodzie** - telefon/tablet
+obrócony do pionu dostanie mocno oklejkowany (letterboxed), wąski pasek 16:9
+zamiast wykorzystania szerokości ekranu; to świadomie zaakceptowane ryzyko,
+nie błąd.
+
+**Ekran TV — layout v3: nazwa gry w pasku, nie w szynie gry.** Pasek w trakcie
+gry ma trzy strefy: logo + pigułka z nazwą i ikoną gry (kolor z `--g-*`, ikona
+z `game/{typ}/icon.html.twig`, ta sama co na ścianie), dołączanie (adres + kod;
+klik otwiera duży QR) i ciche przyciski hosta (Reset i pełny ekran jako same
+ikony). `.game-rail > .game-name` jest przez to schowany, ale **zostaje
+w przepływie z zerową wysokością** - szyny gier mają siatkę wierszy liczoną
+z tytułem na pierwszym miejscu (`auto / 1fr / auto`), a `display:none`
+przesunęłoby ilustrację do wiersza `auto` i koło skurczyłoby się do zera.
+Tablo drużyn: jeden rząd `miejsce | nazwa | wynik`, szersza kolumna
+(`clamp(14rem, 19vw, 25rem)`), nazwa łamie się tylko na spacjach, ✕ wisi w rogu
+i pokazuje się pod kursorem. Wszystkie dawne, nakładające się definicje
+`.tv-teams .team` zastąpiła jedna. Ściana wyboru gry (`lobby_v2`): QR i kod
+przeniesione z rogu do lewej kolumny jako duży blok nad listą graczy, przyciski
+hosta - z dołu tej kolumny do paska u góry.
+
+**Motyw „Gierkownia” wg makiety `var/gierkownia.png`** (życzenie użytkownika:
+„nowy layout, nie kosmetyka”). Cała skóra siedzi w osobnym arkuszu
+`assets/styles/gierkownia.css`, ładowanym PO `app.css` - app.css trzyma układ
+(siatki pilnujące, żeby gra mieściła się w TV), gierkownia.css wygląd: tło
+„salon wieczorem” z samych gradientów, fonty Baloo 2 / Nunito / Caveat (**nie** Lilita One z makiety - nie ma polskich liter z ogonkami; nowy font zawsze sprawdź na „ąćęłńóśźż”)
+(Google Fonts, z sieci jak Tabler - bez internetu spadają do systemowych),
+przyciski z grubym spodem, fioletowe panele. Logo to tekst + inline SVG
+(`templates/_brand/logo.html.twig`, wariant `small`). Każda gra ma kolorową
+ilustrację `templates/game/{typ}/art.html.twig` (zapas: `game/_art.html.twig`) -
+**nowa gra powinna dostać własny `art.html.twig`**; stare `icon.html.twig`
+zostały dla ekranu `?v=1`. Paleta `--g-*` w app.css przestawiona na kolory
+z makiety, a sztywno wpisane stare kolory gier (kaseta quizu, rewersy Dutcha,
+kropki państw-miast, ludzik kalambur) podpięte pod te zmienne. Ściana wyboru
+gry (`lobby_v2`) ma układ makiety: logo + „Losuj grę” (nowe:
+`game-starter#startRandom` losuje spośród kafelków na ekranie, więc nie zna
+gier z nazwy) + „Wznów turniej”, kafelki 4×2, po prawej kod+QR, instrukcja
+i turniej, na dole pas graczy z awatarami. Strona startowa i telefon gracza
+dostały tę samą skórę.
+
+Ekrany gier to „scena studia”: każdy `.game-panel` ma `--c` = kolor swojej
+gry (mapa na początku sekcji SCENA STUDIA w gierkownia.css), z którego idą
+reflektory i konfetti (pseudo-elementy `::before/::after` z `z-index: -1` -
+**nie** elementy w DOM, bo siatka rail/main/foot nie znosi dodatkowych
+dzieci), pasek tablicy, plakietki i zegar jako okrągła tarcza. Plansza hasła
+(koło, kalambury) to tablica z lampkami; rozmiar kafelka liczony też z `vw`,
+bo wyraz się nie łamie, a najdłuższe hasła słownika mają 11-12 liter.
+`.game-main` ma `min-width: 0` - bez tego długie hasło rozpychało kolumnę
+poza panel. Kalambury rysowane dostały `data-state` na panelu (jedyna zmiana
+w JS), żeby CSS mógł zrobić scenę oczekiwania na wybór hasła. **Pułapka:**
+ogólna skórka `.tv .btn` zjada kolory przycisków, które gra koloruje sama
+(oferty trudności w rysowankach) - takie przyciski potrzebują własnej reguły
+o wyższej specyficzności w gierkownia.css.
+
 ---
 
 ## Pułapki, na które już wdepnąłem
+
+**Ściana wyboru gry (`lobby_v2.html.twig`) liczyła kolumny ręcznie w Twigu -
+parzysta/nieparzysta liczba gier.** Działało tylko dopóki gier było mało: przy
+7 zarejestrowanych (nieparzysta) wychodził jeden rząd siedmiu wąskich,
+pionowych kafelków zamiast mozaiki - zgłoszenie użytkownika ("słabo to
+wygląda"). Każda kolejna gra psuje ten rachunek na nowo, więc zamiast liczyć
+`n % 2` w Twigu, `.l2-wall` dostał `grid-template-columns: repeat(auto-fit,
+minmax(...))` - przeglądarka sama dobiera liczbę kolumn z szerokości ekranu,
+niezależnie od tego, ile gier akurat jest zarejestrowanych. Rozmiary kafelka
+(`.l2-panel`/`.l2-emoji`/`.l2-name`) tunowane pod scenariusz z kilkoma rzędami
+(bezpieczniej za małe niż wystające poza kafelek) - auto-fit nie mówi z góry,
+ile rzędów wyjdzie, więc nie ma już osobnego wariantu CSS na "dwa rzędy".
+
+**`display: revert` nie przywraca reguły autora, tylko domyślny wygląd
+znacznika w przeglądarce.** Przy chowaniu/pokazywaniu elementów wg roli
+w kalamburach rysowanych (`.rys-only-tablet`) pierwsza wersja chowała przez
+`display: none`, a "przywracała" przez `display: revert` - brzmi jak "cofnij
+do tego, co było", ale naprawdę cofa do stylu BEZ arkuszy autora: dla zwykłego
+`<div>` to zawsze `block`, nigdy `grid`/`flex`, niezależnie od tego, co
+deklaruje własna klasa elementu (`.rys-choices { display: grid }`). Efekt:
+trzy oferty trudności wracały jako pojedyncza kolumna, mimo że reguła "w
+poziomie" była poprawna i w ogóle się nie odpalała. Naprawka: nie "pokazuj z
+powrotem" niczego - warunkuj samo CHOWANIE przez `:not([data-role=...])`, żeby
+w drugiej roli reguła po prostu nie dotyczyła elementu i jego własny
+`display` obowiązywał bez przeszkód.
+
+**Ukrycie sąsiada w CSS Grid z `grid-template-rows: auto minmax(0, 1fr)`
+przesuwa resztę zawartości do złego wiersza.** Ukrycie `.tv-bar`
+(`display: none`) na tablecie w kalamburach rysowanych miało oddać jego
+miejsce reszcie ekranu - zamiast tego `.tv-body` (jedyny widoczny grid item
+`.tv`) trafiał przez auto-placement do PIERWSZEGO, `auto`-wysokiego wiersza
+(tego po `.tv-bar`), zamiast do drugiego, `minmax(0, 1fr)` - auto-placement
+nie wie, że `.tv-body` "należy" do wiersza 2, po prostu wypełnia po kolei to,
+co zostało. Cała gra kurczyła się do naturalnej wysokości treści, a pod
+spodem zostawała pusta, czarna szpara wielkości nieużywanego drugiego
+wiersza. Naprawka: jawne `grid-row: 2` na `.tv-body`, wymuszone tylko wtedy,
+gdy `.tv-bar` faktycznie znika (`:has()`).
+
+**Elementy w CSS Grid/Flex mają domyślnie `min-width: auto` - odmawiają
+zawijania tekstu poniżej szerokości najdłuższego "słowa" w treści**, nawet
+z `overflow-wrap`/`word-break` na dziecku. W kalamburach rysowanych długie,
+dwuwyrazowe hasło ("Czerwony Kapturek") w wąskiej kolumnie oferty wypływało
+poza kartę zamiast zawinąć się na spacji - `overflow-wrap: break-word` łamie
+słowo W ŚRODKU, gdy naprawdę nie ma innego wyjścia, ale nie wymusza
+zawinięcia dwuwyrazowej frazy, dopóki element-kontener ma nieograniczone
+`min-width`. Naprawka: `min-width: 0` na elemencie z tekstem (nie tylko na
+jego rodzicu-siatce).
+
+**"Największy kwadrat, jaki zmieści się w dostępnym miejscu" NIE wychodzi
+z samego `aspect-ratio` na pustym `<div>` w gridzie - potrzeba container
+query.** Płótno w kalamburach rysowanych ma mieć te same proporcje (1:1) na
+projektorze i tablecie, ale różny rozmiar (życzenie użytkownika). Dwie
+pierwsze próby zawiodły: `place-items: center` + `aspect-ratio` na pustym
+divie bez własnej treści nie ma z czego policzyć rozmiaru i spada do
+zastępczych 300×150 (kwadrat drobny, mimo wolnego miejsca dookoła);
+`place-items: stretch` z kolei IGNORUJE `aspect-ratio`, gdy oba wymiary są
+"rozciągnij" - dostajesz prostokąt na całą komórkę, nie kwadrat. Zadziałało
+dopiero `container-type: size` na rodzicu + `width: min(100cqw, 100cqh)` na
+dziecku - to jawne, policzalne "bok kwadratu = mniejszy z dwóch wymiarów
+kontenera", niezależne od tego, jak silnik CSS interpretuje `aspect-ratio`
+przy braku innej podstawy do wyliczenia rozmiaru.
 
 **`symfony/workflow` 7.4:** `StateMachine` nie nadpisuje już logiki blokad, więc
 przejście z kilku stanów źródłowych znaczy „wymaga **wszystkich** naraz"
@@ -484,6 +885,25 @@ Objaw pokrewny: ciasteczko sesji dostaje flagę `secure` dopiero wtedy, gdy
 Symfony widzi HTTPS. Dlatego `curl` po zwykłym HTTP do portu nasłuchu dostanie
 403 na ekranie hosta — to nie błąd, tylko nieodesłane ciasteczko. Testuj przez
 prawdziwą domenę albo sprawdzaj nagłówki `Set-Cookie`.
+
+**Symfony w produkcji chowa `getMessage()` KAŻDEGO wyjątku za tekstem statusu
+HTTP — niezależnie od typu wyjątku.** Znalezione przy „Ostatnia litera", ale
+dotyczyło **każdej** gry: `IllegalActionException('Nie twoja kolej.')` wracał
+do telefonu jako gołe `{"detail": "Bad Request"}`. Przyczyna:
+`Symfony\Component\Serializer\Normalizer\ProblemNormalizer::normalize()` ma
+wprost `'detail' => $debug ? $object->getMessage() : $object->getStatusText()`
+— w `debug=false` **zawsze** bierze tekst statusu, bez wyjątku dla
+`HttpExceptionInterface`, mimo że te są w tej aplikacji pisane właśnie z myślą
+o pokazaniu ich treści graczowi. Testy HTTP w tym repo nigdy tego nie złapały,
+bo `WebTestCase` startuje z `debug=true` — błąd wyszedł dopiero na prawdziwym
+serwerze produkcyjnym. Naprawione `ApiExceptionSubscriber`
+(`src/Core/Http/`): nasłuchuje `kernel.exception` z priorytetem wyższym niż
+domyślny `ErrorListener` frameworka, i dla tras API (`ApiFormatSubscriber::isApiPath()`)
+buduje odpowiedź JSON samemu, kładąc `getMessage()` do `detail` dla każdego
+`HttpExceptionInterface` — nieoczekiwane błędy (nie-HTTP-wyjątki) zostają
+ogólne, tak jak powinny. Pilnuje tego `ApiExceptionSubscriberTest`, budujący
+`ExceptionEvent` ręcznie, żeby sprawdzić zachowanie niezależnie od trybu debug
+całego jądra.
 
 **`[hidden]` nie działa** na elementach z `display:flex/grid` — nasze reguły
 wygrywają z domyślnym stylem przeglądarki. W `app.css` jest globalne
@@ -513,6 +933,49 @@ ani z czasu z dokładnością do sekundy. Wszyscy skanują QR jednocześnie.
 wychodzi ~500. Nie goń tego jako błędu layoutu; sprawdzone na izolowanym
 przypadku. Strona z otwartym SSE nigdy się nie „ustali", więc do zrzutu trzeba
 zatrzymać kontener Mercure (`docker compose stop mercure`).
+
+**Ustawienie `canvas.width`/`canvas.height` czyści całe płótno**, nawet gdy
+wpisujesz tę samą wartość co poprzednio - odkryte przy rysunku w kalamburach
+rysowanych (`rysowanki_host_controller.js`, `#resizeCanvas()`). Przeliczanie
+rozdzielczości przy KAŻDYM renderze (odświeżenie leci po prawie każdym evencie
+SSE) wymazywałoby rysunek w środku rundy. Rozdzielczość liczy się od nowa
+wyłącznie przy przejściu płótna z ukrycia do widoczności i przy `resize` okna.
+
+**`.game-panel` ma sztywne `grid-template-areas: "rail main" "foot foot"`
+(app.css) - `.game-rail`/`.game-main`/`.game-foot` MUSZĄ być jego
+BEZPOŚREDNIMI dziećmi.** Pierwsza wersja kalambur rysowanych owinęła je
+w dodatkowy `<div class="rys-screen">` (żeby jednym `hidden` chować całą grę
+przed wyborem roli ekranu) - i to złamało layout kompletnie: `.rys-screen`
+nie miał żadnego `grid-area`, więc trafiał do siatki na oślep, a rail/main
+w środku nie uczestniczyły w siatce w ogóle, tylko renderowały się zwykłym
+blokiem w tym, co zostało. Efekt na żywo: „źle graficznie, nie ma rysowania"
+(canvas dziedziczył zerowy/losowy rozmiar po zapadniętym opakowaniu) -
+zgłoszenie użytkownika po pierwszym realnym teście. Naprawione wyniesieniem
+nakładki wyboru roli (`.rys-role-gate`) z siatki przez `position: absolute;
+inset: 0;` zamiast przez zagnieżdżenie - rail/main/foot wróciły jako
+bezpośrednie dzieci `.game-panel`, nakładka po prostu przykrywa całość, dopóki
+`hidden` nie zniknie. Wniosek ogólny: żaden nowy `<div>` nie może wejść
+między `.game-panel` a jego trzy potomne strefy (`rail`/`main`/`foot`) w ŻADNEJ
+grze - to samo dotyczyłoby `.kolo-panel`, `.panstwa-panel` itd.
+
+**`.tv-teams .team` miał TRZY nakładające się definicje `grid-template-*` w
+`app.css`, w różnych miejscach pliku - wygrywała ostatnia w kolejności źródła
+(ta sama specyficzność selektora za każdym razem). Od layoutu v3 jest jedna,
+ale wniosek poniżej dotyczy całego arkusza.** Dopisanie przycisku
+usuwania drużyny do kafelka trafiło najpierw w NIEaktywną, wcześniejszą wersję
+reguły - zmiana nic nie robiła na żywo, dopóki nie znalazłem tej, którą
+przeglądarka faktycznie stosuje (dwie pierwsze to żywa historia kolejnych
+przeróbek tego kafelka, nikt ich nie posprzątał). Wniosek: przy zmianie
+layoutu elementu, który "już ma" `display: grid`, najpierw `grep -n` całego
+pliku po tym selektorze - edycja pierwszej definicji, na którą się trafi,
+może być całkowicie bez efektu. Dodanie 4. elementu jako kolejnej kolumny
+`auto` też się zemściło osobno: zmieściło się bez nakładania na inne elementy,
+ale ścisnęło kolumnę z nazwą na tyle, że krótkie nazwy drużyn (`Gamma`) łamały
+się w środku wyrazu. Naprawka: nowy przycisk wszedł w OSOBNY wiersz pod nazwą
+(`grid-template-areas: 'rank name score' 'rank remove score'`), nie w nową
+kolumnę obok niej - rank i wynik i tak już rozciągały się przez oba wiersze
+w historycznej wersji tej reguły, więc to nie nowy wzorzec, tylko przywrócenie
+starego z innym przeznaczeniem drugiego wiersza.
 
 **Serwer deweloperski:** na starej maszynie `symfony server:start` chodził przez
 PHP-FPM i **gubił kody statusu przekierowań** (302 → 200 z samym `Location`).
@@ -578,6 +1041,13 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
   pozostałych gier i przechodzą lint + rejestrację AssetMappera — ale pętli tur
   na dwóch telefonach + TV jeszcze nikt nie przeklikał. To pierwsza rzecz do
   sprawdzenia. Poza wariantem świadomie: jokery i moc króla (czerwony-0/czarny-13).
+- **Frontend Ostatniej litery też nie był puszczony na żywo.** Backend przechodzi
+  29 testów przez prawdziwy silnik i Redis (kredyty, eliminacja z pomijaniem,
+  pauza na sędziego, punktacja), szablony/kontrolery trzymają się wzorca
+  pozostałych gier i przechodzą lint — ale pełnej rundy (kilka telefonów + TV,
+  w tym słowo trafiające do sędziego) jeszcze nikt nie przeklikał. `WordJudge`
+  testowany atrapą (`FixedWordJudge`) — prawdziwego `hunspell`+`hunspell-pl`
+  na polskich słowach z klawiatury telefonu jeszcze nie sprawdzono na żywo.
 - **Widok telefonu nie był oglądany na prawdziwym urządzeniu** — tylko w headless
   Chrome, który kłamie o `vw`. Przy pierwszym teście z gośćmi to pierwsza rzecz
   do sprawdzenia.
@@ -592,10 +1062,22 @@ poprawnie; jeśli tak, `bin/dev` można uprościć.
 - **Rundę państw-miast kończy zegar ekranu hosta**, który po odliczeniu melduje
   `finish` — serwer to weryfikuje, ale przy zamkniętym TV runda stoi w `ending`
   do ręcznego zakończenia. Tak samo działają kalambury.
-- **Słownik nie zna trudności per gra.** `difficulty` opisuje, jak trudno hasło
-  *pokazać* (kalambury); koło używa go tylko do sortowania. Hasło łatwe do
-  pokazania bywa nudne na planszy i odwrotnie — jeśli zacznie przeszkadzać,
-  trzeba drugiego pola albo tagów.
+- **Frontend kalambur rysowanych nie był puszczony na żywo.** Backend przechodzi
+  22 testy przez prawdziwy silnik, Redis i Postgres (trzy oferty trudności,
+  degradacja przy wyczerpanej kategorii, topnienie punktów, wyścig
+  guessed-po-timeout), a pełny łańcuch HTTP (start gry, transfer tokenu hosta
+  na drugi ekran, kanał `/game/live`) zweryfikowany przez `WebTestCase` — ale
+  nikt jeszcze nie przeklikał prawdziwej rundy na dwóch fizycznych ekranach
+  (projektor + tablet dotykowy), więc płynność rysowania po realnym Wi-Fi
+  i wygoda przenoszenia tokenu hosta przez QR to pierwsze rzeczy do sprawdzenia.
+- **Słownik nie zna trudności per gra ani per hasło w obrębie kategorii —
+  cała kategoria ma jedną, wspólną `difficulty`.** Opisuje, jak trudno hasło
+  *pokazać* (kalambury) albo *narysować* (kalambury rysowane); koło używa go
+  tylko do sortowania. `PhraseDeck::drawChoices()` (kalambury rysowane) to
+  obchodzi dwuprzebiegowym dobieraniem - patrz decyzja „Etykieta trudności
+  bywa tylko stawką punktową" wyżej - więc rysujący zawsze widzi trzy realne
+  hasła; nadal jednak żadne z trzech nie odzwierciedla naprawdę zróżnicowanej
+  trudności, dopóki ktoś nie zróżnicuje jej W OBRĘBIE kategorii w panelu.
 - **Kategorie nie mają zmiany kolejności pozycji w panelu** — `position` istnieje
   w encjach i jest respektowane, ale UI go nie wystawia.
 - **Ikony PWA są tymczasowe** — wygenerowana gwiazda z logotypu, nie prawdziwy

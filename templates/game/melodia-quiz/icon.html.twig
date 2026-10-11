@@ -1,0 +1,12 @@
+<svg viewBox="0 0 120 120" role="img" aria-label="Jaka to melodia — 1 z 4">
+    {# Cztery pola odpowiedzi, jedno zaznaczone - to cały pomysł tej gry. #}
+    {% for row in [0, 1] %}
+        {% for col in [0, 1] %}
+            <rect x="{{ 18 + col * 46 }}" y="{{ 24 + row * 42 }}" width="38" height="30" rx="7"
+                  fill="none" stroke="currentColor" stroke-width="4"
+                  opacity="{{ row == 0 and col == 1 ? '1' : '0.45' }}"/>
+        {% endfor %}
+    {% endfor %}
+    <path d="M68 39 l5 6 l11 -13" fill="none" stroke="currentColor" stroke-width="4"
+          stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

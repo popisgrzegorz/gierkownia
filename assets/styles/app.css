@@ -19,12 +19,14 @@
     /* Jeden kolor na gre - kafelek, lobby, strona glowna i panel hosta musza
        zgadzac sie ze soba. Bez wspolnego zrodla Kolo bylo pomaranczowe wszedzie
        oprocz .c-bg-kolo, ktora dzielila (bledny) niebieski z melodia. */
-    --g-melodia: #3e63dd;
-    --g-kolo: #f5a524;
-    --g-kalambury: #30a46c;
-    --g-panstwa: #8e4ec6;
-    --g-quiz: #5b7cf0;
-    --g-dutch: #12b886;
+    --g-melodia: #119fc0;
+    --g-kolo: #f39a12;
+    --g-kalambury: #e8336d;
+    --g-panstwa: #f2622a;
+    --g-quiz: #8a3ff0;
+    --g-dutch: #1e7bf0;
+    --g-ostatnia-litera: #2fb24c;
+    --g-kalambury-rysowane: #7b3fe4;
 
     color-scheme: dark;
 }
@@ -304,18 +306,181 @@ body:not(.admin) [role="button"]:focus-visible {
 
 /* ---------- pasek górny ---------- */
 
+/* Pasek w trakcie gry: [logo + nazwa gry] [dołączanie] [przyciski hosta].
+   Trzy strefy o różnej wadze - nazwa gry i kod mają być czytelne z kanapy,
+   przyciski hosta tylko znalezione wzrokiem przez kogoś z pilotem/laptopem.
+   Wcześniej siedem jednakowych pigułek krzyczało tak samo głośno. */
 .tv-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: clamp(0.6rem, 2vmin, 1.6rem);
+    padding: clamp(0.35rem, 0.9vmin, 0.7rem) clamp(0.5rem, 1.4vmin, 1rem);
+    border-radius: 999px;
+    background: rgba(15, 18, 34, 0.72);
+    border: 1px solid #232741;
+    box-shadow: 0 0.4rem 1.4rem rgba(0, 0, 0, 0.25);
+}
+
+.tv-bar-left {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: clamp(0.6rem, 2vmin, 1.6rem);
+    gap: clamp(0.6rem, 1.8vmin, 1.4rem);
+    min-width: 0;
+}
+
+/* Nazwa gry w kolorze gry, z tą samą ikoną co kafelek na ścianie wyboru -
+   z drugiego końca pokoju widać, w co gramy, zanim przeczyta się napis. */
+.tv-game-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55em;
+    min-width: 0;
+    margin: 0;
+    padding: 0.22em 1em 0.22em 0.25em;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--c) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+    color: #fff;
+    font-size: clamp(1rem, 2.6vmin, 2.2rem);
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+/* „Jaka to melodia — 1 z 4” nie mieści się obok kodu w pełnym rozmiarze -
+   lepiej mniejsza czcionka niż wielokropek w połowie nazwy. */
+.tv-game-chip-long {
+    font-size: clamp(0.85rem, 2vmin, 1.7rem);
+}
+
+.tv-game-icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 1.75em;
+    height: 1.75em;
+    border-radius: 50%;
+    background: var(--c);
+    color: #fff;
+    box-shadow: 0 0 1.2em color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.tv-game-icon svg {
+    width: 74%;
+    height: 74%;
+}
+
+.tv-game-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dołączanie dla spóźnialskich: adres i kod zawsze na wierzchu, klik
+   otwiera duży QR. Kod jak tablica rejestracyjna - przepisuje się go
+   z telefonem w ręku, więc musi się czytać bez mrużenia oczu. */
+.tv-join {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.25em 0.3em 0.25em 1em;
+    border: 1px solid rgba(245, 165, 36, 0.55);
+    border-radius: 999px;
+    background: rgba(245, 165, 36, 0.08);
+    color: var(--fg);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.tv-join:hover {
+    background: rgba(245, 165, 36, 0.18);
+}
+
+.tv-join-label {
+    color: var(--muted);
+    font-size: clamp(0.75rem, 1.5vmin, 1.15rem);
+}
+
+.tv-join-url {
+    font-weight: 700;
+    font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
+}
+
+.tv-join-code {
+    padding: 0.12em 0.5em 0.12em 0.68em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #22160a;
+    font-size: clamp(1.05rem, 2.5vmin, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    line-height: 1.15;
+}
+
+.tv-bar-right form {
+    margin: 0;
+}
+
+/* Węższy ekran (laptop 1366 px): pierwsze odpada logo - nazwa gry i kod
+   są ważniejsze niż marka, która i tak wisiała na ekranie wyboru gry. */
+@media (max-width: 1600px) {
+    .tv-bar:not(.tv-bar-lobby) .tv-brand { display: none; }
+}
+
+@media (max-width: 1200px) {
+    .tv-join-label,
+    .tv-join-url { display: none; }
+}
+
+/* Przyciski hosta: ciche, w jednym rzędzie, zwarte. Pierwszy (Zmień grę)
+   dostaje obrys - to najczęstsza akcja między grami. */
+body:not(.admin) .tv-bar-right .btn {
+    min-height: 0;
+    padding: 0.45em 0.95em;
+    border-color: transparent;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+body:not(.admin) .tv-bar-right .btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--fg);
+}
+
+body:not(.admin) .tv-bar-right .btn-bar-main {
+    border-color: #2f3660;
+    color: var(--fg);
+}
+
+body:not(.admin) .tv-bar-right .btn-icon {
+    width: 2.3em;
+    height: 2.3em;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    font-size: clamp(0.95rem, 1.9vmin, 1.4rem);
+}
+
+.tv-bar-right .conn {
+    font-size: clamp(0.7rem, 1.3vmin, 0.95rem);
 }
 
 /* ---------- nagłówek poczekalni (wg _other/layout2.png) ---------- */
 
-.tv-bar-lobby {
+.tv-bar.tv-bar-lobby {
+    display: flex;
+    justify-content: space-between;
     align-items: flex-start;
     flex-wrap: wrap;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
 }
 
 .brand-block {
@@ -445,17 +610,20 @@ body:not(.admin) [role="button"]:focus-visible {
 /* Panel punktacji po LEWEJ, scena po prawej - kolejność z prośby użytkownika.
    Kolumna jest stała, scena bierze resztę; minmax(0,...) na scenie nie pozwala
    wielkiej planszy rozepchnąć siatki i wypchnąć tablo poza ekran. */
-/* Tryb pełnego ekranu: znika pasek u góry i punktacja z boku, scena gry dostaje
-   cały telewizor. Punkty nadal się liczą - schowany jest tylko ich podgląd
-   i ręczna korekta, więc wyjście musi zostać widoczne. */
-.tv.tv-focus > .tv-bar,
-.tv.tv-focus .tv-teams { display: none; }
+/* Tryb pełnego ekranu: znika pasek u góry i (domyślnie) punktacja z boku,
+   scena gry dostaje cały telewizor. Punkty nadal się liczą - schowany jest
+   tylko ich podgląd i ręczna korekta, więc wyjście musi zostać widoczne.
+   ".tv-focus-show-teams" to osobny, niezależny przełącznik (menu pełnego
+   ekranu) - host może chcieć immersyjny widok BEZ paska, a mimo to widzieć
+   wyniki z boku; stąd druga klasa zamiast jednego bitu "focus=schowaj wszystko". */
+.tv.tv-focus > .tv-bar { display: none; }
+.tv.tv-focus:not(.tv-focus-show-teams) .tv-teams { display: none; }
 
 /* Bez tego scena ląduje w wierszu po schowanym nagłówku (czyli w tym "auto"),
    a wiersz 1fr zostaje pusty na dole ekranu. */
 .tv.tv-focus { grid-template-rows: minmax(0, 1fr); }
 
-.tv.tv-focus .tv-body { grid-template-columns: minmax(0, 1fr); }
+.tv.tv-focus:not(.tv-focus-show-teams) .tv-body { grid-template-columns: minmax(0, 1fr); }
 
 .tv-focus-exit {
     display: none;
@@ -534,7 +702,10 @@ body:not(.admin) [role="button"]:focus-visible {
     /* Wąska kolumna punktacji po LEWEJ, scena bierze resztę. minmax(0,...)
        na scenie jest konieczne: bez tego wielka plansza rozpycha grid zamiast
        się w nim zmieścić i kolumna z drużynami ucieka poza ekran. */
-    grid-template-columns: clamp(11rem, 15vw, 17rem) minmax(0, 1fr);
+    /* Szerzej niż kiedyś (15vw) - w wąskiej kolumnie „Wujkowie z Radomia”
+       łamali się w środku wyrazu na cztery linie, a tablo to druga
+       najważniejsza rzecz na ekranie po samej grze. */
+    grid-template-columns: clamp(14rem, 19vw, 25rem) minmax(0, 1fr);
     gap: clamp(0.6rem, 1.8vmin, 1.6rem);
     min-height: 0;
 }
@@ -582,46 +753,105 @@ body:not(.admin) [role="button"]:focus-visible {
     overflow-y: auto;
 }
 
+/* Kafelek drużyny na tablo: [miejsce] [nazwa] [wynik] w JEDNYM rzędzie.
+   Wcześniej ✕ do usuwania drużyny miał własny wiersz pod nazwą, a kolumna
+   była tak wąska, że nazwy łamały się w środku wyrazu („Gamm/a”). Teraz ✕
+   wisi w rogu i pojawia się dopiero pod kursorem - na telewizorze to
+   narzędzie hosta, nie informacja dla gości. Nazwa łamie się tylko na
+   spacjach; ciąć wyraz wolno dopiero, gdy jeden wyraz nie mieści się
+   w ogóle (break-word, nie anywhere). */
 .tv-teams .team {
+    position: relative;
     display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-        'name score'
-        'buttons score';
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'rank name score';
     align-items: center;
-    gap: 0.2em 0.6em;
-    padding: clamp(0.4rem, 1.2vmin, 0.9rem) clamp(0.5rem, 1.4vmin, 1rem);
-    border-radius: 12px;
-    border-left: 6px solid var(--team-color, var(--accent));
-    background: rgba(242, 239, 230, 0.07);
+    gap: 0 clamp(0.5rem, 1.3vmin, 0.9rem);
+    padding: clamp(0.5rem, 1.3vmin, 1rem) clamp(0.6rem, 1.5vmin, 1.1rem);
+    border-radius: 14px;
+    border-left: 0;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--team-color, var(--accent)) 26%, transparent), transparent 85%),
+        rgba(242, 239, 230, 0.05);
+    box-shadow: inset 5px 0 0 var(--team-color, var(--accent));
+}
+
+.tv-teams .team-rank {
+    grid-area: rank;
+    display: grid;
+    place-items: center;
+    width: 1.75em;
+    height: 1.75em;
+    border-radius: 50%;
+    background: rgba(242, 239, 230, 0.1);
+    color: var(--muted);
+    font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
 }
 
 .tv-teams .team-name {
     grid-area: name;
-    /* Nazwa drużyny to jedyna rzecz, której gracz szuka wzrokiem co rundę -
-       stary sufit (1.25rem) był dobrany pod laptopa i na TV oglądanym
-       z kanapy nie rósł powyżej ~20px (P2-23 audytu). */
-    font-size: clamp(1rem, 2.4vmin, 2.2rem);
+    font-size: clamp(1rem, 2.3vmin, 2rem);
     font-weight: 800;
-    overflow-wrap: anywhere;
+    line-height: 1.15;
+    overflow-wrap: break-word;
+    hyphens: manual;
 }
 
 .tv-teams .team-score {
     grid-area: score;
-    /* Punkty to najważniejsza liczba na tablo - mają być czytelne z drugiego
-       końca pokoju. Stała szerokość, żeby przyciski nie skakały przy 9 → 10. */
-    font-size: clamp(1.2rem, 2.6vmin, 2.2rem);
+    min-width: 2ch;
+    margin: 0;
+    text-align: right;
+    color: #fff;
+    font-size: clamp(1.4rem, 3.4vmin, 3rem);
     font-weight: 900;
     line-height: 1;
-    min-width: 2.5ch;
-    text-align: right;
-    color: var(--team-color, var(--fg));
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 0.6em color-mix(in srgb, var(--team-color, var(--accent)) 70%, transparent);
 }
 
-.tv-teams .team-buttons {
-    grid-area: buttons;
-    display: flex;
-    gap: 0.35rem;
+/* Lider: złoty numer, złota obwódka - z kanapy widać, kto prowadzi, bez
+   czytania liczb. Gdy nikt jeszcze nie punktował, wyróżnienie i tak trafia
+   na pierwszego - to tylko kolejność, nie wyrok. */
+.tv-teams .team:first-child .team-rank {
+    background: var(--accent);
+    color: #22160a;
+}
+
+.tv-teams .team:first-child {
+    outline: 2px solid rgba(245, 165, 36, 0.55);
+    outline-offset: -2px;
+}
+
+.tv-teams .team-remove {
+    position: absolute;
+    top: 0.2rem;
+    right: 0.2rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.75rem;
+    opacity: 0;
+}
+
+.tv-teams .team:hover .team-remove,
+.tv-teams .team-remove:focus-visible {
+    opacity: 0.8;
+}
+
+/* Bez myszy (dotykowy laptop/tablet jako ekran hosta) nie ma czym najechać -
+   ✕ zostaje widoczny, choć przygaszony. */
+@media (hover: none) {
+    .tv-teams .team-remove {
+        opacity: 0.45;
+    }
+}
+
+/* Zmiana wyniku podbija liczbę; przesunięcie kafelka animuje kontroler
+   techniką FLIP, bo CSS nie widzi zmiany kolejności w DOM-ie. */
+.tv-teams .team-score.bump {
+    animation: pop 0.35s ease-out;
 }
 
 /* ---------- wąski ekran: telefon, tablet, okno na pół monitora ----------
@@ -1118,6 +1348,34 @@ body:not(.admin) [role="button"]:focus-visible {
     font-weight: 600;
 }
 
+/* Subtelny "wyrzuć drużynę" - widoczny, ale nie krzyczy obok samego wyniku.
+   Osobny przycisk zamiast kliknięcia w kafelek: kafelek drużyny nigdzie
+   indziej nie jest klikalny, więc przypadkowe dotknięcie nie usuwa nikogo. */
+.team-remove {
+    flex: 0 0 auto;
+    grid-area: remove;
+    width: 1.8em;
+    height: 1.8em;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.7em;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.team-remove:hover,
+.team-remove:focus-visible {
+    opacity: 1;
+    background: rgba(229, 72, 77, 0.18);
+    color: var(--err);
+}
+
 .team-score {
     font-variant-numeric: tabular-nums;
     font-weight: 800;
@@ -1261,6 +1519,34 @@ body:not(.admin) [role="button"]:focus-visible {
 .waiting {
     color: var(--muted);
     max-width: 22rem;
+}
+
+/* Host usunął tę drużynę - nakładka na CAŁY ekran telefonu, ponad wszystkim
+   (nawet ponad ewentualnym pełnoekranowym widokiem gry), bo telefon i tak
+   nie ma już do czego wracać - drużyny nie ma już w Redisie. */
+.player-removed-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    justify-items: center;
+    gap: 1rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: rgba(10, 12, 22, 0.97);
+}
+
+.player-removed-title {
+    margin: 0;
+    font-size: clamp(1.4rem, 6vw, 2rem);
+    font-weight: 800;
+}
+
+.player-removed-note {
+    margin: 0;
+    color: var(--muted);
+    max-width: 26rem;
 }
 
 .score-pill {
@@ -1832,72 +2118,6 @@ body:not(.admin) [role="button"]:focus-visible {
     color: var(--muted);
 }
 
-/* ---------- panel punktacji po lewej (miejsca + animacja) ---------- */
-
-.tv-teams {
-    grid-template-rows: auto auto minmax(0, 1fr);
-}
-
-/* Kafelek drużyny: numer miejsca, nazwa, wynik, przyciski hosta. */
-.tv-teams .team {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-        'rank name score'
-        'rank buttons score';
-}
-
-.tv-teams .team-rank {
-    grid-area: rank;
-    display: grid;
-    place-items: center;
-    width: 1.7em;
-    height: 1.7em;
-    margin-right: 0.5rem;
-    border-radius: 8px;
-    background: rgba(242, 239, 230, 0.1);
-    color: var(--muted);
-    font-size: clamp(0.9rem, 1.9vmin, 1.5rem);
-    font-weight: 900;
-    font-variant-numeric: tabular-nums;
-}
-
-/* Lider wyróżniony - z kanapy widać, kto prowadzi, bez czytania liczb. */
-.tv-teams .team:first-child .team-rank {
-    background: var(--accent);
-    color: #22160a;
-}
-
-/* Zmiana wyniku podbija liczbę; przesunięcie kafelka animuje kontroler
-   techniką FLIP, bo CSS nie widzi zmiany kolejności w DOM-ie. */
-.tv-teams .team-score.bump {
-    animation: pop 0.35s ease-out;
-}
-
-/* ---------- poprawki po obejrzeniu zrzutów ekranu ----------
-
-   Wąska kolumna punktacji nie mieściła wyniku w jednym rzędzie z nazwą
-   i przyciskami - liczba punktów wypadała poza kafelek. Układ pionowy:
-   miejsce i nazwa na górze, pod spodem duży wynik i przyciski hosta. */
-
-/* Jeden rząd: miejsce, nazwa, a po prawej duży, zawsze aktualny wynik.
-   Ręcznej korekty punktów już nie ma - liczby prowadzą same gry. */
-.tv-teams .team {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'rank name score';
-    align-items: center;
-    gap: 0.35rem 0.6rem;
-}
-
-.tv-teams .team-rank {
-    margin-right: 0;
-}
-
-.tv-teams .team-score {
-    grid-area: score;
-    text-align: right;
-    font-size: clamp(1.4rem, 3vmin, 2.6rem);
-}
-
 /* Scena wypełnia całą wysokość zamiast skleić się do górnej krawędzi.
    Dolna połowa ekranu telewizora stała pusta, bo align-content: center
    przy jednym wierszu ustawia go w pionie na środku, ale nie rozciąga. */
@@ -2053,6 +2273,141 @@ body:not(.admin) [role="button"]:focus-visible {
     aspect-ratio: 1;
 }
 
+/* ---------- rama panelu gry na TV (layout v3) ----------
+
+   Wspólne dla wszystkich gier, celowo PRZED regułami poszczególnych gier -
+   te mogą nadpisać ramę u siebie bez podbijania specyficzności.
+
+   - Nazwa gry przeniosła się do paska u góry (.tv-game-chip), więc w szynie
+     znika: łamana na dwie linie zabierała miejsce kołu i płycie, a „KALAM /
+     BURY” rozcinała wyraz w środku.
+   - Panel to jedna spokojna karta, a nie karta w karcie w karcie.
+   - Ustawienia hosta (kategoria, czas, rubryki) to zwarty formularz
+     etykieta-pole, a nie pola na pół ekranu z podpisami nad sobą.
+   - Puste komunikaty nie zajmują miejsca, więc treść stoi zwartą grupą
+     na środku zamiast rozjechać się po wysokości ekranu. */
+.tv-teams.card {
+    border: 1px solid #232741;
+    border-radius: 22px;
+    background: rgba(15, 18, 34, 0.72);
+}
+
+.tv-teams .card-header {
+    border-bottom-color: #232741;
+}
+
+.game-panel {
+    border-radius: 22px;
+    background:
+        radial-gradient(ellipse at 25% 0%, rgba(62, 99, 221, 0.10), transparent 60%),
+        rgba(15, 18, 34, 0.72);
+    border: 1px solid #232741;
+}
+
+/* Schowana, ale zostaje w przepływie z zerową wysokością: szyny gier mają
+   siatki wierszy liczone z tytułem na pierwszym miejscu (auto / 1fr / auto),
+   a display:none przesunęłoby ilustrację do wiersza „auto” i koło skurczyłoby
+   się do zera. Czytniki ekranu nadal dostają nagłówek. */
+.game-rail > .game-name {
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-bottom: calc(-1 * clamp(0.5rem, 1.6vmin, 1.2rem));
+}
+
+.game-main {
+    align-content: center;
+    gap: clamp(0.7rem, 2vmin, 1.6rem);
+    background: rgba(9, 11, 22, 0.45);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.game-main > p:empty,
+.game-main > strong:empty {
+    display: none;
+}
+
+.game-main .panel-row:not(.panel-controls) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(0.5rem, 1.4vmin, 0.9rem) clamp(0.8rem, 2vmin, 1.4rem);
+    width: min(100%, 34rem);
+    padding: clamp(0.8rem, 2vmin, 1.4rem);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #2a3054;
+    text-align: left;
+}
+
+.game-main .panel-row:not(.panel-controls) > label {
+    color: var(--muted);
+    font-size: clamp(0.8rem, 1.7vmin, 1.25rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.game-main .panel-row:not(.panel-controls) > .select,
+.game-main .panel-row:not(.panel-controls) > .form-control {
+    width: 100%;
+    min-height: 0;
+    padding: 0.55em 0.8em;
+    font-size: clamp(0.95rem, 2vmin, 1.5rem);
+}
+
+.game-main .panel-row:not(.panel-controls) > .btn {
+    grid-column: 1 / -1;
+    justify-self: center;
+    font-size: clamp(1rem, 2.2vmin, 1.6rem);
+    padding: 0.55em 2.2em;
+}
+
+/* Instrukcja dla graczy pod ilustracją - czytelna, ale bez krzykliwej
+   niebieskiej ramki, która konkurowała z samą grą. */
+.tip-card {
+    padding: clamp(0.6rem, 1.6vmin, 1.1rem) clamp(0.8rem, 2vmin, 1.4rem);
+    border: 0;
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #d9dcec;
+    text-align: left;
+}
+
+.tip-card strong {
+    color: #fff;
+}
+
+/* Instrukcja trzyma się dołu szyny - w wierszu 1fr rozciągała się na pół
+   ekranu jako pusta, obramowana tablica (państwa-miasta przed losowaniem). */
+.game-rail > .tip-card {
+    align-self: end;
+}
+
+/* Szyna bez żadnej widocznej ilustracji (np. państwa-miasta przed
+   losowaniem litery): instrukcja staje się bohaterem i wędruje na środek,
+   zamiast wisieć na dole pustej kolumny. */
+.game-rail:not(:has(> div:not([hidden]), > canvas, > svg)) > .tip-card {
+    align-self: center;
+    font-size: clamp(1.1rem, 3vmin, 2.4rem);
+    padding: 1em 1.2em;
+}
+
+/* Zasada punktacji - mała linijka u dołu, jak przypis. */
+.game-foot {
+    justify-self: center;
+    padding: 0.3em 1em;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: clamp(0.75rem, 1.6vmin, 1.2rem);
+}
+
+.game-foot::before {
+    content: 'ℹ ';
+    color: var(--accent);
+}
+
 /* ---------- kalambury ---------- */
 
 .c-kalambury { color: var(--g-kalambury); }
@@ -2088,6 +2443,12 @@ body:not(.admin) [role="button"]:focus-visible {
     font-size: clamp(3rem, 22vw, 6rem);
 }
 
+/* Ostatnia litera: cale TV liczy sie tylko z zegarem i literami, wiec stac
+   go na wieksze cyfry niz gry z plansza/hasłem obok. */
+.clock-huge .clock-value {
+    font-size: clamp(4rem, 20vmin, 14rem);
+}
+
 /* Hasło dla aktora - jedyne miejsce w grze, gdzie tekst ma być duży
    i czytelny z ręki, bo pokazuje się je na oczach reszty stołu. */
 .secret-word {
@@ -2104,6 +2465,552 @@ body:not(.admin) [role="button"]:focus-visible {
     gap: 0.6rem;
 }
 
+/* ---------- kalambury rysowane ---------- */
+
+.c-kalambury-rysowane { color: var(--g-kalambury-rysowane); }
+.c-bg-kalambury-rysowane { background: var(--g-kalambury-rysowane); }
+
+.rys-player {
+    display: grid;
+    align-content: start;
+    gap: 0.6rem;
+}
+
+/* .game-panel ma własną, sztywną siatkę grid-template-areas "rail main"/
+   "foot foot" (patrz reguła .game-panel niżej w pliku) - .rys-panel jest
+   jej bezpośrednim potomkiem razem z .game-rail/.game-main/.game-foot, więc
+   nakładka wyboru roli NIE MOŻE być kolejnym poziomem zagnieżdżenia w tej
+   siatce (to właśnie złamało cały layout przy pierwszym podejściu - kreska
+   i widok graczy "znikały", bo canvas dziedziczył zerowy rozmiar po
+   zapadniętym opakowaniu). Zamiast tego wychodzi z siatki przez
+   position:absolute i po prostu przykrywa całą kartę, dopóki host nie wybierze roli. */
+.rys-panel {
+    position: relative;
+    /* Domyślnie (i na tablecie) jedna kolumna - płótno zajmuje prawie cały
+       ekran. Projektor dostaje z powrotem wąską szynę po lewej (reguła
+       niżej), bo tam jest miejsce na kategorię/zegar/punkty BEZ odbierania
+       płótnu miejsca - "sidebar po lewo... a reszta to duży ekran
+       z rysunkiem" (życzenie użytkownika). */
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        'main'
+        'foot';
+}
+
+.rys-panel[data-role="projector"] {
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+    grid-template-areas:
+        'rail main'
+        'foot foot';
+}
+
+/* Szyna istnieje w DOM zawsze (musi - .game-panel wymaga bezpośrednich
+   dzieci main/foot niezależnie od tego, czy 'rail' akurat jest w układzie,
+   patrz komentarz w host.html.twig), ale poza projektorem po prostu znika -
+   na tablecie płótno ma zająć to miejsce, nie pustą, zarezerwowaną kolumnę. */
+.rys-panel:not([data-role="projector"]) .game-rail {
+    display: none;
+}
+
+/* Na tablecie płótno ma być "jak największe" - pasek gospodarza na górze
+   (Zmień grę/Reset/dołączanie) i wspólna kolumna z drużynami/punktami po
+   lewej (.tv-bar/.tv-teams, spoza tego panelu, patrz host/screen.html.twig)
+   są tam zbędne: rysujący trzyma tablet, nie zarządza imprezą. :has() sięga
+   z korzenia (.tv/.tv-body) do roli ustawionej głęboko w moim panelu -
+   ukrycie samego .tv-teams by nie wystarczyło, bo .tv-body ma STAŁĄ
+   szerokość jego kolumny (clamp(11rem,15vw,17rem)) niezależną od tego, czy
+   coś w niej siedzi, więc bez nadpisania grid-template-columns zostałaby
+   pusta, zarezerwowana szpara zamiast oddanego miejsca. Degraduje się
+   bezpiecznie w przeglądarce bez :has() - chrom po prostu zostaje widoczny. */
+.tv:has(.rys-panel[data-role="tablet"]) .tv-bar {
+    display: none;
+}
+
+/* Bez tego .tv-body (jedyny widoczny grid item .tv, skoro .tv-bar zniknął)
+   dostawał się przez auto-placement do PIERWSZEGO, "auto"-wysokiego wiersza
+   (dotąd zajmowanego przez pasek) zamiast do drugiego, "minmax(0,1fr)" -
+   auto-placement nie wie, że .tv-body "należy" do drugiego wiersza, po
+   prostu wypełnia po kolei to, co jest. Efekt: cała gra kurczyła się do
+   naturalnej wysokości treści, a pod spodem zostawała pusta, czarna szpara
+   dokładnie wielkości nieużywanego drugiego wiersza - zgłoszenie użytkownika
+   ("ŹLE" na zrzucie ekranu). Jawne przypięcie do wiersza 2 naprawia to bez
+   dotykania układu innych gier. */
+.tv:has(.rys-panel[data-role="tablet"]) .tv-body {
+    grid-row: 2;
+}
+
+/* "Rysuj na całym ekranie" na TABLECIE (rysowanki_host_controller.js) woła
+   TEN SAM przełącznik pełnego ekranu co przycisk w pasku (patrz komentarz
+   przy .rys-focus-toggle) - a `.tv.tv-focus` wyżej w tym pliku ścieśnia
+   `.tv` z powrotem do JEDNEGO wiersza (`grid-template-rows: minmax(0,1fr)`).
+   Bez tej reguły `.tv-body` zostawał przypięty do wiersza 2, którego w tym
+   trybie po prostu NIE MA - grid dokładał go niejawnie na dole, a cała gra
+   (z płótnem włącznie) spadała pod widoczny ekran, zostawiając pusty,
+   "1fr"-owy wiersz 1 u góry. Ten sam bug co przy .tv-bar wyżej, tylko
+   odwrócony w czasie: tam zniknięcie sąsiada zostawiało puste MIEJSCE,
+   tu zniknięcie WIERSZA zostawia osierocone przypięcie. */
+.tv.tv-focus:has(.rys-panel[data-role="tablet"]) .tv-body {
+    grid-row: 1;
+}
+
+.tv-body:has(.rys-panel[data-role="tablet"]) {
+    grid-template-columns: 1fr;
+}
+
+.tv-body:has(.rys-panel[data-role="tablet"]) .tv-teams {
+    display: none;
+}
+
+/* .tv-stage domyślnie centruje swoją zawartość w pionie zamiast ją
+   rozciągać (align-content: center, wiersz siatki wysokości "auto") - dla
+   gier z bogatszą planszą różnica jest niezauważalna, bo naturalna wysokość
+   treści i tak wychodzi bliska pełnej. W kalamburach rysowanych, zwłaszcza
+   na tablecie (bez szyny, bez paska gospodarza u góry - patrz reguły wyżej),
+   treść bez płótna jest wyraźnie niższa niż ekran, więc ".game-panel" po
+   prostu wisiał wyśrodkowany z dużą czarną szparą pod spodem, zamiast
+   oddać tę przestrzeń płótnu - zgłoszenie użytkownika. Rozciągnięcie
+   dotyczy WYŁĄCZNIE tej gry (:has(.rys-panel)), inne plansze zostają przy
+   dotychczasowym centrowaniu. */
+.tv-stage:has(.rys-panel) {
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
+}
+
+/* Zawsze widoczny (nawet w trybie pełnoekranowym - patrz reguły `.rys-focus`
+   niżej), więc wychodzi z siatki .game-panel tak samo jak .rys-role-gate
+   (position:absolute zamiast bycia czwartym potomkiem rail/main/foot).
+   z-index niższy niż bramka wyboru roli (30) - zanim host wybierze rolę,
+   bramka i tak zakrywa ten przycisk, więc nie da się kliknąć "w ciemno". */
+.rys-focus-toggle {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 20;
+    width: 2.3rem;
+    height: 2.3rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #2b3050;
+    border-radius: 999px;
+    background: rgba(10, 12, 22, 0.55);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.rys-focus-toggle:hover,
+.rys-focus-toggle:focus-visible {
+    color: var(--fg);
+}
+
+/* "Rysuj na całym ekranie" - chowa szynę projektora i pasek nad płótnem
+   (kategoria/tura/hasło/zegar/punkty), zostawiając tylko rysunek i
+   sterowanie POTRZEBNE do gry (wybór trudności, wskazanie kto zgadł,
+   "Wyczyść") - te żyją w .game-main pod HUD-em/szyną, nie w nich, więc
+   zostają. Rail wraca do jednej kolumny tak jak domyślnie na tablecie
+   (patrz .rys-panel bazowe) - projektor w tym trybie nie różni się już
+   układem od tabletu. */
+.rys-panel.rys-focus {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        'main'
+        'foot';
+}
+
+.rys-panel.rys-focus .game-rail,
+.rys-panel.rys-focus .rys-hud,
+.rys-panel.rys-focus .game-foot {
+    display: none;
+}
+
+.rys-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 0;
+}
+
+.rys-rail-category,
+.rys-rail-turn {
+    font-size: clamp(0.8rem, 1.3vw, 0.95rem);
+    color: var(--muted);
+    margin: 0;
+}
+
+/* "Delikatny" licznik: sam tekst, bez ramki/tła/plakietki jak reszta
+   zegarów w appce - to jedynie okienko z boku, nie centralny element ekranu
+   (życzenie użytkownika: "licznik zrób taki delikatny"). Selektory tej sekcji
+   celowo zaczynają się od ".rys-panel", nie od samej klasy elementu -
+   ".rys-rail-clock .clock-value" i ".clock-value" (reguła bazowa, dużo
+   niżej w tym pliku) mają tę samą specyficzność, a o kolejność w źródle
+   nietrudno się potknąć przy każdej kolejnej zmianie (już się zdarzyło -
+   patrz komentarz przy .rys-only-tablet). Dodatkowa klasa w selektorze
+   gwarantuje wygraną niezależnie od tego, co jeszcze dopisze się niżej. */
+.rys-panel .rys-rail-clock {
+    padding: 0.2rem 0;
+    background: transparent;
+    border: none;
+    justify-items: start;
+}
+
+.rys-panel .rys-rail-clock .clock-value {
+    font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+    color: var(--muted);
+}
+
+/* Goła liczba sekund nie mówi nic o sobie w wąskiej szynie bez podpisu -
+   ikona zamiast osobnego wiersza tekstu, żeby zostać "delikatnym". */
+.rys-panel .rys-rail-clock .clock-value::before {
+    content: '⏱ ';
+    font-size: 0.6em;
+    opacity: 0.7;
+}
+
+.rys-panel .rys-rail-clock[data-state="urgent"] .clock-value {
+    color: var(--err);
+}
+
+/* Ta sama "delikatność" dla punktów - bez plakietki z obwódką, którą ma
+   wersja na tablecie (tam jest głównym elementem informacyjnym obok hasła,
+   tutaj tylko dopowiedzeniem obok zegara). */
+.rys-panel .rys-rail-points {
+    display: block;
+    padding: 0;
+    background: transparent;
+    border: none;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.rys-panel .rys-rail-points span {
+    font-size: clamp(1.1rem, 1.8vw, 1.3rem);
+    color: var(--g-kalambury-rysowane);
+    font-weight: 800;
+}
+
+.rys-rail .rys-role-switch {
+    margin-top: auto;
+}
+
+/* Zwarty pasek nad płótnem: kategoria/tura na projektorze, hasło na
+   tablecie, zegar, punkty i mała ikona zmiany roli - wszystko, co gdzie
+   indziej siedziałoby w szynie .game-rail, tutaj celowo NIE rośnie
+   (.rys-panel .game-main > * ma flex: 0 0 auto), żeby płótno poniżej
+   dostało resztę wysokości. */
+.rys-hud {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.9rem;
+    width: 100%;
+    padding-block: 0.2rem;
+}
+
+/* .secret-word (reguła współdzielona z Kalamburami) już ustawia rozmiar
+   i kolor - to opakowanie jest tu tylko po to, żeby hasło siedziało w tym
+   samym wierszu flex co zegar i punkty. */
+.rys-hud-word {
+    display: inline-flex;
+    align-items: baseline;
+}
+
+.rys-panel .rys-hud-clock {
+    padding: 0.35rem 0.8rem;
+    border-radius: 12px;
+}
+
+.rys-panel .rys-hud-clock .clock-value {
+    font-size: clamp(1.3rem, 3.4vmin, 2.1rem);
+}
+
+.rys-panel .rys-hud-points {
+    padding: 0.3rem 0.8rem;
+}
+
+.rys-panel .rys-hud-points span {
+    font-size: clamp(1.05rem, 2.6vmin, 1.5rem);
+}
+
+.rys-role-switch {
+    margin-left: auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: transparent;
+    border: 1px solid #2b3050;
+    border-radius: 999px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+/* Jedyny "komunikat", jaki tablet w trakcie rysowania jeszcze pokazuje
+   (patrz #render() w rysowanki_host_controller.js, `tabletDrawing`) - reszta
+   szyny (zegar, punkty, przełącznik roli) znika, żeby zostało tylko płótno. */
+.rys-word-toggle {
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid #2b3050;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.rys-word-toggle:hover,
+.rys-word-toggle:focus-visible {
+    color: var(--fg);
+    border-color: var(--g-kalambury-rysowane);
+}
+
+/* Wybór roli tego konkretnego ekranu (projektor kontra tablet) - jedyny
+   moment, w którym host musi coś skonfigurować PRZED wejściem w grę, więc
+   dostaje środek ekranu, nie mały panel z boku. */
+.rys-role-gate {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 1rem;
+    padding: clamp(1rem, 3vh, 2.5rem) 1rem;
+    text-align: center;
+    background: rgba(10, 12, 22, 0.97);
+    border-radius: var(--radius);
+    overflow-y: auto;
+}
+
+.rys-role-gate > * {
+    max-width: 32rem;
+}
+
+.rys-role-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.8rem;
+    width: 100%;
+}
+
+/* Etykieta w osobnych blokowych <span>, nie <br>+<small> - dzięki temu tekst
+   zawija się przewidywalnie zamiast wypływać poza zaokrąglony przycisk. */
+.rys-role-btn {
+    display: grid;
+    gap: 0.3rem;
+    padding-block: 1rem;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.rys-role-btn-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.rys-role-btn-sub {
+    font-size: 0.82rem;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.rys-transfer-qr {
+    border-radius: 12px;
+    background: #fff;
+    padding: 0.5rem;
+}
+
+.rys-transfer-warn {
+    color: var(--err);
+    font-weight: 700;
+    max-width: 26rem;
+}
+
+/* Role dzielą jeden szablon - CSS chowa to, co nie należy do danego ekranu,
+   zamiast dwóch osobnych widoków, które łatwo rozjechać przy każdej zmianie.
+   Reguła TYLKO wyłącza (display: none), NIGDY nie próbuje z powrotem
+   "włączyć" - pierwsza wersja robiła to przez `display: revert`, co brzmi
+   jak "przywróć własny styl", ale naprawdę cofa do domyślnego wyglądu
+   znacznika w przeglądarce BEZ ARKUSZY AUTORA: dla zwykłego <div> to
+   zawsze "block", nigdy "grid" ani "flex". Efekt: `.rys-choices` (na co
+   dzień display:grid, 3 kolumny) na tablecie wracało jako `display:block` -
+   trzy oferty trudności stały jedna pod drugą zamiast obok siebie, mimo że
+   reguła "w poziomie" (patrz .rys-choices niżej) była poprawna i w ogóle
+   się nie odpalała. Zamiast zgadywać każdemu ".rys-only-*" jego właściwy
+   `display`, selektor hide warunkujemy przez `:not([data-role=...])` -
+   gdy rola pasuje, reguła po prostu NIE DOTYCZY elementu i jego WŁASNA
+   reguła (np. `.rys-choices { display: grid }`) obowiązuje bez przeszkód. */
+.rys-panel:not([data-role="tablet"]) .rys-only-tablet { display: none; }
+.rys-panel[data-role="tablet"] .rys-only-projector { display: none; }
+
+.rys-points-badge {
+    display: grid;
+    place-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    background: rgba(230, 73, 128, 0.16);
+    border: 2px solid var(--g-kalambury-rysowane);
+    font-weight: 800;
+    text-align: center;
+}
+
+.rys-points-badge span {
+    font-size: clamp(1.6rem, 5vmin, 3rem);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Trzy oferty trudności - kolor rośnie z pulą punktów, tak jak reszta
+   trójkolorowych skal w tej appce (zielony/żółty/czerwony). */
+/* Zawsze TRZY kolumny obok siebie, nie auto-fit - auto-fit zwijał się do
+   jednej kolumny (trzy oferty jedna pod drugą, "brzydko") na węższym
+   tablecie w pionie, mimo że trzy węższe kolumny mieszczą się bez problemu -
+   zgłoszenie użytkownika ("zrób je w poziomie"). */
+.rys-choices {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(0.4rem, 1.5vw, 0.7rem);
+}
+
+.rys-choice {
+    display: grid;
+    align-content: center;
+    gap: 0.3rem;
+    padding: 1rem 0.5rem;
+    border-radius: 14px;
+    border-width: 2px;
+    text-align: center;
+    line-height: 1.25;
+    overflow-wrap: break-word;
+    min-width: 0;
+}
+
+.rys-choice-label {
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+/* Hasła bywają wielowyrazowe i długie - łamią się na spacjach same, ale
+   pojedyncze długie słowo (np. "dziewięćdziesiąt") bez break-word/hyphens
+   wypływało poza zaokrąglony przycisk zamiast się zawinąć. */
+.rys-choice-word {
+    /* .rys-choice jest siatką, a jej dzieci mają domyślnie min-width:auto -
+       bez zerowania tego długie hasło ("Czerwony Kapturek") odmawiało
+       zawijania na spacji i po prostu wypływało poza kolumnę, mimo
+       overflow-wrap/word-break niżej (te łamią słowo w środku, nie
+       wymuszają zawinięcia dwuwyrazowej frazy). */
+    min-width: 0;
+    font-size: clamp(0.9rem, 2.2vw, 1.3rem);
+    font-weight: 800;
+    text-transform: uppercase;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+.rys-choice-latwy { border-color: var(--g-kalambury); }
+.rys-choice-sredni { border-color: var(--g-kolo); }
+.rys-choice-trudny { border-color: var(--err); }
+
+/* Płótno ma dominować ekran projektora - reszta treści (kategoria, zegar,
+   sterowanie) jest zwarta i nie rośnie, .game-main zamienia się w kolumnę,
+   w której WYŁĄCZNIE płótno (albo, gdy jest ukryte, wybór trudności na
+   tablecie) dostaje flex-grow i zabiera całą resztę wysokości. Nadpisuje
+   wspólną (grid) regułę .game-main tylko wewnątrz tej gry - reszta gier jej
+   nie widzi. */
+.rys-panel .game-main {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.rys-panel .game-main > * {
+    flex: 0 0 auto;
+}
+
+.rys-panel .rys-canvas-wrap,
+.rys-panel .rys-choices {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* touch-action: none, bo bez tego dotyk na tablecie przewijałby stronę
+   zamiast rysować. */
+/* Płótno musi mieć IDENTYCZNE proporcje na projektorze i na tablecie -
+   inaczej ta sama kreska (współrzędne 0..1 względem własnego pudełka
+   płótna, patrz rysowanki_host_controller.js) wychodzi na drugim ekranie
+   rozciągnięta, bo dzieli przez inną szerokość/wysokość (życzenie
+   użytkownika: "takie samo skalowanie i taki sam rozmiar pola rysowania").
+   .rys-canvas-wrap wypełnia dostępne miejsce i centruje w nim
+   .rys-canvas-frame, który ma STAŁY, wspólny dla obu ekranów format.
+
+   Format 16:9, nie kwadrat - użytkownik zdecydował, że tablet ZAWSZE stoi
+   w poziomie, więc oba ekrany są w praktyce tego samego, szerokiego typu
+   (projektor i tak jest 16:9) i nie ma już dwóch konkurujących orientacji
+   do pogodzenia kompromisem. Kwadrat był kompromisem WYŁĄCZNIE dlatego, że
+   tablet stał w pionie - bez tego założenia 16:9 wykorzystuje przestrzeń
+   lepiej niż kwadrat na obu ekranach. `width/height: auto` + `max-width/
+   max-height: 100%` to standardowy wzorzec "zmieść największe pudełko
+   o tych proporcjach w dostępnym miejscu" (letterboxing) - patrz
+   .rys-canvas-frame niżej za policzeniem tego wprost przez container query.
+   Ramka (nie samo płótno) niesie ten format, żeby przycisk "Wyczyść" mógł
+   się do niej przypiąć rogiem - inaczej, przy węższym niż pudełko płótnie,
+   wisiałby w pustym marginesie zamiast przy realnej krawędzi rysunku. */
+.rys-canvas-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    /* Dwie pierwsze próby (place-items: center/stretch + aspect-ratio na
+       pustym divie) nie działały: "center" nie ma z czego policzyć rozmiaru
+       pudełka bez treści i spada do zastępczych 300×150 (kwadrat drobny
+       mimo mnóstwa wolnego miejsca), a "stretch" ignoruje aspect-ratio i po
+       prostu rozciąga na cały prostokąt (kwadrat wychodzi jako elipsoida -
+       zniekształcony). Container query rozwiązuje to wprost: .rys-canvas-wrap
+       STAJE SIĘ jednostką odniesienia (cqw/cqh) dla własnego dziecka. */
+    container-type: size;
+    display: grid;
+    place-items: center;
+}
+
+.rys-canvas-frame {
+    position: relative;
+    /* Szerokość największego pudełka 16:9, jakie mieści się w kontenerze
+       (cqw/cqh, patrz container-type na .rys-canvas-wrap), policzona wprost -
+       ten sam trik co przy kwadracie (patrz historia wyżej), tylko z drugim
+       wymiarem przeskalowanym przez współczynnik proporcji: gdyby o rozmiar
+       decydowała wysokość (100cqh), szerokość takiego pudełka to 100cqh*16/9,
+       nie 100cqh - stąd `calc()` zamiast gołego "100cqh" w drugim argumencie
+       min(). Bez tego przeskalowania silnik porównywałby wysokość kontenera
+       wprost z jego szerokością, co dawałoby kwadrat, nie 16:9. */
+    width: min(100cqw, calc(100cqh * 16 / 9));
+    aspect-ratio: 16 / 9;
+    min-width: 16rem;
+}
+
+.rys-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #f4ecff;
+    border-radius: 18px;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.rys-clear-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+}
+
 /* ---------- państwa i miasta ---------- */
 
 .c-panstwa { color: var(--g-panstwa); }
@@ -2117,7 +3024,7 @@ body:not(.admin) [role="button"]:focus-visible {
     padding: clamp(0.5rem, 2vmin, 1.5rem);
     border-radius: 24px;
     background: rgba(142, 78, 198, 0.12);
-    border: 3px solid #8e4ec6;
+    border: 3px solid var(--g-panstwa);
     /* Perspektywa dla klapki - bez niej obrót w pionie wygląda płasko. */
     perspective: 800px;
 }
@@ -2194,7 +3101,7 @@ body:not(.admin) [role="button"]:focus-visible {
 }
 
 .pm-dot-on {
-    background: #8e4ec6;
+    background: var(--g-panstwa);
 }
 
 .pm-progress-count {
@@ -2231,7 +3138,7 @@ body:not(.admin) [role="button"]:focus-visible {
 }
 
 .pm-team {
-    border-left: 4px solid var(--team-color, #8e4ec6);
+    border-left: 4px solid var(--team-color, var(--g-panstwa));
     padding-left: 0.5rem !important;
     color: var(--fg) !important;
     text-transform: none !important;
@@ -2655,7 +3562,7 @@ body:not(.admin) [role="button"]:focus-visible {
     display: grid;
     place-items: center;
     min-height: 0;
-    color: #30a46c;
+    color: var(--g-kalambury);
 }
 
 .mime svg {
@@ -2721,7 +3628,7 @@ body:not(.admin) [role="button"]:focus-visible {
     align-self: start;
     justify-self: start;
     width: fit-content;
-    background: #5b7cf0;
+    background: var(--g-quiz);
     color: #fff;
     border-radius: 999px;
     padding: 0.1rem 0.6rem;
@@ -2780,12 +3687,12 @@ body:not(.admin) [role="button"]:focus-visible {
 }
 
 .cat-chip.on {
-    border-color: #5b7cf0;
+    border-color: var(--g-quiz);
     background: rgba(91, 124, 240, 0.2);
 }
 
 .cat-chip.on .cat-chip-count {
-    background: #5b7cf0;
+    background: var(--g-quiz);
     color: #fff;
 }
 
@@ -2838,7 +3745,7 @@ body:not(.admin) [role="button"]:focus-visible {
 
 .tape-run {
     fill: none;
-    stroke: #5b7cf0;
+    stroke: var(--g-quiz);
     stroke-width: 4;
     stroke-linecap: round;
     transition: stroke-dashoffset 220ms linear;
@@ -2847,7 +3754,7 @@ body:not(.admin) [role="button"]:focus-visible {
 .quiz-tape[data-state="urgent"] .tape-run { stroke: var(--err); }
 
 .tape-label { fill: #f2efe6; }
-.tape-strip { fill: #5b7cf0; }
+.tape-strip { fill: var(--g-quiz); }
 .quiz-tape[data-state="urgent"] .tape-strip { fill: var(--err); }
 
 .tape-window {
@@ -2928,7 +3835,7 @@ body:not(.admin) [role="button"]:focus-visible {
     width: 0.2rem;
     height: 0.3rem;
     border-radius: 0.1rem;
-    background: #5b7cf0;
+    background: var(--g-quiz);
     display: block;
 }
 
@@ -3028,7 +3935,7 @@ body:not(.admin) [role="button"]:focus-visible {
     border-radius: 14px;
     background: #f2efe6;
     color: #1c2138;
-    border: 3px solid #5b7cf0;
+    border: 3px solid var(--g-quiz);
     position: relative;
     text-align: center;
     font-family: inherit;
@@ -3040,7 +3947,7 @@ body:not(.admin) [role="button"]:focus-visible {
     width: 1.7rem;
     aspect-ratio: 1;
     border-radius: 8px;
-    background: #5b7cf0;
+    background: var(--g-quiz);
     color: #fff;
     font-weight: 900;
 }
@@ -3453,6 +4360,10 @@ body:not(.admin) [role="button"]:focus-visible {
 .c-dutch { color: var(--g-dutch); }
 .c-bg-dutch { background: var(--g-dutch); }
 
+/* ---------- Ostatnia litera ---------- */
+.c-ostatnia-litera { color: var(--g-ostatnia-litera); }
+.c-bg-ostatnia-litera { background: var(--g-ostatnia-litera); }
+
 /* Środek stołu: talia i stos odrzuconych, każde z podpisem u góry. */
 .dutch-center {
     display: flex;
@@ -3484,7 +4395,7 @@ body:not(.admin) [role="button"]:focus-visible {
     border-radius: 16px;
     display: grid;
     place-items: center;
-    background: repeating-linear-gradient(45deg, #12b886 0 12px, #0e9c76 12px 24px);
+    background: repeating-linear-gradient(45deg, var(--g-dutch) 0 12px, color-mix(in srgb, var(--g-dutch) 75%, #000) 12px 24px);
     color: #04231b;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
@@ -3543,7 +4454,7 @@ body:not(.admin) [role="button"]:focus-visible {
 .dutch-card.red { color: var(--err); }
 
 .dutch-card.dutch-down {
-    background: repeating-linear-gradient(45deg, #12b886 0 9px, #0e9c76 9px 18px);
+    background: repeating-linear-gradient(45deg, var(--g-dutch) 0 9px, color-mix(in srgb, var(--g-dutch) 75%, #000) 9px 18px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
@@ -3681,7 +4592,7 @@ body:not(.admin) [role="button"]:focus-visible {
     width: 26px;
     height: 36px;
     border-radius: 5px;
-    background: repeating-linear-gradient(45deg, #12b886 0 5px, #0e9c76 5px 10px);
+    background: repeating-linear-gradient(45deg, var(--g-dutch) 0 5px, color-mix(in srgb, var(--g-dutch) 75%, #000) 5px 10px);
     box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.15);
 }
 
@@ -3789,7 +4700,7 @@ body:not(.admin) [role="button"]:focus-visible {
 
 .dutch-controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
-.dutch-btn-primary { background: #12b886; color: #04231b; border: none; }
+.dutch-btn-primary { background: var(--g-dutch); color: #fff; border: none; }
 .dutch-btn-call { background: var(--accent); color: #201500; border: none; }
 
 /* "Pomiń" w pickerze mocy - wyjście awaryjne, nie ma świecić jak akcja główna. */
@@ -3912,25 +4823,26 @@ body:not(.admin) [role="button"]:focus-visible {
         #0b0e1a;
 }
 
-/* Ciało: gracze po lewej (wąska kolumna), ściana gier bierze resztę. */
+/* Ciało: dołączanie + gracze po lewej, ściana gier bierze resztę. Kolumna
+   szeroka na tyle, żeby QR dał się zeskanować z kanapy. */
 .l2-body {
     display: grid;
-    grid-template-columns: clamp(11rem, 15vw, 17rem) minmax(0, 1fr);
+    grid-template-columns: clamp(15rem, 21vw, 27rem) minmax(0, 1fr);
     gap: clamp(0.6rem, 1.4vw, 1.4rem);
     min-height: 0;
 }
 
-/* ---------- lewa kolumna: dołączający gracze ---------- */
+/* ---------- lewa kolumna: dołączanie i gracze ---------- */
 
 .l2-side {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: clamp(0.5rem, 1.2vh, 1rem);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: clamp(0.5rem, 1.4vh, 1.1rem);
     min-height: 0;
-    padding: clamp(0.6rem, 1.4vh, 1.1rem);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    padding: clamp(0.7rem, 1.6vh, 1.2rem);
+    border-radius: 22px;
+    background: rgba(15, 18, 34, 0.72);
+    border: 1px solid #232741;
 }
 
 .l2-side-head {
@@ -3938,12 +4850,15 @@ body:not(.admin) [role="button"]:focus-visible {
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    flex-wrap: wrap;
+    padding-top: clamp(0.4rem, 1vh, 0.8rem);
+    border-top: 1px solid #232741;
 }
 
 .l2-side-title {
     font-weight: 800;
-    font-size: clamp(0.9rem, 1.9vh, 1.35rem);
+    font-size: clamp(0.9rem, 2vh, 1.4rem);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 /* Lista przewija się w środku kolumny - dwudziestu graczy nie rozepcha układu. */
@@ -3952,25 +4867,7 @@ body:not(.admin) [role="button"]:focus-visible {
     overflow-y: auto;
 }
 
-.l2-side-foot {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-/* .reset-form ma margin-left: auto dla paska poziomego z v1 (.tv-bar-right) -
-   w tej pionowej kolumnie ten sam formularz ma się zachowywać jak reszta
-   przycisków, nie doklejać do prawej krawędzi. */
-.l2-side-foot .reset-form {
-    margin-left: 0;
-}
-
-.l2-side-foot .l2-ctrl,
-.l2-side-foot .reset-form button {
-    width: 100%;
-}
-
-/* ---------- górny pasek: logo + dołączanie ---------- */
+/* ---------- górny pasek: logo + przyciski hosta ---------- */
 
 .l2-top {
     display: flex;
@@ -3978,18 +4875,23 @@ body:not(.admin) [role="button"]:focus-visible {
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
+    padding: clamp(0.4rem, 1vh, 0.7rem) clamp(0.8rem, 1.6vw, 1.4rem);
+    border-radius: 999px;
+    background: rgba(15, 18, 34, 0.72);
+    border: 1px solid #232741;
 }
 
 .l2-brand {
     display: flex;
     align-items: baseline;
-    gap: 0.7rem;
+    gap: 0.8rem;
 }
 
 .l2-logo {
-    font-size: clamp(1.5rem, 4vh, 3rem);
+    font-size: clamp(1.5rem, 4.4vh, 3.2rem);
     font-weight: 900;
     letter-spacing: 0.01em;
+    line-height: 1;
 }
 
 .l2-star {
@@ -3997,46 +4899,70 @@ body:not(.admin) [role="button"]:focus-visible {
 }
 
 .l2-tag {
-    color: #9aa0b8;
-    font-weight: 600;
-    font-size: clamp(0.8rem, 1.8vh, 1.15rem);
+    color: #f5a524;
+    font-weight: 700;
+    font-size: clamp(0.85rem, 2vh, 1.35rem);
 }
 
-.l2-join {
+.l2-top-right {
     display: flex;
     align-items: center;
-    gap: clamp(0.6rem, 1.5vw, 1.3rem);
-    padding: clamp(0.4rem, 1vh, 0.8rem) clamp(0.6rem, 1.4vw, 1.2rem);
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    flex-wrap: wrap;
+    gap: clamp(0.4rem, 0.8vw, 0.8rem);
 }
 
-.l2-join-text {
-    display: flex;
-    flex-direction: column;
-    text-align: right;
-    line-height: 1.1;
+.l2-top-right form {
+    margin: 0;
 }
 
-.l2-join-lead { color: #9aa0b8; font-size: clamp(0.7rem, 1.5vh, 0.95rem); }
-.l2-code {
-    font-size: clamp(1.6rem, 4.6vh, 3.4rem);
-    font-weight: 900;
-    letter-spacing: 0.14em;
-    color: #fff;
-    line-height: 1;
-}
-.l2-url { color: #9aa0b8; font-size: clamp(0.65rem, 1.4vh, 0.9rem); }
+/* ---------- dołączanie: duży QR i kod ---------- */
 
+.l2-join {
+    display: grid;
+    justify-items: center;
+    gap: clamp(0.3rem, 0.9vh, 0.7rem);
+    text-align: center;
+}
+
+.l2-join-lead {
+    color: #f5a524;
+    font-weight: 800;
+    font-size: clamp(0.9rem, 2.2vh, 1.5rem);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* Kwadrat na całą szerokość kolumny, ale nie więcej niż ok. 1/3 wysokości -
+   na niskim ekranie lista graczy też musi się zmieścić. */
 .l2-qr {
-    /* Sufit podniesiony ze 118px do 190px - tyle miał kod w wersji 1,
-      skanowany z drugiego końca pokoju (P2-25 audytu). */
-    width: clamp(80px, 15vh, 190px);
+    width: min(100%, 34vh);
     height: auto;
-    border-radius: 10px;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    /* Białe tło i margines ciszy: czytniki gubią kod bez jasnej ramki. */
     background: #fff;
-    padding: 5px;
+    padding: clamp(6px, 1vh, 12px);
+    box-shadow: 0 0 2.4rem rgba(245, 165, 36, 0.18);
+}
+
+.l2-url {
+    color: #9aa0b8;
+    font-size: clamp(0.72rem, 1.6vh, 1.05rem);
+}
+
+.l2-url strong {
+    color: #fff;
+}
+
+.l2-code {
+    padding: 0.08em 0.5em 0.08em 0.64em;
+    border-radius: 14px;
+    background: #f5a524;
+    color: #22160a;
+    font-size: clamp(1.8rem, 6vh, 4.2rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    line-height: 1.1;
 }
 
 /* ---------- ściana gier ---------- */
@@ -4045,33 +4971,34 @@ body:not(.admin) [role="button"]:focus-visible {
     flex: 1 1 auto;
     min-height: 0;
     display: grid;
-    /* --cols z szablonu: nieparzysta liczba gier = jeden rząd, parzysta = dwa.
-       grid-auto-rows: 1fr dzieli wysokość po równo między rzędy. */
-    grid-template-columns: repeat(var(--cols, 6), 1fr);
+    /* auto-fit + minmax: przegladarka sama dobiera liczbe kolumn z szerokosci
+       ekranu, a "1fr" rozciaga ostatni niepelny rzad tak, zeby wypelnil cala
+       szerokosc - dziala identycznie przy 2 grach i przy 12, bez liczenia
+       parzystosci gdziekolwiek. grid-auto-rows: 1fr dzieli wysokosc po rowno
+       miedzy tyle rzedow, ile faktycznie wyjdzie. Wiekszy prog minmax (wiecej
+       niz podnoszenie samego "1fr") = mniej, ale szerszych kolumn w rzedzie -
+       zyczenie uzytkownika ("mniej w linii, zeby byly szersze pola"). */
+    /* 16vw, nie 26vw: odkąd kolumna z QR jest szersza, przy 26vw laptop
+       1366 px dostawał dwie kolumny i cztery rzędy ściśniętych kafelków
+       z uciętymi ikonami - teraz zarówno 1366, jak i 1920 dają 4 × 2. */
+    grid-template-columns: repeat(auto-fit, minmax(clamp(11rem, 16vw, 21rem), 1fr));
     grid-auto-rows: 1fr;
     gap: clamp(0.6rem, 1.3vw, 1.4rem);
 }
 
-/* Dwa rzędy: panele są o połowę niższe, więc emoji i odstępy schodzą, żeby
-   treść nie wypchnęła się poza panel. */
-.l2-wall-grid .l2-panel {
-    padding: clamp(0.7rem, 2vh, 1.7rem) clamp(0.5rem, 1.4vw, 1.3rem);
-    gap: clamp(0.3rem, 1vh, 0.8rem);
-}
-
-.l2-wall-grid .l2-emoji { font-size: clamp(2.8rem, 10vh, 6rem); }
-.l2-wall-grid .l2-name { font-size: clamp(1rem, 2.6vh, 2rem); }
-
 /* Panel jednej gry: nasycony kolor gry, biały tytuł, wielkie emoji. Świeci
-   swoją barwą (box-shadow w --c), więc z kanapy widać, co jest czym. */
+   swoją barwą (box-shadow w --c), więc z kanapy widać, co jest czym.
+   Padding/gap/czcionki tunowane pod scenariusz z kilkoma rzędami (auto-fit
+   układa gry w 1 do kilku rzędów zależnie od tego, ile ich jest - nie znamy
+   liczby rzędów z góry, więc bezpieczniej za małe niż wystające poza kafelek). */
 .l2-panel {
     min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: clamp(0.4rem, 1.4vh, 1.1rem);
-    padding: clamp(1rem, 3vh, 2.4rem) clamp(0.5rem, 1.4vw, 1.3rem);
+    gap: clamp(0.3rem, 1vh, 0.8rem);
+    padding: clamp(0.7rem, 2vh, 1.7rem) clamp(0.5rem, 1.4vw, 1.3rem);
     border: none;
     border-radius: 22px;
     cursor: pointer;
@@ -4110,19 +5037,47 @@ body:not(.admin) [role="button"]:focus-visible {
     outline-offset: 3px;
 }
 
-.l2-emoji {
-    font-size: clamp(3rem, 13vh, 7.5rem);
-    line-height: 1;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+/* Podkładka pod ikoną - bez niej ciemniejsze detale (np. płyta melodii,
+   #15182a) gubiły się w dolnej, przyciemnionej części gradientu kafelka.
+   Ten sam pomysł co medalion pod ikoną karty v1 (.game-card-art::before),
+   tylko ciemny zamiast jasnego - tu tło JEST już kolorem gry. */
+.l2-icon-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
 }
 
+.l2-icon-wrap::before {
+    content: '';
+    position: absolute;
+    inset: -22%;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.l2-icon {
+    position: relative;
+    display: block;
+    width: clamp(2.6rem, 9vh, 5.4rem);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+}
+
+.l2-icon svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Delikatniejszy tytuł - 900 na kafelku w intensywnym kolorze krzyczał,
+   zwłaszcza gdy kafelki urosły (mniej ich w rzędzie, patrz .l2-wall).
+   Grubość w dół, cień płytszy, bez zmiany rozmiaru czy wersalików. */
 .l2-name {
-    font-size: clamp(1rem, 2.9vh, 2.3rem);
-    font-weight: 900;
+    font-size: clamp(1rem, 2.6vh, 2rem);
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
-    line-height: 1.05;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.38);
+    letter-spacing: 0.03em;
+    line-height: 1.15;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .l2-hook {
@@ -4149,47 +5104,67 @@ body:not(.admin) [role="button"]:focus-visible {
 .l2-players {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.45rem;
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
 .l2-players .team {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.45em 0.7em;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border-left: 5px solid var(--team-color, #888);
+    padding: 0.5em 0.8em;
+    border-radius: 12px;
+    border-left: 0;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--team-color, #888) 28%, transparent), transparent 85%),
+        rgba(255, 255, 255, 0.04);
+    box-shadow: inset 5px 0 0 var(--team-color, #888);
+    font-size: inherit;
 }
 
 .l2-players .team-rank { display: none; }
 
 .l2-players .team-name {
-    font-weight: 700;
-    font-size: clamp(0.82rem, 1.7vh, 1.1rem);
-    overflow-wrap: anywhere;
+    flex: 1;
+    font-weight: 800;
+    font-size: clamp(0.9rem, 2vh, 1.35rem);
+    overflow-wrap: break-word;
 }
 
-/* Przycisk pełnego ekranu - ten sam styl co link turnieju, ale jako <button>. */
+/* ✕ jak na tablo w grze - tylko pod kursorem, bez myszy przygaszony. */
+.l2-players .team-remove {
+    opacity: 0;
+}
+
+.l2-players .team:hover .team-remove,
+.l2-players .team-remove:focus-visible {
+    opacity: 0.8;
+}
+
+@media (hover: none) {
+    .l2-players .team-remove { opacity: 0.45; }
+}
+
 .l2-ctrl {
-    padding: 0.3em 0.9em;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 0.4em 1em;
+    border: 1px solid transparent;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.05);
+    background: transparent;
     color: #9aa0b8;
     font: inherit;
     font-weight: 700;
+    font-size: clamp(0.78rem, 1.6vh, 1.1rem);
     white-space: nowrap;
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease;
 }
 
 .l2-ctrl:hover {
     color: #fff;
-    border-color: rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.07);
 }
 
 /* Telefon albo wąskie okno: ściana zawija się i przewija, zamiast miażdżyć
@@ -4203,6 +5178,7 @@ body:not(.admin) [role="button"]:focus-visible {
     }
 
     .l2-side { grid-template-rows: auto auto auto; }
+    .l2-qr { width: min(60vw, 14rem); }
     .l2-side-list { max-height: 22vh; }
     .l2-players { flex-direction: row; flex-wrap: wrap; }
     .l2-players .team { border-left-width: 4px; }
@@ -4217,4 +5193,135 @@ body:not(.admin) [role="button"]:focus-visible {
 @media (prefers-reduced-motion: reduce) {
     .l2-panel { transition: none; }
     .l2-panel:hover, .l2-panel:focus-visible { transform: none; }
+}
+
+/* Ostatnia litera: wymagana litera, kredyty druzyn, panel sedziego. */
+.required-letter {
+    font-size: 2.5rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+/* Litera obok zegara na telefonie - klawiatura zjada dol ekranu, ale ten rzad
+   siedzi nad nia razem z zegarem, wiec zostaje widoczny. */
+.ol-clock-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.ol-letter-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.ol-input-upper {
+    text-transform: uppercase;
+}
+
+.ol-teams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.ol-team {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ol-team-active {
+    border-color: var(--g-ostatnia-litera);
+    box-shadow: 0 0 0 1px var(--g-ostatnia-litera);
+}
+
+.ol-team-out {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.ol-team-credits {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.judge-panel {
+    margin: 0.75rem 0;
+    padding: 1rem;
+    border-radius: 12px;
+    background: rgba(229, 72, 77, 0.12);
+    border: 1px solid rgba(229, 72, 77, 0.4);
+}
+
+.judge-question {
+    margin: 0 0 0.25rem;
+    opacity: 0.8;
+}
+
+.judge-word {
+    font-size: 1.75rem;
+    font-weight: 900;
+    margin: 0 0 0.75rem;
+}
+
+.ol-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.ol-input-row .form-control {
+    flex: 1;
+}
+
+.ol-error {
+    color: var(--bs-danger, #dc3545);
+    min-height: 1.25em;
+}
+
+/* Lancuch podanych slow na ekranie hosta - rosnie przez cala runde, wiec
+   ogranicznik wysokosci ze scrollem, zeby nie zepchnal reszty panelu. */
+.ol-word-chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+    max-height: 14vh;
+    overflow-y: auto;
+}
+
+.ol-word-chain-item {
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.ol-word-chain-item:not(:last-child)::after {
+    content: '→';
+    margin-left: 0.4rem;
+    opacity: 0.5;
+    font-weight: 400;
+}
+
+.ol-word-chain-current {
+    border-color: var(--g-ostatnia-litera);
+    box-shadow: 0 0 0 1px var(--g-ostatnia-litera);
 }

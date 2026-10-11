@@ -5,7 +5,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-        <meta name="theme-color" content="#0b0d17">
+        <meta name="theme-color" content="#160f3a">
         <meta name="description" content="Gry towarzyskie na telewizor i telefony gości w tej samej sieci - bez zakładania kont.">
         <title>{% block title %}Nasze Gierki{% endblock %}</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.1em%22 font-size=%22104%22>🎲</text></svg>">
@@ -32,11 +32,24 @@
             {# Nasz CSS po Tablerze - dopowiada to, czego framework nie umie:
                skalę czytelną z 3 metrów na telewizorze i pełnoekranowy buzzer. #}
             <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+            {# Fonty: Baloo 2 (tytuły, logo), Nunito (tekst), Caveat (odręczne
+               dopiski) - wszystkie z pełnym polskim alfabetem. Makieta miała
+               Lilita One, ale ta nie ma „ą ć ę ń ś ź ż”: przeglądarka
+               dociągała je z innej czcionki i tytuły wyglądały na zepsute. Z sieci, jak Tabler - gra i tak stoi
+               pod publiczną domeną; bez internetu spadają do systemowych. #}
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link rel="stylesheet"
+                  href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800;900&display=swap">
+            {# Motyw „Gierkownia” (makieta var/gierkownia.png) - nadpisuje
+               app.css tam, gdzie zmienia wygląd ekranu TV i strony startowej. #}
+            <link rel="stylesheet" href="{{ asset('styles/gierkownia.css') }}">
         {% endblock %}
 
         {% block javascripts %}
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
+<script src="/tv-remote.js" defer></script>
     </head>
     {# data-bs-theme: Tabler ma wbudowany tryb ciemny, a gra jest ciemna
        z założenia - jasny framework na telewizorze oślepiałby pokój. #}

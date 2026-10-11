@@ -1,0 +1,30 @@
+{# Wachlarz kart: rewers (bo Dutch to gra pamięci - większość kart leży
+   zakryta), pik i kier. Rysunki ścian gier mają wspólną kreskę: gruby,
+   granatowy kontur, nasycony kolor, połysk - jak naklejki. #}
+<svg viewBox="0 0 160 120" aria-hidden="true">
+    <defs>
+        <linearGradient id="art-dutch-back" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ff7aa8"/><stop offset="1" stop-color="#d6246a"/>
+        </linearGradient>
+    </defs>
+    <ellipse cx="80" cy="110" rx="46" ry="6" fill="#000" opacity=".22"/>
+    <g stroke="#1a1238" stroke-width="3" stroke-linejoin="round">
+        <g transform="rotate(-20 80 104)">
+            <rect x="34" y="24" width="50" height="72" rx="8" fill="url(#art-dutch-back)"/>
+            <rect x="41" y="31" width="36" height="58" rx="5" fill="none" stroke="#ffd1e3" stroke-width="2"/>
+            <path d="M59 48 l6 12 -6 12 -6 -12 z" fill="#ffd1e3" stroke="none"/>
+        </g>
+        <g>
+            <rect x="55" y="16" width="50" height="72" rx="8" fill="#fff"/>
+            <path d="M80 34 C64 48 68 64 80 57 C92 64 96 48 80 34 Z" fill="#1a1238"/>
+            <path d="M80 55 L73 68 H87 Z" fill="#1a1238"/>
+            <text x="61" y="31" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="13" fill="#1a1238" stroke="none">A</text>
+        </g>
+        <g transform="rotate(20 80 104)">
+            <rect x="76" y="24" width="50" height="72" rx="8" fill="#fff"/>
+            <path d="M101 72 C82 58 88 42 101 51 C114 42 120 58 101 72 Z" fill="#ff3b5c"/>
+            <text x="82" y="39" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="13" fill="#ff3b5c" stroke="none">K</text>
+        </g>
+    </g>
+    <path d="M128 18 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z" fill="#fff"/>
+</svg>

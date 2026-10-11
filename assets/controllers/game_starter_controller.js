@@ -8,8 +8,27 @@ import { softNavigate } from '../soft_nav.js';
 export default class extends Controller {
     static values = { startUrl: String };
 
+    // „Losuj grę” - wybiera spośród kafelków na ekranie, więc tak jak reszta
+    // kontrolera nie zna żadnej gry z nazwy.
+    startRandom(event) {
+        const tiles = [...this.element.querySelectorAll('[data-game-type]')];
+
+        if (0 === tiles.length) {
+            return;
+        }
+
+        event.currentTarget.disabled = true;
+        const tile = tiles[Math.floor(Math.random() * tiles.length)];
+        tile.focus();
+
+        return this.#launch(tile);
+    }
+
     async start(event) {
-        const button = event.currentTarget;
+        return this.#launch(event.currentTarget);
+    }
+
+    async #launch(button) {
         button.disabled = true;
 
         const response = await fetch(this.startUrlValue, {

@@ -16,6 +16,9 @@ final readonly class BuzzResult
     /** Ktos byl szybszy. */
     public const REASON_LOCKED = 'locked';
 
+    /** Ta druzyna juz probowala na tym samym utworze/pytaniu i odpowiedziala zle. */
+    public const REASON_EXCLUDED = 'excluded';
+
     private function __construct(
         public bool $accepted,
         public int $round,
@@ -37,6 +40,17 @@ final readonly class BuzzResult
     public static function locked(int $round, ?string $winnerTeamId): self
     {
         return new self(false, $round, self::REASON_LOCKED, $winnerTeamId);
+    }
+
+    /**
+     * Wykluczenie nie jest rozstrzygane tu ani w BuzzerArbiter (to bramka
+     * "kto pierwszy", nie "kto juz probowal") - modul gry (np. Melodia) sam
+     * pilnuje listy wykluczonych druzyn i buduje ten wynik, zanim w ogole
+     * zapyta arbitra o SET NX.
+     */
+    public static function excluded(int $round): self
+    {
+        return new self(false, $round, self::REASON_EXCLUDED, null);
     }
 
     /** @return array<string, mixed> */

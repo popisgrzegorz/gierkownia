@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
@@ -193,6 +194,40 @@ final class RoomController extends AbstractController
         $this->publisher->broadcast($code, new Event(Event::RESET));
 
         return $this->redirectToRoute('host_screen', ['code' => $code]);
+    }
+
+    /**
+     * Usuwa druzyne z pokoju - host wyrzuca kogos, kto dolaczyl przez pomylke
+     * albo wyszedl z imprezy. Bez tokenu CSRF: wywolywane fetchem z panelu
+     * hosta, nie klasycznym formularzem z pelna nawigacja - ten sam wyjatek
+     * co akcje gry w GameController (SameSite=Lax nie chroni formularzy,
+     * ale obcy fetch i tak nie dolaczy ciasteczka bez zgody CORS).
+     */
+    #[Route('/room/{code}/team/remove', name: 'room_remove_team', methods: ['POST'], requirements: ['code' => '[A-Z]{4}'])]
+    public function removeTeam(Request $request, string $code): JsonResponse
+    {
+        $room = $this->rooms->getOrFail($code);
+        $this->access->requireHost($request, $room->code);
+
+        $payload = json_decode($request->getContent(), true);
+        $teamId = \is_array($payload) && \is_string($payload['teamId'] ?? null) ? $payload['teamId'] : '';
+        $team = '' === $teamId ? null : $this->rooms->team($room->code, $teamId);
+
+        if (null === $team) {
+            throw new BadRequestHttpException('Nie ma takiej drużyny w tym pokoju.');
+        }
+
+        $this->rooms->removeTeam($room->code, $team->id);
+
+        // Rozgloszenie, nie prywatny topic druzyny: gospodarz i wszystkie
+        // telefony (w tym wlasnie usuwany) sluchaja tego samego kanalu
+        // pokoju, wiec jeden broadcast wystarcza obu odbiorcom na raz.
+        $this->publisher->broadcast($room->code, new Event('team_removed', [
+            'teamId' => $team->id,
+            'teamName' => $team->name,
+        ]));
+
+        return new JsonResponse(['ok' => true]);
     }
 
     /**

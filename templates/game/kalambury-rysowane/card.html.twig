@@ -1,0 +1,11 @@
+{# Kafelek kalambur rysowanych - własny kolor (róż), odróżnia się od zwykłych
+   Kalambur i od Dutcha (oba już zajęły sąsiednie odcienie zieleni). #}
+{% embed 'game/_card.html.twig' with {
+    game: game,
+    color: '#e64980',
+    lead: 'Rysuj na tablecie, reszta zgaduje na głos!'
+} %}
+    {% block art %}
+        {{ include('game/kalambury-rysowane/icon.html.twig') }}
+    {% endblock %}
+{% endembed %}

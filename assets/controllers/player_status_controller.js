@@ -6,7 +6,7 @@ import { MercureStream } from '../live/mercure_stream.js';
  * polaczenia. Buzzer i wejscia gier doloza sie tutaj w kolejnych modulach.
  */
 export default class extends Controller {
-    static targets = ['score', 'connection', 'waiting'];
+    static targets = ['score', 'connection', 'waiting', 'removedOverlay'];
     static values = { hub: String, team: String, game: String };
 
     connect() {
@@ -37,6 +37,20 @@ export default class extends Controller {
 
         if ('reset' === event.type) {
             this.#showScore(0);
+        }
+
+        // Host wyrzucił WŁAŚNIE TĘ drużynę - rozgłoszenie leci do całego
+        // pokoju (patrz RoomController::removeTeam), więc filtrujemy po id
+        // tak samo jak przy 'score'. Nakładka przykrywa cały ekran i tu się
+        // kończy - telefon i tak nie ma już do czego wracać.
+        if ('team_removed' === event.type && event.teamId === this.teamValue) {
+            this.stream?.disconnect();
+
+            if (this.hasRemovedOverlayTarget) {
+                this.removedOverlayTarget.hidden = false;
+            }
+
+            return;
         }
 
         // Zmiana gry: sterownik to szablon renderowany przez serwer, wiec

@@ -1,122 +1,175 @@
 {# ------------------------------------------------------------------------
-   Ekran wyboru gry — WERSJA 2 (domyślna; stara pod ?v=1).
+   Ekran wyboru gry — motyw „Gierkownia” (makieta var/gierkownia.png).
 
-   Koncept: pełnoekranowa „ściana gier". Każdy tytuł to nasycony panel w swoim
-   kolorze, na całą wysokość — jak rząd automatów w salonie gier. Po LEWEJ
-   pionowa kolumna dołączających graczy (mieści dużo nazwisk i przewija się,
-   gdy jest ich naprawdę wielu), u góry dołączanie kodem i QR.
+   Układ makiety: logo i główne przyciski u góry po lewej, pod nimi ściana
+   kolorowych kafelków gier (4 × 2), po prawej kolumna dołączania (kod + QR,
+   instrukcja, turniej), na dole pas graczy w pokoju z przyciskami hosta.
 
    Reużywa kontrolerów rdzenia: room-board (SSE: gracze, połączenie, pełny
-   ekran), game-starter (start gry), sfx (dźwięk). Kolory i hasła gier trzyma
-   lokalna mapa — dzięki temu v2 nie dotyka szablonów kafelków v1.
-   ------------------------------------------------------------------------ #}
-{% set meta = {
-    'dutch':          {c: '#12b886', hook: 'Zapamiętaj, podmieniaj, wołaj „Dutch”!', e: '🃏'},
-    'kalambury':      {c: '#30a46c', hook: 'Pokaż to bez słów — reszta zgaduje!',      e: '🎭'},
-    'kolo':           {c: '#f5a524', hook: 'Zakręć kołem i zgarnij pulę!',             e: '🎡'},
-    'melodia':        {c: '#3e63dd', hook: 'Pierwszy buzzer łapie tytuł!',             e: '💿'},
-    'melodia-quiz':   {c: '#5b7cf0', hook: 'Cztery tytuły — jeden prawdziwy!',          e: '🎧'},
-    'panstwa-miasta': {c: '#8e4ec6', hook: 'Litera, kategoria, czas — start!',          e: '🌍'},
-} %}
+   ekran), game-starter (start gry, losowanie gry), sfx (dźwięk), tournament
+   (modal z tabelą). Kolory i hasła gier trzyma lokalna mapa poniżej - te same
+   barwy co --g-* w app.css.
 
-<main class="l2"
+   Ilustracje to ręcznie rysowane SVG (game/{typ}/art.html.twig), nie emoji -
+   emoji wyglądają inaczej na każdym telewizorze i czuć po nich gotowy zestaw. #}
+{% set meta = {
+    'dutch':              {c: '#1e7bf0', hook: 'Zapamiętaj karty i wołaj „Dutch”!'},
+    'kalambury':          {c: '#e8336d', hook: 'Pokaż bez słów, reszta zgaduje'},
+    'kalambury-rysowane': {c: '#7b3fe4', hook: 'Rysuj, a inni zgadują'},
+    'kolo':               {c: '#f39a12', hook: 'Kręć, rozwiązuj, wygrywaj'},
+    'melodia':            {c: '#119fc0', hook: 'Posłuchaj i odgadnij'},
+    'melodia-quiz':       {c: '#8a3ff0', hook: 'Wybierz właściwą odpowiedź'},
+    'ostatnia-litera':    {c: '#2fb24c', hook: 'Słowa, refleks, rywalizacja'},
+    'panstwa-miasta':     {c: '#f2622a', hook: 'Klasyka w nowej odsłonie'},
+} %}
+{% set host = joinUrl|replace({'http://': '', 'https://': ''})|split('/')|first %}
+
+<main class="l2 gk-lobby"
       data-controller="room-board game-starter sfx tournament"
       data-room-board-hub-value="{{ hubUrl }}"
       data-room-board-code-value="{{ room.code }}"
+      data-room-board-remove-team-url-value="{{ path('room_remove_team', {code: room.code}) }}"
       data-game-starter-start-url-value="{{ path('game_start', {code: room.code}) }}">
 
-    <header class="l2-top">
-        <div class="l2-brand">
-            <span class="l2-logo">GIERK<span class="l2-star">★</span>WNIA</span>
-            <span class="l2-tag">wybierzcie grę</span>
-        </div>
+    <div class="gk-lobby-main">
+        <header class="gk-lobby-head">
+            <h1 class="gk-lobby-logo">{{ include('_brand/logo.html.twig') }}</h1>
 
-        <div class="l2-join">
-            <div class="l2-join-text">
-                <span class="l2-join-lead">Dołącz telefonem</span>
-                <span class="l2-code">{{ room.code }}</span>
-                <span class="l2-url">{{ joinUrl|replace({'http://': '', 'https://': ''}) }}</span>
+            <div class="gk-lobby-actions">
+                {# Miejsce „Nowej gry” z makiety: pokój już stoi, więc tu
+                   „nowa gra” znaczy „zagrajmy w coś” - losowanie dla stołu,
+                   który nie może się zdecydować. Wybiera spośród kafelków
+                   poniżej, więc nie zna gier z nazwy. #}
+                <button type="button" class="gk-btn gk-btn-primary gk-btn-xl"
+                        data-action="game-starter#startRandom">
+                    <span class="gk-play" aria-hidden="true"></span> Losuj grę
+                </button>
+                {# Wznowienie zakłada NOWY pokój z zapisanego turnieju - to ta
+                   sama strona, co „wznów” na ekranie startowym. #}
+                <a class="gk-btn gk-btn-secondary" href="{{ path('tournament_list') }}">
+                    <span aria-hidden="true">⟳</span> Wznów turniej
+                </a>
             </div>
-            <img class="l2-qr" src="{{ qr }}" alt="Kod QR pokoju {{ room.code }}" width="190" height="190">
-        </div>
-    </header>
+        </header>
 
-    {% if resumedFrom %}
-        {# Kod pokoju nigdy nie przezywa do "wroccie jutro" (caly stan zyje
-           w Redisie z TTL) - wznowienie zaklada NOWY pokoj z NOWYM kodem. Bez
-           tego komunikatu host mogl nie zauwazyc, ze to nie ten sam kod co
-           poprzednio, i pokazac gosciom nieaktualny. #}
-        <p class="resumed-banner">
-            ↺ Wznowiono zapis „{{ resumedFrom }}” — to <strong>nowy kod</strong>, pokażcie go
-            graczom. Kto grał wcześniej, niech wpisze swoją starą nazwę drużyny, żeby odzyskać punkty.
-        </p>
-    {% endif %}
+        {% if resumedFrom %}
+            {# Kod pokoju nigdy nie przezywa do "wroccie jutro" (caly stan zyje
+               w Redisie z TTL) - wznowienie zaklada NOWY pokoj z NOWYM kodem. Bez
+               tego komunikatu host mogl nie zauwazyc, ze to nie ten sam kod co
+               poprzednio, i pokazac gosciom nieaktualny. #}
+            <p class="resumed-banner">
+                ↺ Wznowiono zapis „{{ resumedFrom }}” — to <strong>nowy kod</strong>, pokażcie go
+                graczom. Kto grał wcześniej, niech wpisze swoją starą nazwę drużyny, żeby odzyskać punkty.
+            </p>
+        {% endif %}
 
-    <div class="l2-body">
-        {# Gracze po lewej, pionowo: kolumna mieści wielu i przewija się sama,
-           gdy dołączy naprawdę duża ekipa. #}
-        <aside class="l2-side">
-            <div class="l2-side-head">
-                <span class="l2-side-title">Gracze <span data-room-board-target="count">({{ teams|length }})</span></span>
-                <span class="conn" data-room-board-target="connection" data-state="connecting" aria-live="polite" role="status">łączenie…</span>
-            </div>
+        <h2 class="gk-section-title">Wybierz grę</h2>
 
-            <div class="l2-side-list">
-                <p class="l2-empty" data-room-board-target="empty" {{ teams is not empty ? 'hidden' : '' }}>
-                    czekamy na telefony…
-                </p>
-                <ul class="l2-players" data-room-board-target="list">
-                    {% for team in teams %}
-                        <li class="team" data-team-id="{{ team.id }}" style="--team-color: {{ team.color }}">
-                            <span class="team-rank"></span>
-                            <span class="team-name">{{ team.name }}</span>
-                            <span class="team-score" data-score hidden>{{ team.score }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="l2-side-foot">
-                {# Ta sama tabela turnieju co w v1, jako modal (patrz niżej) -
-                   v2 miała tylko link do osobnej strony, bez Resetu i bez
-                   przełącznika dźwięku (P2-25 audytu: host, który wyciszył
-                   grę, nie miał czym jej odciszyć bez powrotu na ?v=1). #}
-                <button type="button" class="l2-ctrl" data-action="room-board#openStandings">🏆 Turniej</button>
-
-                <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
-                      data-controller="soft-nav" data-action="submit->soft-nav#submit"
-                      data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
-                    <button type="submit" class="l2-ctrl">↺ Reset</button>
-                </form>
-
-                <button type="button" class="l2-ctrl" data-sfx-target="button" data-action="sfx#toggle">🔊 Dźwięk</button>
-
-                {# Pełny ekran przez ten sam mechanizm co w v1 (room-board#toggleFocus
-                   → natywny requestFullscreen), chowa pasek adresu telewizora. #}
-                <button type="button" class="l2-ctrl" data-action="room-board#toggleFocus">⛶ Pełny ekran</button>
-            </div>
-        </aside>
-
-        {# Parzysta liczba gier układa się w dwa rzędy (6 → po 3), żeby panele nie
-           robiły się za wąskie. Nieparzysta zostaje w jednym rzędzie - dwóch
-           równych nie da się z niej złożyć bez sieroty. #}
-        {% set n = games|length %}
-        {% set even = n > 0 and n % 2 == 0 %}
-        {% set cols = even ? (n / 2)|round(0, 'floor') : n %}
-        <section class="l2-wall {{ even ? 'l2-wall-grid' : '' }}" style="--cols: {{ cols }}">
+        {# Mozaika sama dobiera liczbę kolumn (auto-fit) - działa tak samo przy
+           2 grach i przy 10, bez liczenia parzystości w Twigu. #}
+        <section class="gk-wall l2-wall">
             {% for game in games %}
-                {% set m = meta[game.type]|default({c: '#8d93b0', hook: 'Zagraj z telefonami gości.', e: '🎮'}) %}
-                <button type="button" class="l2-panel" style="--c: {{ m.c }}"
+                {% set m = meta[game.type]|default({c: '#6b5cff', hook: 'Zagraj z telefonami gości'}) %}
+                <button type="button" class="gk-tile" style="--c: {{ m.c }};"
                         data-game-type="{{ game.type }}" data-action="game-starter#start">
-                    <span class="l2-emoji" aria-hidden="true">{{ m.e }}</span>
-                    <span class="l2-name">{{ game.name }}</span>
-                    <span class="l2-hook">{{ m.hook }}</span>
-                    <span class="l2-go">GRAJ ▶</span>
+                    <span class="gk-tile-art">
+                        {{ include(['game/' ~ game.type ~ '/art.html.twig', 'game/_art.html.twig']) }}
+                    </span>
+                    <span class="gk-tile-name">{{ game.name }}</span>
+                    <span class="gk-tile-hook">{{ m.hook }}</span>
                 </button>
             {% endfor %}
         </section>
     </div>
+
+    <aside class="gk-lobby-side">
+        <section class="gk-card gk-code-card">
+            <div class="gk-code-text">
+                <span class="gk-eyebrow">Kod pokoju</span>
+                <span class="gk-code">{{ room.code }}</span>
+                <span class="gk-code-url">{{ host }}</span>
+            </div>
+            <img class="gk-qr" src="{{ qr }}" alt="Kod QR pokoju {{ room.code }}" width="320" height="320">
+        </section>
+
+        <section class="gk-card gk-steps-card">
+            <h3 class="gk-card-title"><span class="gk-phone" aria-hidden="true"></span> Dołącz telefonem</h3>
+            <ol class="gk-steps">
+                <li><span class="gk-step-no">1</span><span>Otwórz stronę <strong>{{ host }}</strong></span></li>
+                <li><span class="gk-step-no">2</span><span>Wpisz kod pokoju: <strong class="gk-hl">{{ room.code }}</strong></span></li>
+                <li><span class="gk-step-no">3</span><span>Dołącz do gry!</span></li>
+            </ol>
+            <span class="gk-scribble" aria-hidden="true">Zeskanuj kod QR<br>i dołącz od razu!</span>
+        </section>
+
+        {# Turniej: punkty za miejsca ze wszystkich rozegranych gier. Na ten
+           ekran wraca się po każdej grze, więc stan z serwera jest świeży;
+           na żywo przelicza się tabela w modalu (kontroler tournament). #}
+        <section class="gk-card gk-rank-card">
+            <h3 class="gk-card-title"><span aria-hidden="true">🏆</span> Turniej</h3>
+            {% set top = tournament|slice(0, 4) %}
+            {% if playedGames == 0 or top is empty %}
+                <div class="gk-rank-empty">
+                    <svg viewBox="0 0 120 120" aria-hidden="true">
+                        <g stroke="#1a1238" stroke-width="4" stroke-linejoin="round">
+                            <path d="M30 22 H14 C14 46 26 54 38 56 M90 22 H106 C106 46 94 54 82 56" fill="none" stroke="#ffb000" stroke-width="7"/>
+                            <path d="M30 14 H90 V40 C90 60 76 72 60 72 C44 72 30 60 30 40 Z" fill="#ffc21a"/>
+                            <rect x="52" y="72" width="16" height="16" fill="#ffb000"/>
+                            <rect x="36" y="88" width="48" height="16" rx="4" fill="#8a5a2b"/>
+                        </g>
+                        <path d="M42 24 V44" stroke="#fff6c4" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M60 30 l4 8 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1 z" fill="#fff6c4"/>
+                    </svg>
+                    <p class="gk-muted">Ranking ruszy po pierwszej grze.</p>
+                </div>
+            {% else %}
+                <ol class="gk-rank">
+                    {% for team in top %}
+                        <li style="--team-color: {{ team.color }}">
+                            <span class="gk-rank-no">{{ loop.index }}</span>
+                            <span class="gk-rank-name">{{ team.name }}</span>
+                            <strong>{{ team.total }}</strong>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% endif %}
+            <button type="button" class="gk-link" data-action="room-board#openStandings">Pełna tabela →</button>
+        </section>
+    </aside>
+
+    <footer class="gk-players-bar">
+        <span class="gk-players-title">
+            <span class="gk-people" aria-hidden="true"></span>
+            Gracze w pokoju <span data-room-board-target="count">({{ teams|length }})</span>
+        </span>
+
+        <ul class="gk-players l2-players" data-room-board-target="list">
+            {% for team in teams %}
+                <li class="team" data-team-id="{{ team.id }}" style="--team-color: {{ team.color }}">
+                    <span class="team-rank"></span>
+                    <span class="team-name">{{ team.name }}</span>
+                    <span class="team-score" data-score hidden>{{ team.score }}</span>
+                    <button type="button" class="team-remove" data-action="room-board#removeTeam"
+                            title="Usuń drużynę z gry" aria-label="Usuń drużynę z gry">✕</button>
+                </li>
+            {% endfor %}
+        </ul>
+        <span class="gk-wait"><span class="gk-wait-plus" aria-hidden="true">+</span> Czekamy<br>na graczy…</span>
+
+        <div class="gk-bar-tools">
+            <span class="conn" data-room-board-target="connection" data-state="connecting" aria-live="polite" role="status">łączenie…</span>
+            <button type="button" class="gk-tool" data-sfx-target="button" data-action="sfx#toggle" title="Dźwięk">🔊 Dźwięk</button>
+            <form method="post" action="{{ path('room_reset', {code: room.code}) }}" class="reset-form"
+                  data-controller="soft-nav" data-action="submit->soft-nav#submit"
+                  data-confirm="Zerować punkty i stan gry? Drużyny zostają w pokoju.">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('room') }}">
+                <button type="submit" class="gk-tool" title="Reset punktów i gry" aria-label="Reset punktów i gry">↺</button>
+            </form>
+            {# Pełny ekran przez room-board#toggleFocus → natywny requestFullscreen,
+               chowa pasek adresu telewizora. #}
+            <button type="button" class="gk-tool" data-action="room-board#toggleFocus" title="Pełny ekran" aria-label="Pełny ekran">⛶</button>
+        </div>
+    </footer>
 
     {# Kontroler klonuje ten szablon, gdy ktoś dołączy w trakcie. #}
     <template data-room-board-target="template">
@@ -124,11 +177,13 @@
             <span class="team-rank"></span>
             <span class="team-name"></span>
             <span class="team-score" data-score hidden>0</span>
+            <button type="button" class="team-remove" data-action="room-board#removeTeam"
+                    title="Usuń drużynę z gry" aria-label="Usuń drużynę z gry">✕</button>
         </li>
     </template>
 
-    {# Ta sama tabela turnieju co w v1 (host/screen.html.twig) - punkty za
-       miejsca ze wszystkich gier, nie surowy wynik biężącej. #}
+    {# Ta sama tabela turnieju co w trakcie gry (host/screen.html.twig) - punkty
+       za miejsca ze wszystkich gier, nie surowy wynik bieżącej. #}
     <div class="standings-modal" data-room-board-target="standingsModal" hidden
          data-action="click->room-board#closeStandings">
         <div class="standings-modal-card" data-action="click->room-board#stop">

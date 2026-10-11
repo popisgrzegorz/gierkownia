@@ -87,6 +87,79 @@ final readonly class PhraseDeck
         return [] === $remaining ? null : $remaining[random_int(0, \count($remaining) - 1)];
     }
 
+    /**
+     * Trzy nieuzyte hasla do wyboru przez rysujacego (kalambury rysowane) -
+     * jedno na kazdy poziom trudnosci.
+     *
+     * Kategorie w tym slowniku maja w praktyce JEDNA, wspolna trudnosc na
+     * cala kategorie (Slownik, difficulty per kategoria, nie per haslo) -
+     * dopasowanie "poziom = dokladnie ta trudnosc" trafialoby wiec niemal
+     * zawsze tylko w jeden slot z trzech, a rysujacy widzialby jedna oferte
+     * zamiast trzech (zgloszenie uzytkownika przy pierwszym realnym teście).
+     * Dlatego pierwszy przebieg probuje dokladnych trafien (przyda sie, gdy
+     * ktos kiedys zroznicuje trudnosc w obrebie kategorii), a drugi dobiera
+     * z reszty puli KAZDY pusty jeszcze slot - etykieta trudnosci staje sie
+     * wtedy stawka punktowa ("ile chcesz zaryzykowac"), a nie deklaracja
+     * "to jest trudne", ale wybor miedzy trzema realnymi haslami zostaje.
+     * Pusty wynikowy slot znaczy wylacznie "hasel w kategorii juz zabraklo",
+     * nie "ten poziom trudnosci nie istnieje".
+     *
+     * @param list<int> $playedIds
+     *
+     * @return array<string, Phrase> klucz = poziom trudnosci (Phrase::DIFFICULTIES)
+     */
+    public function drawChoices(string $gameType, string $slug, array $playedIds): array
+    {
+        $category = $this->categories->findOneForGame($gameType, $slug);
+
+        if (null === $category) {
+            return [];
+        }
+
+        $remaining = array_values(array_filter(
+            $this->phrases->findForCategory($category),
+            static fn (Phrase $phrase): bool => !\in_array($phrase->getId(), $playedIds, true),
+        ));
+
+        $choices = [];
+        $used = [];
+
+        foreach (Phrase::DIFFICULTIES as $level) {
+            $pool = array_values(array_filter(
+                $remaining,
+                static fn (Phrase $phrase): bool => $level === $phrase->getDifficulty()
+                    && !\in_array($phrase->getId(), $used, true),
+            ));
+
+            if ([] !== $pool) {
+                $picked = $pool[random_int(0, \count($pool) - 1)];
+                $choices[$level] = $picked;
+                $used[] = $picked->getId();
+            }
+        }
+
+        foreach (Phrase::DIFFICULTIES as $level) {
+            if (isset($choices[$level])) {
+                continue;
+            }
+
+            $pool = array_values(array_filter(
+                $remaining,
+                static fn (Phrase $phrase): bool => !\in_array($phrase->getId(), $used, true),
+            ));
+
+            if ([] === $pool) {
+                continue;
+            }
+
+            $picked = $pool[random_int(0, \count($pool) - 1)];
+            $choices[$level] = $picked;
+            $used[] = $picked->getId();
+        }
+
+        return $choices;
+    }
+
     public function find(int $id): ?Phrase
     {
         return $this->phrases->find($id);
