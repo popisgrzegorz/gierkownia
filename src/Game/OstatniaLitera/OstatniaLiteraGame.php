@@ -77,6 +77,14 @@ final class OstatniaLiteraGame extends AbstractGame
     /** Miekkie spolgloski koncowe i ich dwuznak na poczatku kolejnego slowa. */
     private const DIGRAPHS = ['ń' => 'ni', 'ć' => 'ci', 'ś' => 'si', 'ź' => 'zi'];
 
+    /**
+     * Samogloski nosowe na koncu slowa: zadne polskie slowo nie zaczyna sie na
+     * "ą" (na "ę" praktycznie tez nie), a "gęślą" konczy sie wlasnie na "ą" -
+     * nastepna druzyna nie miala czym odpowiedziec i obie traciły punkty za
+     * spoznienie do konca gry. Wymagana jest wiec litera bazowa (a, e).
+     */
+    private const NASAL_FALLBACKS = ['ą' => 'a', 'ę' => 'e'];
+
     /** Tresc porownywana w submit(), zeby odroznic powtorke od innych bledow checkWord(). */
     private const DUPLICATE_MESSAGE = 'To słowo już padło w tej grze.';
 
@@ -483,12 +491,14 @@ final class OstatniaLiteraGame extends AbstractGame
         if (null !== $lastWord) {
             $lastChar = mb_strtolower(mb_substr($lastWord, -1));
             $digraph = self::DIGRAPHS[$lastChar] ?? null;
+            $fallback = self::NASAL_FALLBACKS[$lastChar] ?? null;
+            $first = mb_strtolower(mb_substr($word, 0, 1));
 
-            $startsWithChar = $lastChar === mb_strtolower(mb_substr($word, 0, 1));
+            $startsWithChar = $lastChar === $first || (null !== $fallback && $fallback === $first);
             $startsWithDigraph = null !== $digraph && $digraph === mb_strtolower(mb_substr($word, 0, 2));
 
             if (!$startsWithChar && !$startsWithDigraph) {
-                return sprintf('Słowo musi zaczynać się na „%s”.', mb_strtoupper($digraph ?? $lastChar));
+                return sprintf('Słowo musi zaczynać się na „%s”.', mb_strtoupper($digraph ?? $fallback ?? $lastChar));
             }
         }
 
