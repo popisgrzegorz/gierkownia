@@ -75,6 +75,11 @@ export default class extends Controller {
 
             case 'word_pending':
                 this.stateValue = 'judging';
+                // Serwer zatrzymuje zegar na czas sprawdzania słowa (po werdykcie
+                // startuje nowy i przychodzi 'timer'), a telefon dalej odliczał -
+                // gracz mógł myśleć, że za chwilę straci punkty za spóźnienie.
+                clearInterval(this.ticker);
+                this.clockTarget.hidden = true;
                 break;
 
             case 'word_ruled':

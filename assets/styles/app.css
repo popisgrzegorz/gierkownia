@@ -1741,7 +1741,9 @@ body:not(.admin) .tv-bar-right .btn-icon {
 .turn-note {
     margin: 0;
     font-weight: 700;
-    color: var(--team-color);
+    /* Kolor drużyny rozjaśniony: czerwony/granatowy wprost z palety drużyn na
+       ciemnym tle telefonu był słabo czytelny, a to jedyna instrukcja tury. */
+    color: color-mix(in srgb, var(--team-color) 60%, #fff);
     min-height: 1.4em;
 }
 
@@ -1794,16 +1796,28 @@ body:not(.admin) .tv-bar-right .btn-icon {
     gap: 0.5rem;
 }
 
-/* Bez min-width: 0 pole tekstowe nie chce się skurczyć poniżej swojej
-   domyślnej szerokości i prawa krawędź formularza wychodzi poza ekran
-   telefonu (390 px). */
+/* Tabler daje grupie flex-wrap: wrap, a polu width: 100% - na wąskim telefonie
+   przycisk zawijał się pod pole, które (w wariancie "flat") nie ma prawej
+   ramki, bo spodziewa się przycisku obok. Wyglądało to na ucięte pole.
+   Pole ma więc bazę 0 (rośnie do reszty miejsca), a przycisk tyle, ile
+   potrzebuje; sprawdzone przy 375 px: obaj mieszczą się w kolumnie. */
 .solve-form .input-group {
     flex: 1 1 auto;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
 }
 
-.solve-form input {
+.solve-form .input-group .form-control {
+    flex: 1 1 0;
+    width: 0;
     min-width: 0;
+}
+
+.solve-form .input-group .btn {
+    flex: 0 0 auto;
+    width: auto;
 }
 
 /* Podpowiedź do hasła (kategoria • wskazówka) to jedyna pomoc w zgadywaniu,
@@ -4047,8 +4061,15 @@ body:not(.admin) .tv-bar-right .btn-icon {
 .quiz-message {
     margin: 0;
     font-weight: 800;
-    font-size: clamp(1rem, 2.4vmin, 1.5rem);
+    font-size: clamp(0.95rem, 1.85vmin, 1.3rem);
+    line-height: 1.2;
     min-height: 1.2em;
+    /* Długi tytuł wyniku zajmuje 3 linie. Bez flex: 0 0 auto kontener ściskał
+       wiadomość do wysokości dwóch, a trzecia linia wchodziła pod przyciski
+       i była ucięta. */
+    flex: 0 0 auto;
+    overflow-wrap: break-word;
+    text-wrap: balance;
 }
 
 .quiz-message.good { color: #30a46c; }

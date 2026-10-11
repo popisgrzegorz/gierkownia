@@ -167,7 +167,14 @@ export default class extends Controller {
         this.bannerTarget.hidden = !buzz;
 
         if (buzz) {
-            this.bannerTarget.textContent = `${buzz.teamName} ma głos!`;
+            // Po ocenie (state 'judging') buzz zostaje w ctx do rearm/następnego
+            // utworu, więc baner „ma głos!" wisiał nad „Graj dalej" i nie było
+            // wiadomo, czy tura tej drużyny trwa. Po ocenie pokazujemy werdykt.
+            const verdict = 'judging' === view.state ? view.lastResult : null;
+
+            this.bannerTarget.textContent = 'wrong' === verdict
+                ? `Źle: ${buzz.teamName}`
+                : ('correct' === verdict ? `Dobrze: ${buzz.teamName}!` : `${buzz.teamName} ma głos!`);
             this.bannerTarget.style.setProperty('--team-color', buzz.color);
         }
     }
