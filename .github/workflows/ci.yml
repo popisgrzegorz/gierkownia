@@ -85,6 +85,11 @@ jobs:
 
       - run: php bin/phpunit
 
+      # phpstan-symfony czyta kontener srodowiska dev (phpstan.dist.neon), a w CI
+      # nikt go jeszcze nie zbudowal - bez rozgrzania PHPStan konczy sie bledem.
+      - name: Kontener dev dla PHPStan
+        run: APP_ENV=dev php bin/console cache:warmup
+
       - run: php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
 
   lint-js:
